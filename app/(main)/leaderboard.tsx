@@ -77,7 +77,7 @@ export default function LeaderboardScreen() {
               item.rank === 1 && { color: Colors.dark.gold },
             ]}
           >
-            {item.name}
+            {item.name || 'Anonymous'}
           </Text>
           <View style={styles.tierRow}>
             <View style={[styles.tierDot, { backgroundColor: tier.color }]} />

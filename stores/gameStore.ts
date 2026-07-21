@@ -16,6 +16,7 @@ interface GameActions {
   endRun: () => void;
   resetGame: () => void;
   setQuestions: (questions: GameState['questions']) => void;
+  resetQuestionIndex: () => void;
   markQuestionAnswered: (questionId: string) => void;
   setLastAnswerTime: (time: number) => void;
 }
@@ -98,6 +99,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
   resetGame: () => set(initialGameState),
 
   setQuestions: (questions) => set({ questions }),
+
+  resetQuestionIndex: () => set({ questionIndex: 0 }),
 
   markQuestionAnswered: (questionId) =>
     set((state) => ({

@@ -64,7 +64,7 @@ export default function MainLayout() {
         }}
       />
       <Tabs.Screen
-        name="[runId]"
+        name="help"
         options={{
           href: null,
         }}

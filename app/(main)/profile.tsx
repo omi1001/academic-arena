@@ -7,6 +7,7 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
 import api from '../../lib/api';
@@ -16,6 +17,7 @@ import { Colors } from '../../constants/theme';
 import { LEADERBOARD_TIERS } from '../../constants/config';
 
 export default function ProfileScreen() {
+  const router = useRouter();
   const { firebaseUser, logout } = useAuthStore();
   const { profile, setProfile } = useUserStore();
 
@@ -98,6 +100,10 @@ export default function ProfileScreen() {
           <Text style={styles.statLabel}>Accuracy</Text>
         </View>
       </View>
+
+      <TouchableOpacity style={styles.helpButton} onPress={() => router.push('/(main)/help')}>
+        <Text style={styles.helpButtonText}>Help & Support</Text>
+      </TouchableOpacity>
 
       <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
         <Text style={styles.logoutButtonText}>Logout</Text>
@@ -187,6 +193,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.dark.textMuted,
     marginTop: 4,
+  },
+  helpButton: {
+    backgroundColor: Colors.dark.surface,
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    marginBottom: 12,
+  },
+  helpButtonText: {
+    color: Colors.dark.text,
+    fontSize: 16,
+    fontWeight: '600',
   },
   logoutButton: {
     backgroundColor: Colors.dark.surface,

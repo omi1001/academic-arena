@@ -127,13 +127,17 @@ export default function GameRunScreen() {
           limit: QUESTIONS_PER_BATCH,
         },
       });
-      questionBatchRef.current = res.data;
       if (res.data.length > 0) {
+        questionBatchRef.current = res.data;
         game.setQuestions(res.data);
+        game.resetQuestionIndex();
         game.setQuestion(res.data[0]);
+      } else {
+        endGame('completed');
       }
     } catch (e) {
       console.warn('Failed to fetch questions:', e);
+      endGame('completed');
     } finally {
       setIsLoading(false);
     }
@@ -171,10 +175,12 @@ export default function GameRunScreen() {
     if (correct) {
       const exp = calculateEXP();
       game.correctAnswer(exp);
+      game.markQuestionAnswered(game.currentQuestion._id);
       user.addExp(exp);
       user.incrementQuestions(true);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } else {
+      game.markQuestionAnswered(game.currentQuestion._id);
       const remaining = game.incorrectAnswer();
       user.incrementQuestions(false);
       Vibration.vibrate(200);

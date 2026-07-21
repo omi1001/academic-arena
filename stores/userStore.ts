@@ -42,8 +42,8 @@ export const useUserStore = create<UserState>((set) => ({
       return {
         profile: {
           ...state.profile,
-          questionsAnswered: state.profile.questionsAnswered + 1,
-          correctAnswers: state.profile.correctAnswers + (correct ? 1 : 0),
+          totalAnswered: state.profile.totalAnswered + 1,
+          totalCorrect: state.profile.totalCorrect + (correct ? 1 : 0),
         },
       };
     }),

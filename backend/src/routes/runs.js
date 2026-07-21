@@ -110,6 +110,12 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
     await User.findOneAndUpdate(
       { uid: req.user.uid },
       {
+        $setOnInsert: {
+          uid: req.user.uid,
+          name: req.user.name || req.user.email?.split('@')[0] || 'Anonymous',
+          email: req.user.email || '',
+          class: numCls,
+        },
         $inc: {
           totalEXP: finalExp,
           gamesPlayed: 1,
@@ -120,7 +126,8 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
           highestStreak: numStreak,
           highestDifficulty: numDifficulty,
         },
-      }
+      },
+      { upsert: true }
     );
 
     res.json({ run, expAwarded: finalExp });

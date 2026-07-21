@@ -3,15 +3,16 @@ import { Subject, ClassOption } from '../constants/config';
 export interface User {
   uid: string;
   email: string;
-  displayName: string;
+  name: string;
   class: ClassOption | null;
   totalEXP: number;
-  rank: number;
   gamesPlayed: number;
-  questionsAnswered: number;
-  correctAnswers: number;
+  totalCorrect: number;
+  totalAnswered: number;
+  highestStreak: number;
+  highestDifficulty: number;
   createdAt: number;
-  lastActiveAt: number;
+  updatedAt: number;
 }
 
 export interface Question {
