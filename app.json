@@ -1,22 +1,21 @@
 {
   "expo": {
-    "name": "academic-arena",
+    "name": "Academic Arena",
     "slug": "academic-arena",
+    "scheme": "academic-arena",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "ios": {
-      "supportsTablet": true
-    },
+    "userInterfaceStyle": "dark",
+    "plugins": ["expo-router"],
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#0A0A0A",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "package": "com.academicarena.app"
     },
     "web": {
       "favicon": "./assets/favicon.png"
