@@ -57,22 +57,7 @@ export default function SignupScreen() {
 
       await updateProfile(credential.user, { displayName: displayName.trim() });
 
-      // Save to Firestore (offline cache)
-      await setDoc(doc(db, 'users', credential.user.uid), {
-        uid: credential.user.uid,
-        email: email.trim(),
-        displayName: displayName.trim(),
-        class: selectedClass,
-        totalEXP: 0,
-        rank: 0,
-        gamesPlayed: 0,
-        questionsAnswered: 0,
-        correctAnswers: 0,
-        createdAt: Date.now(),
-        lastActiveAt: Date.now(),
-      });
-
-      // Save to backend MongoDB
+      // Save to backend MongoDB (primary store)
       try {
         await api.post('/auth/register', {
           name: displayName.trim(),
@@ -80,8 +65,26 @@ export default function SignupScreen() {
           class: selectedClass,
         });
       } catch (e) {
-        // Non-fatal — Firestore is primary, MongoDB is secondary
         console.warn('Backend register failed:', e);
+      }
+
+      // Cache to Firestore (non-blocking, best-effort)
+      try {
+        await setDoc(doc(db, 'users', credential.user.uid), {
+          uid: credential.user.uid,
+          email: email.trim(),
+          displayName: displayName.trim(),
+          class: selectedClass,
+          totalEXP: 0,
+          rank: 0,
+          gamesPlayed: 0,
+          questionsAnswered: 0,
+          correctAnswers: 0,
+          createdAt: Date.now(),
+          lastActiveAt: Date.now(),
+        });
+      } catch (e) {
+        console.warn('Firestore cache failed:', e);
       }
 
       router.replace('/(main)');
