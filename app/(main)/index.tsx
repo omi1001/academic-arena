@@ -9,8 +9,8 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { signOut } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
-import { auth, db } from '../../lib/firebase';
+import { auth } from '../../lib/firebase';
+import api from '../../lib/api';
 import { useAuthStore } from '../../stores/authStore';
 import { useUserStore } from '../../stores/userStore';
 import { Colors } from '../../constants/theme';
@@ -28,12 +28,12 @@ export default function DashboardScreen() {
   const fetchProfile = async () => {
     if (!firebaseUser) return;
     try {
-      const snap = await getDoc(doc(db, 'users', firebaseUser.uid));
-      if (snap.exists()) {
-        setProfile(snap.data() as any);
+      const res = await api.get('/auth/profile');
+      if (res.data?.user) {
+        setProfile(res.data.user as any);
       }
     } catch (e) {
-      console.warn('Failed to fetch profile:', e);
+      console.warn('Failed to fetch profile from backend:', e);
     }
   };
 
@@ -84,7 +84,7 @@ export default function DashboardScreen() {
       <View style={styles.header}>
         <View>
           <Text style={styles.greeting}>
-            Hey, {profile?.displayName || firebaseUser?.displayName || 'Player'}
+            Hey, {profile?.name || firebaseUser?.displayName || 'Player'}
           </Text>
           <View style={styles.tierBadge}>
             <View style={[styles.tierDot, { backgroundColor: tier.color }]} />
@@ -109,10 +109,10 @@ export default function DashboardScreen() {
         </View>
         <View style={styles.statCard}>
           <Text style={styles.statValue}>
-            {profile?.questionsAnswered
+            {profile?.totalAnswered
               ? Math.round(
-                  ((profile?.correctAnswers || 0) /
-                    profile.questionsAnswered) *
+                  ((profile?.totalCorrect || 0) /
+                    profile.totalAnswered) *
                     100
                 )
               : 0}

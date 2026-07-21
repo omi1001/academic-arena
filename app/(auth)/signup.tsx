@@ -12,8 +12,7 @@ import {
 } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
-import { auth, db } from '../../lib/firebase';
+import { auth } from '../../lib/firebase';
 import api from '../../lib/api';
 import { Colors } from '../../constants/theme';
 
@@ -57,7 +56,7 @@ export default function SignupScreen() {
 
       await updateProfile(credential.user, { displayName: displayName.trim() });
 
-      // Save to backend MongoDB (primary store)
+      // Save to backend MongoDB
       try {
         await api.post('/auth/register', {
           name: displayName.trim(),
@@ -66,25 +65,6 @@ export default function SignupScreen() {
         });
       } catch (e) {
         console.warn('Backend register failed:', e);
-      }
-
-      // Cache to Firestore (non-blocking, best-effort)
-      try {
-        await setDoc(doc(db, 'users', credential.user.uid), {
-          uid: credential.user.uid,
-          email: email.trim(),
-          displayName: displayName.trim(),
-          class: selectedClass,
-          totalEXP: 0,
-          rank: 0,
-          gamesPlayed: 0,
-          questionsAnswered: 0,
-          correctAnswers: 0,
-          createdAt: Date.now(),
-          lastActiveAt: Date.now(),
-        });
-      } catch (e) {
-        console.warn('Firestore cache failed:', e);
       }
 
       router.replace('/(main)');

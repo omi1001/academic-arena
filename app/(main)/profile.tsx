@@ -8,8 +8,8 @@ import {
   Alert,
 } from 'react-native';
 import { signOut } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
-import { auth, db } from '../../lib/firebase';
+import { auth } from '../../lib/firebase';
+import api from '../../lib/api';
 import { useAuthStore } from '../../stores/authStore';
 import { useUserStore } from '../../stores/userStore';
 import { Colors } from '../../constants/theme';
@@ -23,12 +23,12 @@ export default function ProfileScreen() {
     const fetchProfile = async () => {
       if (!firebaseUser) return;
       try {
-        const snap = await getDoc(doc(db, 'users', firebaseUser.uid));
-        if (snap.exists()) {
-          setProfile(snap.data() as any);
+        const res = await api.get('/auth/profile');
+        if (res.data?.user) {
+          setProfile(res.data.user as any);
         }
       } catch (e) {
-        console.warn('Failed to fetch profile:', e);
+        console.warn('Failed to fetch profile from backend:', e);
       }
     };
     fetchProfile();
@@ -56,8 +56,8 @@ export default function ProfileScreen() {
   };
 
   const tier = profile ? getTier(profile.totalEXP) : LEADERBOARD_TIERS.BRONZE;
-  const accuracy = profile?.questionsAnswered
-    ? Math.round((profile.correctAnswers / profile.questionsAnswered) * 100)
+  const accuracy = profile?.totalAnswered
+    ? Math.round((profile.totalCorrect / profile.totalAnswered) * 100)
     : 0;
 
   return (
@@ -67,10 +67,10 @@ export default function ProfileScreen() {
       <View style={styles.avatarSection}>
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>
-            {profile?.displayName?.[0]?.toUpperCase() || '?'}
+            {profile?.name?.[0]?.toUpperCase() || firebaseUser?.displayName?.[0]?.toUpperCase() || '?'}
           </Text>
         </View>
-        <Text style={styles.name}>{profile?.displayName || 'Player'}</Text>
+        <Text style={styles.name}>{profile?.name || firebaseUser?.displayName || 'Player'}</Text>
         <Text style={styles.email}>{firebaseUser?.email}</Text>
         <View style={styles.tierBadge}>
           <View style={[styles.tierDot, { backgroundColor: tier.color }]} />
@@ -90,7 +90,7 @@ export default function ProfileScreen() {
           <Text style={styles.statLabel}>Games Played</Text>
         </View>
         <View style={styles.statBox}>
-          <Text style={styles.statValue}>{profile?.questionsAnswered || 0}</Text>
+          <Text style={styles.statValue}>{profile?.totalAnswered || 0}</Text>
           <Text style={styles.statLabel}>Questions</Text>
         </View>
         <View style={styles.statBox}>

@@ -63,6 +63,12 @@ export default function MainLayout() {
           href: null,
         }}
       />
+      <Tabs.Screen
+        name="[runId]"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }

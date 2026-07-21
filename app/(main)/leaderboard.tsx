@@ -14,7 +14,7 @@ import api from '../../lib/api';
 interface LeaderboardEntry {
   rank: number;
   uid: string;
-  displayName: string;
+  name: string;
   totalEXP: number;
 }
 
@@ -77,7 +77,7 @@ export default function LeaderboardScreen() {
               item.rank === 1 && { color: Colors.dark.gold },
             ]}
           >
-            {item.displayName}
+            {item.name}
           </Text>
           <View style={styles.tierRow}>
             <View style={[styles.tierDot, { backgroundColor: tier.color }]} />
