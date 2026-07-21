@@ -17,14 +17,23 @@ let app: FirebaseApp;
 let auth: Auth;
 let db: Firestore;
 
-if (getApps().length === 0) {
-  app = initializeApp(firebaseConfig);
-  auth = initializeAuth(app, {
-    persistence: getReactNativePersistence(AsyncStorage),
-  });
-} else {
-  app = getApps()[0];
-  auth = getAuth(app);
+try {
+  if (getApps().length === 0) {
+    app = initializeApp(firebaseConfig);
+    auth = initializeAuth(app, {
+      persistence: getReactNativePersistence(AsyncStorage),
+    });
+  } else {
+    app = getApps()[0];
+    auth = getAuth(app);
+  }
+} catch (e: any) {
+  if (e.code === 'auth/already-initialized') {
+    app = getApps()[0];
+    auth = getAuth(app);
+  } else {
+    throw e;
+  }
 }
 
 db = getFirestore(app);

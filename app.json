@@ -7,7 +7,9 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
-    "plugins": ["expo-router"],
+    "plugins": [
+      "expo-router"
+    ],
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#0A0A0A",
@@ -19,6 +21,13 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "92384d8c-2d9c-40f8-ad4d-33a7f410f3b5"
+      }
+    },
+    "owner": "omi001"
   }
 }
