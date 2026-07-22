@@ -7,6 +7,8 @@ import {
   AppState,
   Alert,
   Vibration,
+  Animated,
+  Easing,
 } from 'react-native';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -54,6 +56,69 @@ export default function GameRunScreen() {
   const lastTouchRef = useRef(Date.now());
   const questionBatchRef = useRef<Question[]>([]);
 
+  // ─── Animation Drivers ───
+  const questionFadeAnim = useRef(new Animated.Value(0)).current;
+  const questionSlideAnim = useRef(new Animated.Value(25)).current;
+  const optionFadeAnim = useRef([
+    new Animated.Value(0),
+    new Animated.Value(0),
+    new Animated.Value(0),
+    new Animated.Value(0),
+  ]).current;
+  const optionSlideAnim = useRef([
+    new Animated.Value(20),
+    new Animated.Value(20),
+    new Animated.Value(20),
+    new Animated.Value(20),
+  ]).current;
+  const heartShakeAnim = useRef(new Animated.Value(0)).current;
+  const streakScaleAnim = useRef(new Animated.Value(1)).current;
+  const resultFadeAnim = useRef(new Animated.Value(0)).current;
+  const resultSlideAnim = useRef(new Animated.Value(40)).current;
+
+  // Trigger question entrance animation whenever question changes
+  const animateQuestionEntrance = useCallback(() => {
+    questionFadeAnim.setValue(0);
+    questionSlideAnim.setValue(25);
+    optionFadeAnim.forEach((anim) => anim.setValue(0));
+    optionSlideAnim.forEach((anim) => anim.setValue(20));
+
+    // Question card entrance
+    Animated.parallel([
+      Animated.timing(questionFadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+        easing: Easing.out(Easing.quad),
+      }),
+      Animated.timing(questionSlideAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+        easing: Easing.out(Easing.back(1.2)),
+      }),
+    ]).start();
+
+    // Options staggered entrance
+    const optionAnimations = optionFadeAnim.map((_, index) =>
+      Animated.parallel([
+        Animated.timing(optionFadeAnim[index], {
+          toValue: 1,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+        Animated.spring(optionSlideAnim[index], {
+          toValue: 0,
+          friction: 6,
+          tension: 80,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    Animated.stagger(60, optionAnimations).start();
+  }, []);
+
   // Initialize game run
   useEffect(() => {
     game.startRun(runId!, parseInt(classStr!), subject!);
@@ -64,6 +129,13 @@ export default function GameRunScreen() {
       if (inactivityRef.current) clearInterval(inactivityRef.current);
     };
   }, []);
+
+  // Trigger question entry animation on new currentQuestion
+  useEffect(() => {
+    if (game.currentQuestion) {
+      animateQuestionEntrance();
+    }
+  }, [game.currentQuestion, animateQuestionEntrance]);
 
   // AppState anti-cheat
   useEffect(() => {
@@ -119,7 +191,7 @@ export default function GameRunScreen() {
   const fetchQuestions = async () => {
     try {
       setIsLoading(true);
-      let res = await api.get('/questions', {
+      const res = await api.get('/questions', {
         params: {
           class: classStr,
           subject,
@@ -128,17 +200,6 @@ export default function GameRunScreen() {
           limit: QUESTIONS_PER_BATCH,
         },
       });
-
-      // Retry without exclude filter to ensure run keeps going endlessly
-      if (!res.data || res.data.length === 0) {
-        res = await api.get('/questions', {
-          params: {
-            class: classStr,
-            subject,
-            limit: QUESTIONS_PER_BATCH,
-          },
-        });
-      }
 
       if (res.data && res.data.length > 0) {
         questionBatchRef.current = res.data;
@@ -173,6 +234,24 @@ export default function GameRunScreen() {
     return Math.round(base * multiplier + comboBonus);
   }, [game.currentDifficulty, game.streak, game.lastAnswerTime]);
 
+  const animateResultToast = () => {
+    resultFadeAnim.setValue(0);
+    resultSlideAnim.setValue(40);
+    Animated.parallel([
+      Animated.timing(resultFadeAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.spring(resultSlideAnim, {
+        toValue: 0,
+        friction: 6,
+        tension: 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
   const handleAnswer = (optionIndex: number) => {
     if (showResult || !game.currentQuestion) return;
     if (timerRef.current) clearInterval(timerRef.current);
@@ -183,6 +262,7 @@ export default function GameRunScreen() {
     const correct = optionIndex === game.currentQuestion.answer;
     setIsCorrect(correct);
     setShowResult(true);
+    animateResultToast();
 
     if (correct) {
       const exp = calculateEXP();
@@ -192,6 +272,20 @@ export default function GameRunScreen() {
       user.addExp(exp);
       user.incrementQuestions(true);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      // Streak bounce animation
+      Animated.sequence([
+        Animated.timing(streakScaleAnim, {
+          toValue: 1.35,
+          duration: 150,
+          useNativeDriver: true,
+        }),
+        Animated.spring(streakScaleAnim, {
+          toValue: 1,
+          friction: 4,
+          useNativeDriver: true,
+        }),
+      ]).start();
     } else {
       setEarnedExpToast(null);
       game.markQuestionAnswered(game.currentQuestion._id);
@@ -199,6 +293,15 @@ export default function GameRunScreen() {
       user.incrementQuestions(false);
       Vibration.vibrate(250);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+
+      // Heart shake animation
+      Animated.sequence([
+        Animated.timing(heartShakeAnim, { toValue: -12, duration: 40, useNativeDriver: true }),
+        Animated.timing(heartShakeAnim, { toValue: 12, duration: 40, useNativeDriver: true }),
+        Animated.timing(heartShakeAnim, { toValue: -8, duration: 40, useNativeDriver: true }),
+        Animated.timing(heartShakeAnim, { toValue: 8, duration: 40, useNativeDriver: true }),
+        Animated.timing(heartShakeAnim, { toValue: 0, duration: 40, useNativeDriver: true }),
+      ]).start();
 
       if (remaining <= 0) {
         setTimeout(() => endGame('completed'), 1500);
@@ -297,13 +400,13 @@ export default function GameRunScreen() {
       >
         {/* ─── Top HUD Bar ─── */}
         <View style={styles.topBar}>
-          <View style={styles.heartsCard}>
+          <Animated.View style={[styles.heartsCard, { transform: [{ translateX: heartShakeAnim }] }]}>
             {Array.from({ length: MAX_HEARTS }).map((_, i) => (
               <Text key={i} style={styles.heart}>
                 {i < game.hearts ? '❤️' : '🖤'}
               </Text>
             ))}
-          </View>
+          </Animated.View>
 
           <View style={styles.scoreCard}>
             <Text style={styles.scoreValue}>{game.score}</Text>
@@ -325,9 +428,9 @@ export default function GameRunScreen() {
               </Text>
             </View>
             {game.streak > 0 && (
-              <View style={styles.streakBadge}>
+              <Animated.View style={[styles.streakBadge, { transform: [{ scale: streakScaleAnim }] }]}>
                 <Text style={styles.streakText}>🔥 STREAK x{game.streak}</Text>
-              </View>
+              </Animated.View>
             )}
             <Text style={styles.timerNumber}>{timeLeft}s</Text>
           </View>
@@ -356,54 +459,68 @@ export default function GameRunScreen() {
             </View>
           ) : game.currentQuestion ? (
             <>
-              {/* Question Text Box */}
-              <LinearGradient colors={['#161B33', '#0F1224']} style={styles.questionCard}>
-                <Text style={styles.questionText}>
-                  {game.currentQuestion.question}
-                </Text>
-              </LinearGradient>
+              {/* Animated Question Text Box */}
+              <Animated.View
+                style={{
+                  opacity: questionFadeAnim,
+                  transform: [{ translateY: questionSlideAnim }],
+                }}
+              >
+                <LinearGradient colors={['#161B33', '#0F1224']} style={styles.questionCard}>
+                  <Text style={styles.questionText}>
+                    {game.currentQuestion.question}
+                  </Text>
+                </LinearGradient>
+              </Animated.View>
 
-              {/* Options */}
+              {/* Animated Options */}
               <View style={styles.optionsContainer}>
                 {game.currentQuestion.options.map((option, index) => {
                   const isAnswer = index === game.currentQuestion?.answer;
                   const isSelected = index === selectedOption;
 
                   return (
-                    <BouncyButton
+                    <Animated.View
                       key={index}
-                      onPress={() => handleAnswer(index)}
-                      disabled={showResult}
-                      style={styles.optionWrapper}
+                      style={{
+                        opacity: optionFadeAnim[index] || 1,
+                        transform: [{ translateY: optionSlideAnim[index] || 0 }],
+                      }}
                     >
-                      <View
-                        style={[
-                          styles.optionCard,
-                          showResult && isAnswer && styles.optionCardCorrect,
-                          showResult && isSelected && !isCorrect && styles.optionCardWrong,
-                        ]}
+                      <BouncyButton
+                        onPress={() => handleAnswer(index)}
+                        disabled={showResult}
+                        style={styles.optionWrapper}
                       >
                         <View
                           style={[
-                            styles.optionBadge,
-                            showResult && isAnswer && styles.optionBadgeCorrect,
-                            showResult && isSelected && !isCorrect && styles.optionBadgeWrong,
+                            styles.optionCard,
+                            showResult && isAnswer && styles.optionCardCorrect,
+                            showResult && isSelected && !isCorrect && styles.optionCardWrong,
                           ]}
                         >
-                          <Text
+                          <View
                             style={[
-                              styles.optionBadgeText,
-                              showResult && isAnswer && styles.optionBadgeTextActive,
-                              showResult && isSelected && !isCorrect && styles.optionBadgeTextActive,
+                              styles.optionBadge,
+                              showResult && isAnswer && styles.optionBadgeCorrect,
+                              showResult && isSelected && !isCorrect && styles.optionBadgeWrong,
                             ]}
                           >
-                            {String.fromCharCode(65 + index)}
-                          </Text>
-                        </View>
+                            <Text
+                              style={[
+                                styles.optionBadgeText,
+                                showResult && isAnswer && styles.optionBadgeTextActive,
+                                showResult && isSelected && !isCorrect && styles.optionBadgeTextActive,
+                              ]}
+                            >
+                              {String.fromCharCode(65 + index)}
+                            </Text>
+                          </View>
 
-                        <Text style={styles.optionText}>{option}</Text>
-                      </View>
-                    </BouncyButton>
+                          <Text style={styles.optionText}>{option}</Text>
+                        </View>
+                      </BouncyButton>
+                    </Animated.View>
                   );
                 })}
               </View>
@@ -413,22 +530,30 @@ export default function GameRunScreen() {
           )}
         </View>
 
-        {/* ─── Result Toast Banner ─── */}
+        {/* ─── Animated Result Toast Banner ─── */}
         {showResult && (
-          <LinearGradient
-            colors={
-              isCorrect ? Gradients.success : Gradients.fire
-            }
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.resultBanner}
+          <Animated.View
+            style={[
+              styles.resultBannerWrapper,
+              {
+                opacity: resultFadeAnim,
+                transform: [{ translateY: resultSlideAnim }],
+              },
+            ]}
           >
-            <Text style={styles.resultText}>
-              {isCorrect
-                ? `⚡ PERFECT! +${earnedExpToast || 100} EXP`
-                : '💥 INCORRECT! -1 HEART'}
-            </Text>
-          </LinearGradient>
+            <LinearGradient
+              colors={isCorrect ? Gradients.success : Gradients.fire}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.resultBanner}
+            >
+              <Text style={styles.resultText}>
+                {isCorrect
+                  ? `⚡ PERFECT! +${earnedExpToast || 100} EXP`
+                  : '💥 INCORRECT! -1 HEART'}
+              </Text>
+            </LinearGradient>
+          </Animated.View>
         )}
       </TouchableOpacity>
     </>
@@ -631,11 +756,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     flex: 1,
   },
-  resultBanner: {
+  resultBannerWrapper: {
     position: 'absolute',
     bottom: 36,
     left: 20,
     right: 20,
+  },
+  resultBanner: {
     borderRadius: 16,
     paddingVertical: 16,
     paddingHorizontal: 20,

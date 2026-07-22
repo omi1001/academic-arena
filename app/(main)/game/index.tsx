@@ -1,5 +1,6 @@
+import { useEffect, useRef } from 'react';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Gradients } from '../../../constants/theme';
 import { MAX_HEARTS } from '../../../constants/config';
@@ -11,6 +12,47 @@ export default function GameSetupScreen() {
     class: string;
     subject: string;
   }>();
+
+  // ─── Animations ───
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const cardScaleAnim = useRef(new Animated.Value(0.9)).current;
+  const floatAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+      Animated.spring(cardScaleAnim, {
+        toValue: 1,
+        friction: 6,
+        tension: 80,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Floating emoji animation
+    const floatLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(floatAnim, {
+          toValue: -8,
+          duration: 1200,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(floatAnim, {
+          toValue: 0,
+          duration: 1200,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    floatLoop.start();
+    return () => floatLoop.stop();
+  }, []);
 
   const handleStart = () => {
     const runId = `run_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -34,9 +76,22 @@ export default function GameSetupScreen() {
           title: '',
         }}
       />
-      <View style={styles.container}>
-        {/* Glow Header Icon */}
-        <View style={styles.emojiContainer}>
+      <Animated.View
+        style={[
+          styles.container,
+          {
+            opacity: fadeAnim,
+            transform: [{ scale: cardScaleAnim }],
+          },
+        ]}
+      >
+        {/* Floating Glow Header Icon */}
+        <Animated.View
+          style={[
+            styles.emojiContainer,
+            { transform: [{ translateY: floatAnim }] },
+          ]}
+        >
           <Text style={styles.subjectEmoji}>
             {subject === 'Mathematics'
               ? '📐'
@@ -46,7 +101,7 @@ export default function GameSetupScreen() {
                   ? '📖'
                   : '🌍'}
           </Text>
-        </View>
+        </Animated.View>
 
         <Text style={styles.subjectName}>{subject}</Text>
         <View style={styles.classBadge}>
@@ -95,7 +150,7 @@ export default function GameSetupScreen() {
             <Text style={styles.startButtonText}>⚡ BEGIN ARENA RUN ⚡</Text>
           </LinearGradient>
         </BouncyButton>
-      </View>
+      </Animated.View>
     </>
   );
 }

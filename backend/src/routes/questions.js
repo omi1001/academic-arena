@@ -17,44 +17,76 @@ router.get('/', async (req, res) => {
     ? exclude.split(',').map((id) => sanitize(id.trim())).filter(Boolean)
     : [];
 
-  const query = {};
-  if (classNum) query.class = classNum;
-  if (subjectStr) query.subject = subjectStr;
-  if (diffNum) query.difficulty = diffNum;
-  if (excludedIds.length > 0) query._id = { $nin: excludedIds };
-
   try {
-    // 1. Fetch matching difficulty questions
-    let questions = await Question.find(query).limit(targetLimit).select('-__v').lean();
+    let questions = [];
 
-    // 2. If fewer than requested items found, fallback to any difficulty for same class & subject
-    if (questions.length < targetLimit && classNum && subjectStr) {
-      const currentIds = [...excludedIds, ...questions.map((q) => q._id.toString())];
-      const fallbackQuery = {
-        class: classNum,
-        subject: subjectStr,
-        _id: { $nin: currentIds },
-      };
+    if (classNum && subjectStr) {
+      // 1. Fetch matching class, subject, difficulty
+      if (diffNum) {
+        const query1 = { class: classNum, subject: subjectStr, difficulty: diffNum };
+        if (excludedIds.length > 0) query1._id = { $nin: excludedIds };
+        questions = await Question.find(query1).limit(targetLimit).select('-__v').lean();
+      }
 
-      const remainingNeeded = targetLimit - questions.length;
-      const fallbackQuestions = await Question.find(fallbackQuery)
-        .limit(remainingNeeded)
-        .select('-__v')
-        .lean();
+      // 2. If fewer than targetLimit found, fallback to any difficulty for same class & subject
+      if (questions.length < targetLimit) {
+        const currentIds = [...excludedIds, ...questions.map((q) => q._id.toString())];
+        const query2 = {
+          class: classNum,
+          subject: subjectStr,
+          _id: { $nin: currentIds },
+        };
+        const needed = targetLimit - questions.length;
+        const fallbackSameClass = await Question.find(query2)
+          .limit(needed)
+          .select('-__v')
+          .lean();
+        questions = [...questions, ...fallbackSameClass];
+      }
 
-      questions = [...questions, ...fallbackQuestions];
-    }
+      // 3. If STILL fewer than targetLimit (e.g. all class 9 questions completed), fetch from opposite class (e.g. Class 10)
+      if (questions.length < targetLimit) {
+        const otherClass = classNum === 9 ? 10 : 9;
+        const currentIds = [...excludedIds, ...questions.map((q) => q._id.toString())];
+        const query3 = {
+          class: otherClass,
+          subject: subjectStr,
+          _id: { $nin: currentIds },
+        };
+        const needed = targetLimit - questions.length;
+        const fallbackOtherClass = await Question.find(query3)
+          .limit(needed)
+          .select('-__v')
+          .lean();
+        questions = [...questions, ...fallbackOtherClass];
+      }
 
-    // 3. If STILL empty (all database questions for class/subject were in exclude), recycle pool
-    if (questions.length === 0 && classNum && subjectStr) {
-      const recentIds = excludedIds.slice(-5);
-      const recyclingQuery = { class: classNum, subject: subjectStr };
-      if (recentIds.length > 0) recyclingQuery._id = { $nin: recentIds };
+      // 4. If STILL empty (all database questions for both classes completed), recycle pool
+      if (questions.length === 0) {
+        const recentIds = excludedIds.slice(-5);
+        const recyclingQuery = { class: classNum, subject: subjectStr };
+        if (recentIds.length > 0) recyclingQuery._id = { $nin: recentIds };
 
-      questions = await Question.find(recyclingQuery)
-        .limit(targetLimit)
-        .select('-__v')
-        .lean();
+        questions = await Question.find(recyclingQuery)
+          .limit(targetLimit)
+          .select('-__v')
+          .lean();
+
+        if (questions.length === 0) {
+          const otherClass = classNum === 9 ? 10 : 9;
+          const recyclingQueryOther = { class: otherClass, subject: subjectStr };
+          if (recentIds.length > 0) recyclingQueryOther._id = { $nin: recentIds };
+
+          questions = await Question.find(recyclingQueryOther)
+            .limit(targetLimit)
+            .select('-__v')
+            .lean();
+        }
+      }
+    } else {
+      const queryGen = {};
+      if (excludedIds.length > 0) queryGen._id = { $nin: excludedIds };
+      questions = await Question.find(queryGen).limit(targetLimit).select('-__v').lean();
     }
 
     res.json(questions);

@@ -59,16 +59,16 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
   correctAnswer: (expEarned) => {
     const state = get();
     const newStreak = state.streak + 1;
+    const shouldLevelUp = newStreak > 0 && newStreak % STREAK_TO_LEVEL_UP === 0;
     const newDifficulty =
-      newStreak >= STREAK_TO_LEVEL_UP && state.currentDifficulty < MAX_DIFFICULTY
+      shouldLevelUp && state.currentDifficulty < MAX_DIFFICULTY
         ? state.currentDifficulty + 1
         : state.currentDifficulty;
 
     set({
       streak: newStreak,
       maxStreak: Math.max(state.maxStreak, newStreak),
-      currentDifficulty:
-        newStreak >= STREAK_TO_LEVEL_UP ? newDifficulty : state.currentDifficulty,
+      currentDifficulty: newDifficulty,
       score: state.score + 1,
       expEarned: state.expEarned + expEarned,
       questionIndex: state.questionIndex + 1,

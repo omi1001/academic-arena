@@ -1,10 +1,12 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   RefreshControl,
+  Animated,
+  Easing,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { signOut } from 'firebase/auth';
@@ -25,6 +27,60 @@ export default function DashboardScreen() {
   const [selectedClass, setSelectedClass] = useState<ClassOption | null>(null);
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+
+  // ─── Animations ───
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const heroSlideAnim = useRef(new Animated.Value(-20)).current;
+  const statsScaleAnim = useRef(new Animated.Value(0.92)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 450,
+        useNativeDriver: true,
+      }),
+      Animated.spring(heroSlideAnim, {
+        toValue: 0,
+        friction: 6,
+        tension: 80,
+        useNativeDriver: true,
+      }),
+      Animated.spring(statsScaleAnim, {
+        toValue: 1,
+        friction: 5,
+        tension: 90,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
+  // Button pulse when ready
+  useEffect(() => {
+    if (selectedClass && selectedSubject) {
+      const loop = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.03,
+            duration: 800,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 800,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      loop.start();
+      return () => loop.stop();
+    } else {
+      pulseAnim.setValue(1);
+    }
+  }, [selectedClass, selectedSubject]);
 
   const fetchProfile = async () => {
     if (!firebaseUser) return;
@@ -83,7 +139,6 @@ export default function DashboardScreen() {
   const userName = profile?.name || firebaseUser?.displayName || 'Player';
   const initial = userName[0]?.toUpperCase() || 'P';
 
-  // Calculate next tier progress percentage
   const nextTierExp =
     tier.name === 'Bronze'
       ? LEADERBOARD_TIERS.SILVER.minEXP
@@ -107,160 +162,166 @@ export default function DashboardScreen() {
         />
       }
     >
-      {/* ─── Hero User Card ─── */}
-      <LinearGradient colors={['#161B33', '#0F1224']} style={styles.heroCard}>
-        <View style={styles.heroHeader}>
-          <View style={styles.userProfileGroup}>
-            <View style={[styles.avatarGlow, { borderColor: tier.color }]}>
-              <Text style={styles.avatarText}>{initial}</Text>
-            </View>
-            <View>
-              <Text style={styles.greetingTitle}>{userName}</Text>
-              <View style={styles.tierBadge}>
-                <View style={[styles.tierDot, { backgroundColor: tier.color }]} />
-                <Text style={[styles.tierText, { color: tier.color }]}>
-                  {tier.name} Division
-                </Text>
+      <Animated.View style={{ opacity: fadeAnim }}>
+        {/* ─── Hero User Card ─── */}
+        <Animated.View style={{ transform: [{ translateY: heroSlideAnim }] }}>
+          <LinearGradient colors={['#161B33', '#0F1224']} style={styles.heroCard}>
+            <View style={styles.heroHeader}>
+              <View style={styles.userProfileGroup}>
+                <View style={[styles.avatarGlow, { borderColor: tier.color }]}>
+                  <Text style={styles.avatarText}>{initial}</Text>
+                </View>
+                <View>
+                  <Text style={styles.greetingTitle}>{userName}</Text>
+                  <View style={styles.tierBadge}>
+                    <View style={[styles.tierDot, { backgroundColor: tier.color }]} />
+                    <Text style={[styles.tierText, { color: tier.color }]}>
+                      {tier.name} Division
+                    </Text>
+                  </View>
+                </View>
               </View>
+
+              <BouncyButton onPress={handleLogout} style={styles.logoutBtn}>
+                <Text style={styles.logoutText}>Exit</Text>
+              </BouncyButton>
             </View>
-          </View>
 
-          <BouncyButton onPress={handleLogout} style={styles.logoutBtn}>
-            <Text style={styles.logoutText}>Exit</Text>
-          </BouncyButton>
-        </View>
-
-        {/* Level XP Bar */}
-        <View style={styles.progressContainer}>
-          <View style={styles.progressLabelRow}>
-            <Text style={styles.progressText}>Tier Progress</Text>
-            <Text style={styles.progressPercentText}>{progressPercent}%</Text>
-          </View>
-          <View style={styles.progressTrack}>
-            <LinearGradient
-              colors={Gradients.primary}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={[styles.progressFill, { width: `${progressPercent}%` }]}
-            />
-          </View>
-        </View>
-      </LinearGradient>
-
-      {/* ─── Stats Grid ─── */}
-      <View style={styles.statsRow}>
-        <View style={styles.statCard}>
-          <Text style={styles.statIcon}>⚡</Text>
-          <Text style={styles.statValue}>{profile?.totalEXP || 0}</Text>
-          <Text style={styles.statLabel}>Total EXP</Text>
-        </View>
-
-        <View style={styles.statCard}>
-          <Text style={styles.statIcon}>🎮</Text>
-          <Text style={styles.statValue}>{profile?.gamesPlayed || 0}</Text>
-          <Text style={styles.statLabel}>Runs Played</Text>
-        </View>
-
-        <View style={styles.statCard}>
-          <Text style={styles.statIcon}>🎯</Text>
-          <Text style={styles.statValue}>
-            {profile?.totalAnswered
-              ? Math.round(
-                  ((profile?.totalCorrect || 0) / profile.totalAnswered) * 100
-                )
-              : 0}
-            %
-          </Text>
-          <Text style={styles.statLabel}>Accuracy</Text>
-        </View>
-      </View>
-
-      {/* ─── Class Selection ─── */}
-      <Text style={styles.sectionTitle}>SELECT GRADE</Text>
-      <View style={styles.optionRow}>
-        {CLASS_OPTIONS.map((cls) => {
-          const isSelected = selectedClass === cls;
-          return (
-            <BouncyButton
-              key={cls}
-              style={[styles.classOption, isSelected && styles.classOptionSelected]}
-              onPress={() => setSelectedClass(cls)}
-            >
-              {isSelected ? (
+            {/* Level XP Bar */}
+            <View style={styles.progressContainer}>
+              <View style={styles.progressLabelRow}>
+                <Text style={styles.progressText}>Tier Progress</Text>
+                <Text style={styles.progressPercentText}>{progressPercent}%</Text>
+              </View>
+              <View style={styles.progressTrack}>
                 <LinearGradient
                   colors={Gradients.primary}
-                  style={styles.classOptionGradient}
-                >
-                  <Text style={styles.classOptionTextSelected}>CLASS {cls}</Text>
-                </LinearGradient>
-              ) : (
-                <Text style={styles.classOptionText}>CLASS {cls}</Text>
-              )}
-            </BouncyButton>
-          );
-        })}
-      </View>
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={[styles.progressFill, { width: `${progressPercent}%` }]}
+                />
+              </View>
+            </View>
+          </LinearGradient>
+        </Animated.View>
 
-      {/* ─── Subject Selection ─── */}
-      <Text style={styles.sectionTitle}>SELECT ARENA SUBJECT</Text>
-      <View style={styles.subjectGrid}>
-        {SUBJECTS.map((subject) => {
-          const isSelected = selectedSubject === subject;
-          return (
-            <BouncyButton
-              key={subject}
-              style={[styles.subjectCard, isSelected && styles.subjectCardSelected]}
-              onPress={() => setSelectedSubject(subject)}
-            >
-              <Text style={styles.subjectEmoji}>
-                {subject === 'Mathematics'
-                  ? '📐'
-                  : subject === 'Science'
-                    ? '🔬'
-                    : subject === 'English'
-                      ? '📖'
-                      : '🌍'}
-              </Text>
-              <Text
-                style={[
-                  styles.subjectName,
-                  isSelected && styles.subjectNameSelected,
-                ]}
+        {/* ─── Stats Grid ─── */}
+        <Animated.View style={[styles.statsRow, { transform: [{ scale: statsScaleAnim }] }]}>
+          <View style={styles.statCard}>
+            <Text style={styles.statIcon}>⚡</Text>
+            <Text style={styles.statValue}>{profile?.totalEXP || 0}</Text>
+            <Text style={styles.statLabel}>Total EXP</Text>
+          </View>
+
+          <View style={styles.statCard}>
+            <Text style={styles.statIcon}>🎮</Text>
+            <Text style={styles.statValue}>{profile?.gamesPlayed || 0}</Text>
+            <Text style={styles.statLabel}>Runs Played</Text>
+          </View>
+
+          <View style={styles.statCard}>
+            <Text style={styles.statIcon}>🎯</Text>
+            <Text style={styles.statValue}>
+              {profile?.totalAnswered
+                ? Math.round(
+                    ((profile?.totalCorrect || 0) / profile.totalAnswered) * 100
+                  )
+                : 0}
+              %
+            </Text>
+            <Text style={styles.statLabel}>Accuracy</Text>
+          </View>
+        </Animated.View>
+
+        {/* ─── Class Selection ─── */}
+        <Text style={styles.sectionTitle}>SELECT GRADE</Text>
+        <View style={styles.optionRow}>
+          {CLASS_OPTIONS.map((cls) => {
+            const isSelected = selectedClass === cls;
+            return (
+              <BouncyButton
+                key={cls}
+                style={[styles.classOption, isSelected && styles.classOptionSelected]}
+                onPress={() => setSelectedClass(cls)}
               >
-                {subject}
-              </Text>
-              {isSelected && <View style={styles.subjectActiveDot} />}
-            </BouncyButton>
-          );
-        })}
-      </View>
+                {isSelected ? (
+                  <LinearGradient
+                    colors={Gradients.primary}
+                    style={styles.classOptionGradient}
+                  >
+                    <Text style={styles.classOptionTextSelected}>CLASS {cls}</Text>
+                  </LinearGradient>
+                ) : (
+                  <Text style={styles.classOptionText}>CLASS {cls}</Text>
+                )}
+              </BouncyButton>
+            );
+          })}
+        </View>
 
-      {/* ─── Action Button ─── */}
-      <BouncyButton
-        style={styles.startBtnWrapper}
-        onPress={handleStartGame}
-        disabled={!selectedClass || !selectedSubject}
-      >
-        <LinearGradient
-          colors={
-            selectedClass && selectedSubject
-              ? Gradients.primary
-              : ['#283054', '#1E243D']
-          }
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={[
-            styles.startButton,
-            (!selectedClass || !selectedSubject) && styles.startButtonDisabled,
-          ]}
-        >
-          <Text style={styles.startButtonText}>
-            {!selectedClass || !selectedSubject
-              ? 'SELECT CLASS & SUBJECT'
-              : '⚡ LAUNCH RUN'}
-          </Text>
-        </LinearGradient>
-      </BouncyButton>
+        {/* ─── Subject Selection ─── */}
+        <Text style={styles.sectionTitle}>SELECT ARENA SUBJECT</Text>
+        <View style={styles.subjectGrid}>
+          {SUBJECTS.map((subject) => {
+            const isSelected = selectedSubject === subject;
+            return (
+              <BouncyButton
+                key={subject}
+                style={[styles.subjectCard, isSelected && styles.subjectCardSelected]}
+                onPress={() => setSelectedSubject(subject)}
+              >
+                <Text style={styles.subjectEmoji}>
+                  {subject === 'Mathematics'
+                    ? '📐'
+                    : subject === 'Science'
+                      ? '🔬'
+                      : subject === 'English'
+                        ? '📖'
+                        : '🌍'}
+                </Text>
+                <Text
+                  style={[
+                    styles.subjectName,
+                    isSelected && styles.subjectNameSelected,
+                  ]}
+                >
+                  {subject}
+                </Text>
+                {isSelected && <View style={styles.subjectActiveDot} />}
+              </BouncyButton>
+            );
+          })}
+        </View>
+
+        {/* ─── Action Button ─── */}
+        <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+          <BouncyButton
+            style={styles.startBtnWrapper}
+            onPress={handleStartGame}
+            disabled={!selectedClass || !selectedSubject}
+          >
+            <LinearGradient
+              colors={
+                selectedClass && selectedSubject
+                  ? Gradients.primary
+                  : ['#283054', '#1E243D']
+              }
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={[
+                styles.startButton,
+                (!selectedClass || !selectedSubject) && styles.startButtonDisabled,
+              ]}
+            >
+              <Text style={styles.startButtonText}>
+                {!selectedClass || !selectedSubject
+                  ? 'SELECT CLASS & SUBJECT'
+                  : '⚡ LAUNCH RUN'}
+              </Text>
+            </LinearGradient>
+          </BouncyButton>
+        </Animated.View>
+      </Animated.View>
     </ScrollView>
   );
 }
