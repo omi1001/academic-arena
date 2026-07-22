@@ -119,7 +119,7 @@ export default function GameRunScreen() {
   const fetchQuestions = async () => {
     try {
       setIsLoading(true);
-      const res = await api.get('/questions', {
+      let res = await api.get('/questions', {
         params: {
           class: classStr,
           subject,
@@ -128,7 +128,19 @@ export default function GameRunScreen() {
           limit: QUESTIONS_PER_BATCH,
         },
       });
-      if (res.data.length > 0) {
+
+      // Retry without exclude filter to ensure run keeps going endlessly
+      if (!res.data || res.data.length === 0) {
+        res = await api.get('/questions', {
+          params: {
+            class: classStr,
+            subject,
+            limit: QUESTIONS_PER_BATCH,
+          },
+        });
+      }
+
+      if (res.data && res.data.length > 0) {
         questionBatchRef.current = res.data;
         game.setQuestions(res.data);
         game.resetQuestionIndex();
@@ -138,7 +150,6 @@ export default function GameRunScreen() {
       }
     } catch (e) {
       console.warn('Failed to fetch questions:', e);
-      endGame('completed');
     } finally {
       setIsLoading(false);
     }
