@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
 import api from '../../lib/api';
@@ -37,9 +38,11 @@ export default function DashboardScreen() {
     }
   };
 
-  useEffect(() => {
-    fetchProfile();
-  }, [firebaseUser]);
+  useFocusEffect(
+    useCallback(() => {
+      fetchProfile();
+    }, [firebaseUser])
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);

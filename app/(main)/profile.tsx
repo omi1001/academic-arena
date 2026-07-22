@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
 import api from '../../lib/api';
@@ -21,20 +22,22 @@ export default function ProfileScreen() {
   const { firebaseUser, logout } = useAuthStore();
   const { profile, setProfile } = useUserStore();
 
-  useEffect(() => {
-    const fetchProfile = async () => {
-      if (!firebaseUser) return;
-      try {
-        const res = await api.get('/auth/profile');
-        if (res.data?.user) {
-          setProfile(res.data.user as any);
+  useFocusEffect(
+    useCallback(() => {
+      const fetchProfile = async () => {
+        if (!firebaseUser) return;
+        try {
+          const res = await api.get('/auth/profile');
+          if (res.data?.user) {
+            setProfile(res.data.user as any);
+          }
+        } catch (e) {
+          console.warn('Failed to fetch profile from backend:', e);
         }
-      } catch (e) {
-        console.warn('Failed to fetch profile from backend:', e);
-      }
-    };
-    fetchProfile();
-  }, [firebaseUser]);
+      };
+      fetchProfile();
+    }, [firebaseUser])
+  );
 
   const getTier = (exp: number) => {
     if (exp >= LEADERBOARD_TIERS.DIAMOND.minEXP) return LEADERBOARD_TIERS.DIAMOND;

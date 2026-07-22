@@ -215,6 +215,7 @@ export default function GameRunScreen() {
 
     user.incrementGamesPlayed();
 
+    let runSaved = false;
     try {
       await api.post('/runs', {
         runId,
@@ -230,14 +231,32 @@ export default function GameRunScreen() {
         startTime: game.startTime,
         status,
       });
+      runSaved = true;
     } catch (e) {
       console.warn('Failed to save run:', e);
+    }
+
+    if (runSaved) {
+      try {
+        const res = await api.get('/auth/profile');
+        if (res.data?.user) {
+          user.setProfile(res.data.user as any);
+        }
+      } catch (e) {
+        console.warn('Failed to refresh profile:', e);
+      }
     }
 
     if (status === 'cheat_detected') {
       Alert.alert(
         'Game Ended',
         'You left the app during a run. Your score has been recorded.',
+        [{ text: 'OK', onPress: () => router.replace('/(main)') }]
+      );
+    } else if (!runSaved) {
+      Alert.alert(
+        'Score Not Saved',
+        'Your score could not be saved to the server. Your local stats are still updated.',
         [{ text: 'OK', onPress: () => router.replace('/(main)') }]
       );
     } else {

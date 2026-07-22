@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { Colors } from '../../constants/theme';
 import { LEADERBOARD_TIERS } from '../../constants/config';
 import api from '../../lib/api';
@@ -35,9 +36,11 @@ export default function LeaderboardScreen() {
     }
   };
 
-  useEffect(() => {
-    fetchLeaderboard();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchLeaderboard();
+    }, [])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);
