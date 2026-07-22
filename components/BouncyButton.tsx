@@ -47,13 +47,14 @@ export const BouncyButton: React.FC<BouncyButtonProps> = ({
 
   return (
     <Pressable
+      style={style}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       onPress={onPress}
       disabled={disabled}
       {...props}
     >
-      <Animated.View style={[style, { transform: [{ scale: scaleAnim }] }]}>
+      <Animated.View style={[{ width: '100%' }, { transform: [{ scale: scaleAnim }] }]}>
         {children}
       </Animated.View>
     </Pressable>

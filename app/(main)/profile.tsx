@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
     marginBottom: 28,
   },
   statBox: {
-    width: '48%',
+    width: '47%',
     backgroundColor: Colors.dark.surface,
     borderRadius: 16,
     padding: 18,
