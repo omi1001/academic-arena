@@ -13,6 +13,8 @@ import {
 import { Link, useRouter } from 'expo-router';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
+import api from '../../lib/api';
+import { useUserStore } from '../../stores/userStore';
 import { Colors } from '../../constants/theme';
 
 export default function LoginScreen() {
@@ -30,6 +32,17 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email.trim(), password);
+
+      // Fetch/sync user profile from backend
+      try {
+        const res = await api.get('/auth/profile');
+        if (res.data?.user) {
+          useUserStore.getState().setProfile(res.data.user);
+        }
+      } catch (e) {
+        console.warn('Login profile sync failed:', e);
+      }
+
       router.replace('/(main)');
     } catch (error: any) {
       const message =

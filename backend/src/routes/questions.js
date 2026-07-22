@@ -14,8 +14,10 @@ router.get('/', async (req, res) => {
   if (difficulty) query.difficulty = parseInt(sanitize(difficulty));
 
   if (exclude) {
-    const ids = exclude.split(',').map(sanitize);
-    query._id = { $nin: ids };
+    const ids = exclude.split(',').map((id) => sanitize(id.trim())).filter(Boolean);
+    if (ids.length > 0) {
+      query._id = { $nin: ids };
+    }
   }
 
   try {

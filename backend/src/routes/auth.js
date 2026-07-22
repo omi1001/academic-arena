@@ -40,15 +40,28 @@ router.post('/register', verifyFirebaseToken, async (req, res) => {
 });
 
 // GET /api/auth/profile
-// Get the authenticated user's profile
+// Get the authenticated user's profile (auto-creates if missing)
 router.get('/profile', verifyFirebaseToken, async (req, res) => {
   try {
-    const user = await User.findOne({ uid: req.user.uid }).select('-__v').lean();
+    let user = await User.findOne({ uid: req.user.uid }).select('-__v').lean();
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      // Auto-create user profile from Firebase token info if missing
+      const newUser = await User.create({
+        uid: req.user.uid,
+        name: req.user.name || req.user.email?.split('@')[0] || 'Player',
+        email: req.user.email || `${req.user.uid}@academicarena.com`,
+        class: 9,
+      });
+      user = newUser.toObject();
+      delete user.__v;
+    } else if (req.user.name && (user.name === 'Anonymous' || !user.name)) {
+      // Heal profile name if previously Anonymous
+      await User.updateOne({ uid: req.user.uid }, { $set: { name: req.user.name } });
+      user.name = req.user.name;
     }
     res.json({ user });
   } catch (err) {
+    console.error('Profile fetch error:', err);
     res.status(500).json({ error: 'Failed to fetch profile' });
   }
 });

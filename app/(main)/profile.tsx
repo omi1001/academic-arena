@@ -7,8 +7,7 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useFocusEffect } from '@react-navigation/native';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
 import api from '../../lib/api';
@@ -60,6 +59,18 @@ export default function ProfileScreen() {
     ]);
   };
 
+  const handleUpdateClass = async (newClass: 9 | 10) => {
+    try {
+      const res = await api.put('/auth/profile', { class: newClass });
+      if (res.data?.user) {
+        setProfile(res.data.user as any);
+        Alert.alert('Class Updated', `Default class set to Class ${newClass}`);
+      }
+    } catch (e) {
+      Alert.alert('Update Failed', 'Failed to update class. Please try again.');
+    }
+  };
+
   const tier = profile ? getTier(profile.totalEXP) : LEADERBOARD_TIERS.BRONZE;
   const accuracy = profile?.totalAnswered
     ? Math.round((profile.totalCorrect / profile.totalAnswered) * 100)
@@ -85,6 +96,27 @@ export default function ProfileScreen() {
         </View>
       </View>
 
+      <Text style={styles.sectionHeader}>Academic Class</Text>
+      <View style={styles.classRow}>
+        <TouchableOpacity
+          style={[styles.classChip, profile?.class === 9 && styles.classChipSelected]}
+          onPress={() => handleUpdateClass(9)}
+        >
+          <Text style={[styles.classChipText, profile?.class === 9 && styles.classChipTextSelected]}>
+            Class 9
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.classChip, profile?.class === 10 && styles.classChipSelected]}
+          onPress={() => handleUpdateClass(10)}
+        >
+          <Text style={[styles.classChipText, profile?.class === 10 && styles.classChipTextSelected]}>
+            Class 10
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      <Text style={styles.sectionHeader}>Lifetime Performance</Text>
       <View style={styles.statsGrid}>
         <View style={styles.statBox}>
           <Text style={styles.statValue}>{profile?.totalEXP || 0}</Text>
@@ -173,6 +205,39 @@ const styles = StyleSheet.create({
   tierText: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  sectionHeader: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: Colors.dark.text,
+    marginBottom: 12,
+  },
+  classRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 24,
+  },
+  classChip: {
+    flex: 1,
+    backgroundColor: Colors.dark.surface,
+    borderRadius: 12,
+    padding: 14,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: Colors.dark.border,
+  },
+  classChipSelected: {
+    borderColor: Colors.dark.primary,
+    backgroundColor: Colors.dark.surfaceLight,
+  },
+  classChipText: {
+    color: Colors.dark.textMuted,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  classChipTextSelected: {
+    color: Colors.dark.primary,
+    fontWeight: 'bold',
   },
   statsGrid: {
     flexDirection: 'row',

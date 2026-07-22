@@ -107,28 +107,33 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
     });
 
     // ─── 6. Update user stats ───
-    await User.findOneAndUpdate(
-      { uid: req.user.uid },
-      {
-        $setOnInsert: {
-          uid: req.user.uid,
-          name: req.user.name || req.user.email?.split('@')[0] || 'Anonymous',
-          email: req.user.email || '',
-          class: numCls,
-        },
-        $inc: {
-          totalEXP: finalExp,
-          gamesPlayed: 1,
-          totalCorrect: numCorrect,
-          totalAnswered: numAnswered,
-        },
-        $max: {
-          highestStreak: numStreak,
-          highestDifficulty: numDifficulty,
-        },
+    const userUpdate = {
+      $inc: {
+        totalEXP: finalExp,
+        gamesPlayed: 1,
+        totalCorrect: numCorrect,
+        totalAnswered: numAnswered,
       },
-      { upsert: true }
-    );
+      $max: {
+        highestStreak: numStreak,
+        highestDifficulty: numDifficulty,
+      },
+      $setOnInsert: {
+        uid: req.user.uid,
+        email: req.user.email || '',
+        class: numCls,
+        name: req.user.name || req.user.email?.split('@')[0] || 'Player',
+      },
+    };
+
+    if (req.user.name && req.user.name !== 'Anonymous') {
+      userUpdate.$set = { name: req.user.name };
+    }
+
+    await User.findOneAndUpdate({ uid: req.user.uid }, userUpdate, {
+      upsert: true,
+      new: true,
+    });
 
     res.json({ run, expAwarded: finalExp });
   } catch (err) {

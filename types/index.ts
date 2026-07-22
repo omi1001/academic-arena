@@ -54,6 +54,7 @@ export interface LeaderboardEntry {
 export interface GameState {
   currentQuestion: Question | null;
   questionIndex: number;
+  totalQuestionsAnswered: number;
   hearts: number;
   score: number;
   expEarned: number;

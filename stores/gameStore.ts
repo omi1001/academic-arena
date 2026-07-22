@@ -24,6 +24,7 @@ interface GameActions {
 const initialGameState: GameState = {
   currentQuestion: null,
   questionIndex: 0,
+  totalQuestionsAnswered: 0,
   hearts: MAX_HEARTS,
   score: 0,
   expEarned: 0,
@@ -71,6 +72,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       score: state.score + 1,
       expEarned: state.expEarned + expEarned,
       questionIndex: state.questionIndex + 1,
+      totalQuestionsAnswered: state.totalQuestionsAnswered + 1,
       currentQuestion: null,
       lastAnswerTime: Date.now(),
     });
@@ -85,6 +87,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       streak: 0,
       currentDifficulty: Math.max(STARTING_DIFFICULTY, state.currentDifficulty - 1),
       questionIndex: state.questionIndex + 1,
+      totalQuestionsAnswered: state.totalQuestionsAnswered + 1,
       currentQuestion: null,
       lastAnswerTime: Date.now(),
     });

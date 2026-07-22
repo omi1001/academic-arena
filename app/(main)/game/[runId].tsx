@@ -207,7 +207,12 @@ export default function GameRunScreen() {
     }
   };
 
+  const isEndingRef = useRef(false);
+
   const endGame = async (status: 'completed' | 'cheat_detected' | 'timeout') => {
+    if (isEndingRef.current) return;
+    isEndingRef.current = true;
+
     game.endRun();
     if (timerRef.current) clearInterval(timerRef.current);
     if (passiveRef.current) clearInterval(passiveRef.current);
@@ -223,7 +228,7 @@ export default function GameRunScreen() {
         subject,
         score: game.score,
         expEarned: game.expEarned,
-        questionsAnswered: game.questionIndex,
+        questionsAnswered: game.totalQuestionsAnswered,
         correctAnswers: game.score,
         maxStreak: game.maxStreak,
         highestDifficulty: game.currentDifficulty,
@@ -294,7 +299,7 @@ export default function GameRunScreen() {
             <Text style={styles.scoreLabel}>Score</Text>
           </View>
           <View style={styles.expArea}>
-            <Text style={styles.exp}>{game.expEarned + passiveExp}</Text>
+            <Text style={styles.exp}>{game.expEarned}</Text>
             <Text style={styles.expLabel}>EXP</Text>
           </View>
         </View>

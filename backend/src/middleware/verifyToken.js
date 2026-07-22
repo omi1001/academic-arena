@@ -11,9 +11,15 @@ const verifyFirebaseToken = async (req, res, next) => {
 
   try {
     const decodedToken = await admin.auth().verifyIdToken(token);
+    const displayName =
+      decodedToken.name ||
+      decodedToken.displayName ||
+      (decodedToken.email ? decodedToken.email.split('@')[0] : 'Player');
+
     req.user = {
       uid: decodedToken.uid,
-      email: decodedToken.email,
+      email: decodedToken.email || '',
+      name: displayName,
     };
     next();
   } catch (err) {

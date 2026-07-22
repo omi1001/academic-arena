@@ -14,6 +14,8 @@ import { Link, useRouter } from 'expo-router';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
 import api from '../../lib/api';
+import { useAuthStore } from '../../stores/authStore';
+import { useUserStore } from '../../stores/userStore';
 import { Colors } from '../../constants/theme';
 
 export default function SignupScreen() {
@@ -58,14 +60,19 @@ export default function SignupScreen() {
 
       // Save to backend MongoDB
       try {
-        await api.post('/auth/register', {
+        const res = await api.post('/auth/register', {
           name: displayName.trim(),
           email: email.trim(),
           class: selectedClass,
         });
+        if (res.data?.user) {
+          useUserStore.getState().setProfile(res.data.user);
+        }
       } catch (e) {
         console.warn('Backend register failed:', e);
       }
+
+      useAuthStore.getState().setFirebaseUser(auth.currentUser);
 
       router.replace('/(main)');
     } catch (error: any) {

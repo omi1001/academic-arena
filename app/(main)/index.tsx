@@ -7,8 +7,7 @@ import {
   ScrollView,
   RefreshControl,
 } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useFocusEffect } from '@react-navigation/native';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
 import api from '../../lib/api';
@@ -32,11 +31,20 @@ export default function DashboardScreen() {
       const res = await api.get('/auth/profile');
       if (res.data?.user) {
         setProfile(res.data.user as any);
+        if (res.data.user.class && !selectedClass) {
+          setSelectedClass(res.data.user.class);
+        }
       }
     } catch (e) {
       console.warn('Failed to fetch profile from backend:', e);
     }
   };
+
+  useEffect(() => {
+    if (profile?.class && !selectedClass) {
+      setSelectedClass(profile.class);
+    }
+  }, [profile?.class]);
 
   useFocusEffect(
     useCallback(() => {

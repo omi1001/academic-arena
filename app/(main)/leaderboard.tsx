@@ -7,9 +7,11 @@ import {
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from 'expo-router';
 import { Colors } from '../../constants/theme';
 import { LEADERBOARD_TIERS } from '../../constants/config';
+import { useAuthStore } from '../../stores/authStore';
+import { useUserStore } from '../../stores/userStore';
 import api from '../../lib/api';
 
 interface LeaderboardEntry {
@@ -54,12 +56,25 @@ export default function LeaderboardScreen() {
     return LEADERBOARD_TIERS.BRONZE;
   };
 
+  const { firebaseUser } = useAuthStore();
+  const { profile } = useUserStore();
+
   const renderItem = ({ item }: { item: LeaderboardEntry }) => {
     const tier = getTier(item.totalEXP);
     const isTop3 = item.rank <= 3;
+    const isCurrentUser = firebaseUser && item.uid === firebaseUser.uid;
+    const displayName =
+      (isCurrentUser ? (profile?.name || firebaseUser.displayName) : item.name) || 'Player';
+
+    const getRankDisplay = (rank: number) => {
+      if (rank === 1) return '🥇';
+      if (rank === 2) return '🥈';
+      if (rank === 3) return '🥉';
+      return `#${rank}`;
+    };
 
     return (
-      <View style={styles.row}>
+      <View style={[styles.row, isCurrentUser && styles.currentUserRow]}>
         <Text
           style={[
             styles.rank,
@@ -69,19 +84,27 @@ export default function LeaderboardScreen() {
             item.rank === 3 && { color: Colors.dark.bronze },
           ]}
         >
-          {item.rank}
+          {getRankDisplay(item.rank)}
         </Text>
 
         <View style={styles.userInfo}>
-          <Text
-            style={[
-              styles.userName,
-              isTop3 && styles.userNameTop3,
-              item.rank === 1 && { color: Colors.dark.gold },
-            ]}
-          >
-            {item.name || 'Anonymous'}
-          </Text>
+          <View style={styles.nameRow}>
+            <Text
+              style={[
+                styles.userName,
+                isTop3 && styles.userNameTop3,
+                item.rank === 1 && { color: Colors.dark.gold },
+                isCurrentUser && { color: Colors.dark.primary, fontWeight: 'bold' },
+              ]}
+            >
+              {displayName}
+            </Text>
+            {isCurrentUser && (
+              <View style={styles.youBadge}>
+                <Text style={styles.youBadgeText}>YOU</Text>
+              </View>
+            )}
+          </View>
           <View style={styles.tierRow}>
             <View style={[styles.tierDot, { backgroundColor: tier.color }]} />
             <Text style={[styles.tierLabel, { color: tier.color }]}>
@@ -158,6 +181,27 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginBottom: 8,
+  },
+  currentUserRow: {
+    borderColor: Colors.dark.primary,
+    borderWidth: 1.5,
+    backgroundColor: Colors.dark.surfaceLight,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  youBadge: {
+    backgroundColor: Colors.dark.primary,
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  youBadgeText: {
+    color: '#FFF',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
   rank: {
     fontSize: 18,

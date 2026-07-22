@@ -12,7 +12,22 @@ interface UserState {
 export const useUserStore = create<UserState>((set) => ({
   profile: null,
 
-  setProfile: (profile) => set({ profile }),
+  setProfile: (incoming) =>
+    set((state) => {
+      if (!incoming) return { profile: null };
+      if (!state.profile) return { profile: incoming };
+      return {
+        profile: {
+          ...incoming,
+          totalEXP: Math.max(incoming.totalEXP, state.profile.totalEXP),
+          gamesPlayed: Math.max(incoming.gamesPlayed, state.profile.gamesPlayed),
+          totalCorrect: Math.max(incoming.totalCorrect, state.profile.totalCorrect),
+          totalAnswered: Math.max(incoming.totalAnswered, state.profile.totalAnswered),
+          highestStreak: Math.max(incoming.highestStreak, state.profile.highestStreak),
+          highestDifficulty: Math.max(incoming.highestDifficulty, state.profile.highestDifficulty),
+        },
+      };
+    }),
 
   addExp: (amount) =>
     set((state) => {

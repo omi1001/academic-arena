@@ -51,23 +51,31 @@ router.get('/', async (req, res) => {
     // Look up user names
     const uids = leaderboard.map((e) => e._id);
     const users = await User.find({ uid: { $in: uids } })
-      .select('uid name class')
+      .select('uid name email class')
       .lean();
 
     const userMap = {};
     users.forEach((u) => { userMap[u.uid] = u; });
 
-    const result = leaderboard.map((entry, index) => ({
-      rank: index + 1,
-      uid: entry._id,
-      name: userMap[entry._id]?.name || 'Anonymous',
-      class: userMap[entry._id]?.class || null,
-      totalEXP: entry.totalEXP,
-      gamesPlayed: entry.gamesPlayed,
-      accuracy: entry.accuracy,
-      maxStreak: entry.maxStreak,
-      highestDifficulty: entry.highestDifficulty,
-    }));
+    const result = leaderboard.map((entry, index) => {
+      const u = userMap[entry._id];
+      let displayName = u?.name;
+      if (!displayName || displayName === 'Anonymous') {
+        displayName = u?.email ? u.email.split('@')[0] : 'Player';
+      }
+
+      return {
+        rank: index + 1,
+        uid: entry._id,
+        name: displayName,
+        class: u?.class || null,
+        totalEXP: entry.totalEXP,
+        gamesPlayed: entry.gamesPlayed,
+        accuracy: entry.accuracy,
+        maxStreak: entry.maxStreak,
+        highestDifficulty: entry.highestDifficulty,
+      };
+    });
 
     res.json(result);
   } catch (err) {
