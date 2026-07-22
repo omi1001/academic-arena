@@ -9,14 +9,17 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { LinearGradient } from 'expo-linear-gradient';
 import { auth } from '../../lib/firebase';
 import api from '../../lib/api';
 import { useAuthStore } from '../../stores/authStore';
 import { useUserStore } from '../../stores/userStore';
-import { Colors } from '../../constants/theme';
+import { Colors, Gradients } from '../../constants/theme';
+import { BouncyButton } from '../../components/BouncyButton';
 
 export default function SignupScreen() {
   const router = useRouter();
@@ -95,14 +98,18 @@ export default function SignupScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <View style={styles.inner}>
-        <Text style={styles.title}>Create Account</Text>
-        <Text style={styles.subtitle}>Join the arena</Text>
+      <ScrollView contentContainerStyle={styles.inner}>
+        <View style={styles.logoBadge}>
+          <Text style={styles.logoEmoji}>🚀</Text>
+        </View>
+
+        <Text style={styles.title}>CREATE ACCOUNT</Text>
+        <Text style={styles.subtitle}>Enter the Arena & Level Up</Text>
 
         <View style={styles.form}>
           <TextInput
             style={styles.input}
-            placeholder="Display Name"
+            placeholder="Display Name (e.g., Alex)"
             placeholderTextColor={Colors.dark.textMuted}
             value={displayName}
             onChangeText={setDisplayName}
@@ -111,7 +118,7 @@ export default function SignupScreen() {
 
           <TextInput
             style={styles.input}
-            placeholder="Email"
+            placeholder="Email Address"
             placeholderTextColor={Colors.dark.textMuted}
             value={email}
             onChangeText={setEmail}
@@ -121,27 +128,27 @@ export default function SignupScreen() {
           />
 
           <View style={styles.classRow}>
-            <TouchableOpacity
+            <BouncyButton
               style={[styles.classOption, selectedClass === 9 && styles.classSelected]}
               onPress={() => setSelectedClass(9)}
             >
               <Text style={[styles.classText, selectedClass === 9 && styles.classTextSelected]}>
-                Class 9
+                CLASS 9
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </BouncyButton>
+            <BouncyButton
               style={[styles.classOption, selectedClass === 10 && styles.classSelected]}
               onPress={() => setSelectedClass(10)}
             >
               <Text style={[styles.classText, selectedClass === 10 && styles.classTextSelected]}>
-                Class 10
+                CLASS 10
               </Text>
-            </TouchableOpacity>
+            </BouncyButton>
           </View>
 
           <TextInput
             style={styles.input}
-            placeholder="Password"
+            placeholder="Password (min 6 chars)"
             placeholderTextColor={Colors.dark.textMuted}
             value={password}
             onChangeText={setPassword}
@@ -157,17 +164,24 @@ export default function SignupScreen() {
             secureTextEntry
           />
 
-          <TouchableOpacity
-            style={[styles.button, loading && styles.buttonDisabled]}
+          <BouncyButton
+            style={styles.buttonWrapper}
             onPress={handleSignup}
             disabled={loading}
           >
-            {loading ? (
-              <ActivityIndicator color={Colors.dark.text} />
-            ) : (
-              <Text style={styles.buttonText}>Sign Up</Text>
-            )}
-          </TouchableOpacity>
+            <LinearGradient
+              colors={Gradients.primary}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={[styles.button, loading && styles.buttonDisabled]}
+            >
+              {loading ? (
+                <ActivityIndicator color={Colors.dark.text} />
+              ) : (
+                <Text style={styles.buttonText}>CREATE ACCOUNT ➔</Text>
+              )}
+            </LinearGradient>
+          </BouncyButton>
 
           <Link href="/(auth)" asChild>
             <TouchableOpacity style={styles.linkButton}>
@@ -177,7 +191,7 @@ export default function SignupScreen() {
             </TouchableOpacity>
           </Link>
         </View>
-      </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -188,33 +202,54 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.dark.background,
   },
   inner: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: 28,
+    paddingVertical: 40,
+  },
+  logoBadge: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: Colors.dark.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf: 'center',
+    borderWidth: 2,
+    borderColor: Colors.dark.cyan,
+    marginBottom: 14,
+    elevation: 8,
+    shadowColor: Colors.dark.cyanGlow,
+    shadowRadius: 10,
+    shadowOpacity: 0.5,
+  },
+  logoEmoji: {
+    fontSize: 32,
   },
   title: {
-    fontSize: 36,
+    fontSize: 26,
     fontWeight: 'bold',
     color: Colors.dark.text,
     textAlign: 'center',
-    marginBottom: 8,
+    letterSpacing: 1.5,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 14,
     color: Colors.dark.textMuted,
     textAlign: 'center',
-    marginBottom: 48,
+    marginBottom: 32,
+    marginTop: 4,
   },
   form: {
-    gap: 14,
+    gap: 12,
   },
   input: {
     backgroundColor: Colors.dark.surface,
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 16,
-    fontSize: 16,
+    fontSize: 15,
     color: Colors.dark.text,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: Colors.dark.border,
   },
   classRow: {
@@ -224,42 +259,47 @@ const styles = StyleSheet.create({
   classOption: {
     flex: 1,
     backgroundColor: Colors.dark.surface,
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 14,
     alignItems: 'center',
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: Colors.dark.border,
   },
   classSelected: {
     borderColor: Colors.dark.primary,
-    backgroundColor: Colors.dark.primary + '15',
+    backgroundColor: 'rgba(255, 42, 109, 0.15)',
   },
   classText: {
     color: Colors.dark.textMuted,
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: 'bold',
+    letterSpacing: 0.5,
   },
   classTextSelected: {
     color: Colors.dark.primary,
   },
+  buttonWrapper: {
+    borderRadius: 14,
+    overflow: 'hidden',
+    marginTop: 6,
+  },
   button: {
-    backgroundColor: Colors.dark.primary,
-    borderRadius: 12,
-    padding: 16,
+    paddingVertical: 18,
     alignItems: 'center',
-    marginTop: 4,
+    borderRadius: 14,
   },
   buttonDisabled: {
     opacity: 0.6,
   },
   buttonText: {
     color: Colors.dark.text,
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
+    letterSpacing: 1,
   },
   linkButton: {
     alignItems: 'center',
-    marginTop: 12,
+    marginTop: 14,
   },
   linkText: {
     color: Colors.dark.textMuted,

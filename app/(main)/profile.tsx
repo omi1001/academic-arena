@@ -1,20 +1,21 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
   StyleSheet,
   ScrollView,
   Alert,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { signOut } from 'firebase/auth';
+import { LinearGradient } from 'expo-linear-gradient';
 import { auth } from '../../lib/firebase';
 import api from '../../lib/api';
 import { useAuthStore } from '../../stores/authStore';
 import { useUserStore } from '../../stores/userStore';
-import { Colors } from '../../constants/theme';
+import { Colors, Gradients } from '../../constants/theme';
 import { LEADERBOARD_TIERS } from '../../constants/config';
+import { BouncyButton } from '../../components/BouncyButton';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -46,7 +47,7 @@ export default function ProfileScreen() {
   };
 
   const handleLogout = async () => {
-    Alert.alert('Logout', 'Are you sure?', [
+    Alert.alert('Logout', 'Are you sure you want to exit?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Logout',
@@ -76,73 +77,82 @@ export default function ProfileScreen() {
     ? Math.round((profile.totalCorrect / profile.totalAnswered) * 100)
     : 0;
 
+  const userName = profile?.name || firebaseUser?.displayName || 'Player';
+  const initial = userName[0]?.toUpperCase() || 'P';
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Profile</Text>
+      <Text style={styles.title}>PLAYER PROFILE</Text>
 
-      <View style={styles.avatarSection}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {profile?.name?.[0]?.toUpperCase() || firebaseUser?.displayName?.[0]?.toUpperCase() || '?'}
-          </Text>
+      {/* ─── Hero Profile Card ─── */}
+      <LinearGradient colors={['#161B33', '#0F1224']} style={styles.profileCard}>
+        <View style={[styles.avatarGlow, { borderColor: tier.color }]}>
+          <Text style={styles.avatarText}>{initial}</Text>
         </View>
-        <Text style={styles.name}>{profile?.name || firebaseUser?.displayName || 'Player'}</Text>
+        <Text style={styles.name}>{userName}</Text>
         <Text style={styles.email}>{firebaseUser?.email}</Text>
+
         <View style={styles.tierBadge}>
           <View style={[styles.tierDot, { backgroundColor: tier.color }]} />
           <Text style={[styles.tierText, { color: tier.color }]}>
-            {tier.name}
+            {tier.name} Division
           </Text>
         </View>
-      </View>
+      </LinearGradient>
 
-      <Text style={styles.sectionHeader}>Academic Class</Text>
+      {/* ─── Academic Class Selector ─── */}
+      <Text style={styles.sectionHeader}>ACADEMIC CLASS</Text>
       <View style={styles.classRow}>
-        <TouchableOpacity
+        <BouncyButton
           style={[styles.classChip, profile?.class === 9 && styles.classChipSelected]}
           onPress={() => handleUpdateClass(9)}
         >
           <Text style={[styles.classChipText, profile?.class === 9 && styles.classChipTextSelected]}>
-            Class 9
+            CLASS 9
           </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
+        </BouncyButton>
+        <BouncyButton
           style={[styles.classChip, profile?.class === 10 && styles.classChipSelected]}
           onPress={() => handleUpdateClass(10)}
         >
           <Text style={[styles.classChipText, profile?.class === 10 && styles.classChipTextSelected]}>
-            Class 10
+            CLASS 10
           </Text>
-        </TouchableOpacity>
+        </BouncyButton>
       </View>
 
-      <Text style={styles.sectionHeader}>Lifetime Performance</Text>
+      {/* ─── Lifetime Stats Grid ─── */}
+      <Text style={styles.sectionHeader}>LIFETIME STATS</Text>
       <View style={styles.statsGrid}>
         <View style={styles.statBox}>
+          <Text style={styles.statIcon}>⚡</Text>
           <Text style={styles.statValue}>{profile?.totalEXP || 0}</Text>
           <Text style={styles.statLabel}>Total EXP</Text>
         </View>
         <View style={styles.statBox}>
+          <Text style={styles.statIcon}>🎮</Text>
           <Text style={styles.statValue}>{profile?.gamesPlayed || 0}</Text>
-          <Text style={styles.statLabel}>Games Played</Text>
+          <Text style={styles.statLabel}>Runs Played</Text>
         </View>
         <View style={styles.statBox}>
+          <Text style={styles.statIcon}>❓</Text>
           <Text style={styles.statValue}>{profile?.totalAnswered || 0}</Text>
           <Text style={styles.statLabel}>Questions</Text>
         </View>
         <View style={styles.statBox}>
+          <Text style={styles.statIcon}>🎯</Text>
           <Text style={styles.statValue}>{accuracy}%</Text>
           <Text style={styles.statLabel}>Accuracy</Text>
         </View>
       </View>
 
-      <TouchableOpacity style={styles.helpButton} onPress={() => router.push('/(main)/help')}>
-        <Text style={styles.helpButtonText}>Help & Support</Text>
-      </TouchableOpacity>
+      <BouncyButton style={styles.helpButton} onPress={() => router.push('/(main)/help')}>
+        <Text style={styles.helpButtonText}>💬 Help & Support</Text>
+      </BouncyButton>
 
-      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-        <Text style={styles.logoutButtonText}>Logout</Text>
-      </TouchableOpacity>
+      <BouncyButton style={styles.logoutButton} onPress={handleLogout}>
+        <Text style={styles.logoutButtonText}>🚪 Logout Account</Text>
+      </BouncyButton>
     </ScrollView>
   );
 }
@@ -153,27 +163,34 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.dark.background,
   },
   content: {
-    padding: 24,
-    paddingTop: 60,
-    paddingBottom: 100,
+    padding: 20,
+    paddingTop: 56,
+    paddingBottom: 110,
   },
   title: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: 'bold',
     color: Colors.dark.text,
-    marginBottom: 32,
+    marginBottom: 20,
+    letterSpacing: 1,
   },
-  avatarSection: {
+  profileCard: {
+    borderRadius: 20,
+    padding: 24,
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    elevation: 8,
   },
-  avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: Colors.dark.primary,
+  avatarGlow: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: Colors.dark.surfaceLight,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 3,
     marginBottom: 12,
   },
   avatarText: {
@@ -187,15 +204,19 @@ const styles = StyleSheet.create({
     color: Colors.dark.text,
   },
   email: {
-    fontSize: 14,
+    fontSize: 13,
     color: Colors.dark.textMuted,
-    marginTop: 4,
+    marginTop: 2,
   },
   tierBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginTop: 8,
+    marginTop: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
   },
   tierDot: {
     width: 8,
@@ -203,13 +224,16 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   tierText: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   sectionHeader: {
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: 'bold',
-    color: Colors.dark.text,
+    color: Colors.dark.cyan,
+    letterSpacing: 1,
     marginBottom: 12,
   },
   classRow: {
@@ -220,7 +244,7 @@ const styles = StyleSheet.create({
   classChip: {
     flex: 1,
     backgroundColor: Colors.dark.surface,
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 14,
     alignItems: 'center',
     borderWidth: 1.5,
@@ -228,43 +252,51 @@ const styles = StyleSheet.create({
   },
   classChipSelected: {
     borderColor: Colors.dark.primary,
-    backgroundColor: Colors.dark.surfaceLight,
+    backgroundColor: 'rgba(255, 42, 109, 0.12)',
   },
   classChipText: {
     color: Colors.dark.textMuted,
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: 'bold',
+    letterSpacing: 0.5,
   },
   classChipTextSelected: {
     color: Colors.dark.primary,
-    fontWeight: 'bold',
   },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 12,
-    marginBottom: 32,
+    marginBottom: 28,
   },
   statBox: {
-    width: '47%',
+    width: '48%',
     backgroundColor: Colors.dark.surface,
-    borderRadius: 12,
-    padding: 20,
+    borderRadius: 16,
+    padding: 18,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+  },
+  statIcon: {
+    fontSize: 20,
+    marginBottom: 4,
   },
   statValue: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: 'bold',
     color: Colors.dark.text,
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 10,
     color: Colors.dark.textMuted,
-    marginTop: 4,
+    marginTop: 2,
+    fontWeight: '700',
+    textTransform: 'uppercase',
   },
   helpButton: {
     backgroundColor: Colors.dark.surface,
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 16,
     alignItems: 'center',
     borderWidth: 1,
@@ -273,12 +305,12 @@ const styles = StyleSheet.create({
   },
   helpButtonText: {
     color: Colors.dark.text,
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: 'bold',
   },
   logoutButton: {
-    backgroundColor: Colors.dark.surface,
-    borderRadius: 12,
+    backgroundColor: 'rgba(255, 46, 99, 0.12)',
+    borderRadius: 14,
     padding: 16,
     alignItems: 'center',
     borderWidth: 1,
@@ -286,7 +318,7 @@ const styles = StyleSheet.create({
   },
   logoutButtonText: {
     color: Colors.dark.danger,
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: 'bold',
   },
 });

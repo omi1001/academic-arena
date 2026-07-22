@@ -12,10 +12,12 @@ import {
 } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import { signInWithEmailAndPassword } from 'firebase/auth';
+import { LinearGradient } from 'expo-linear-gradient';
 import { auth } from '../../lib/firebase';
 import api from '../../lib/api';
 import { useUserStore } from '../../stores/userStore';
-import { Colors } from '../../constants/theme';
+import { Colors, Gradients } from '../../constants/theme';
+import { BouncyButton } from '../../components/BouncyButton';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -65,13 +67,18 @@ export default function LoginScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View style={styles.inner}>
-        <Text style={styles.title}>Academic Arena</Text>
+        {/* Logo Badge */}
+        <View style={styles.logoBadge}>
+          <Text style={styles.logoEmoji}>⚔️</Text>
+        </View>
+
+        <Text style={styles.title}>ACADEMIC ARENA</Text>
         <Text style={styles.subtitle}>Level up your knowledge</Text>
 
         <View style={styles.form}>
           <TextInput
             style={styles.input}
-            placeholder="Email"
+            placeholder="Email Address"
             placeholderTextColor={Colors.dark.textMuted}
             value={email}
             onChangeText={setEmail}
@@ -89,17 +96,24 @@ export default function LoginScreen() {
             secureTextEntry
           />
 
-          <TouchableOpacity
-            style={[styles.button, loading && styles.buttonDisabled]}
+          <BouncyButton
+            style={styles.buttonWrapper}
             onPress={handleLogin}
             disabled={loading}
           >
-            {loading ? (
-              <ActivityIndicator color={Colors.dark.text} />
-            ) : (
-              <Text style={styles.buttonText}>Log In</Text>
-            )}
-          </TouchableOpacity>
+            <LinearGradient
+              colors={Gradients.primary}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={[styles.button, loading && styles.buttonDisabled]}
+            >
+              {loading ? (
+                <ActivityIndicator color={Colors.dark.text} />
+              ) : (
+                <Text style={styles.buttonText}>LOG IN ➔</Text>
+              )}
+            </LinearGradient>
+          </BouncyButton>
 
           <Link href="/(auth)/signup" asChild>
             <TouchableOpacity style={styles.linkButton}>
@@ -122,47 +136,71 @@ const styles = StyleSheet.create({
   inner: {
     flex: 1,
     justifyContent: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: 28,
+  },
+  logoBadge: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: Colors.dark.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf: 'center',
+    borderWidth: 2,
+    borderColor: Colors.dark.primary,
+    marginBottom: 16,
+    elevation: 8,
+    shadowColor: Colors.dark.primaryGlow,
+    shadowRadius: 10,
+    shadowOpacity: 0.5,
+  },
+  logoEmoji: {
+    fontSize: 34,
   },
   title: {
-    fontSize: 36,
+    fontSize: 28,
     fontWeight: 'bold',
     color: Colors.dark.text,
     textAlign: 'center',
-    marginBottom: 8,
+    letterSpacing: 1.5,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 14,
     color: Colors.dark.textMuted,
     textAlign: 'center',
-    marginBottom: 48,
+    marginBottom: 40,
+    marginTop: 4,
   },
   form: {
-    gap: 16,
+    gap: 14,
   },
   input: {
     backgroundColor: Colors.dark.surface,
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 16,
-    fontSize: 16,
+    fontSize: 15,
     color: Colors.dark.text,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: Colors.dark.border,
   },
+  buttonWrapper: {
+    borderRadius: 14,
+    overflow: 'hidden',
+    marginTop: 6,
+  },
   button: {
-    backgroundColor: Colors.dark.primary,
-    borderRadius: 12,
-    padding: 16,
+    paddingVertical: 18,
     alignItems: 'center',
-    marginTop: 8,
+    borderRadius: 14,
   },
   buttonDisabled: {
     opacity: 0.6,
   },
   buttonText: {
     color: Colors.dark.text,
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
+    letterSpacing: 1,
   },
   linkButton: {
     alignItems: 'center',

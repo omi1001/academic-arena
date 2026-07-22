@@ -9,10 +9,11 @@ import {
   Vibration,
 } from 'react-native';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { useGameStore } from '../../../stores/gameStore';
 import { useUserStore } from '../../../stores/userStore';
-import { Colors } from '../../../constants/theme';
+import { Colors, Gradients } from '../../../constants/theme';
 import {
   MAX_HEARTS,
   SPEED_THRESHOLDS,
@@ -27,6 +28,7 @@ import {
 } from '../../../constants/config';
 import api from '../../../lib/api';
 import type { Question } from '../../../types';
+import { BouncyButton } from '../../../components/BouncyButton';
 
 export default function GameRunScreen() {
   const router = useRouter();
@@ -44,7 +46,7 @@ export default function GameRunScreen() {
   const [showResult, setShowResult] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [passiveExp, setPassiveExp] = useState(0);
+  const [earnedExpToast, setEarnedExpToast] = useState<number | null>(null);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const passiveRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -77,7 +79,6 @@ export default function GameRunScreen() {
   useEffect(() => {
     if (!game.isGameActive) return;
     passiveRef.current = setInterval(() => {
-      setPassiveExp((prev) => prev + PASSIVE_EXP_AMOUNT);
       game.addExp(PASSIVE_EXP_AMOUNT);
     }, PASSIVE_EXP_INTERVAL);
     return () => {
@@ -174,16 +175,19 @@ export default function GameRunScreen() {
 
     if (correct) {
       const exp = calculateEXP();
+      setEarnedExpToast(exp);
       game.correctAnswer(exp);
       game.markQuestionAnswered(game.currentQuestion._id);
       user.addExp(exp);
       user.incrementQuestions(true);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } else {
+      setEarnedExpToast(null);
       game.markQuestionAnswered(game.currentQuestion._id);
       const remaining = game.incorrectAnswer();
       user.incrementQuestions(false);
-      Vibration.vibrate(200);
+      Vibration.vibrate(250);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
 
       if (remaining <= 0) {
         setTimeout(() => endGame('completed'), 1500);
@@ -194,6 +198,7 @@ export default function GameRunScreen() {
     setTimeout(() => {
       setShowResult(false);
       setSelectedOption(null);
+      setEarnedExpToast(null);
       loadNextQuestion();
     }, 1500);
   };
@@ -269,13 +274,6 @@ export default function GameRunScreen() {
     }
   };
 
-  const getOptionStyle = (index: number) => {
-    if (!showResult) return styles.option;
-    if (index === game.currentQuestion?.answer) return styles.optionCorrect;
-    if (index === selectedOption && !isCorrect) return styles.optionWrong;
-    return styles.option;
-  };
-
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
@@ -286,90 +284,140 @@ export default function GameRunScreen() {
           lastTouchRef.current = Date.now();
         }}
       >
+        {/* ─── Top HUD Bar ─── */}
         <View style={styles.topBar}>
-          <View style={styles.heartsRow}>
+          <View style={styles.heartsCard}>
             {Array.from({ length: MAX_HEARTS }).map((_, i) => (
               <Text key={i} style={styles.heart}>
                 {i < game.hearts ? '❤️' : '🖤'}
               </Text>
             ))}
           </View>
-          <View style={styles.scoreArea}>
-            <Text style={styles.score}>{game.score}</Text>
-            <Text style={styles.scoreLabel}>Score</Text>
+
+          <View style={styles.scoreCard}>
+            <Text style={styles.scoreValue}>{game.score}</Text>
+            <Text style={styles.hudLabel}>SCORE</Text>
           </View>
-          <View style={styles.expArea}>
-            <Text style={styles.exp}>{game.expEarned}</Text>
-            <Text style={styles.expLabel}>EXP</Text>
+
+          <View style={styles.expCard}>
+            <Text style={styles.expValue}>⚡ {game.expEarned}</Text>
+            <Text style={styles.hudLabel}>TOTAL EXP</Text>
           </View>
         </View>
 
+        {/* ─── Difficulty & Timer Track ─── */}
         <View style={styles.difficultyBar}>
-          <View style={styles.difficultyLabel}>
-            <Text style={styles.difficultyText}>
-              Difficulty: {game.currentDifficulty}
-            </Text>
-            <Text style={styles.streakText}>
-              {game.streak > 0 ? `🔥 ${game.streak} streak` : ''}
-            </Text>
+          <View style={styles.difficultyLabelRow}>
+            <View style={styles.difficultyBadge}>
+              <Text style={styles.difficultyText}>
+                LVL {game.currentDifficulty}
+              </Text>
+            </View>
+            {game.streak > 0 && (
+              <View style={styles.streakBadge}>
+                <Text style={styles.streakText}>🔥 STREAK x{game.streak}</Text>
+              </View>
+            )}
+            <Text style={styles.timerNumber}>{timeLeft}s</Text>
           </View>
+
           <View style={styles.timerTrack}>
-            <View
-              style={[
-                styles.timerFill,
-                {
-                  width: `${(timeLeft / 15) * 100}%`,
-                  backgroundColor:
-                    timeLeft <= 5 ? Colors.dark.danger : Colors.dark.primary,
-                },
-              ]}
+            <LinearGradient
+              colors={
+                timeLeft <= 4
+                  ? [Colors.dark.danger, '#FF0055']
+                  : timeLeft <= 8
+                    ? [Colors.dark.warning, '#FF9900']
+                    : Gradients.cyan
+              }
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={[styles.timerFill, { width: `${(timeLeft / 15) * 100}%` }]}
             />
           </View>
-          <Text style={styles.timerText}>{timeLeft}s</Text>
         </View>
 
+        {/* ─── Question Card & Choices ─── */}
         <View style={styles.questionArea}>
           {isLoading ? (
-            <Text style={styles.loadingText}>Loading questions...</Text>
+            <View style={styles.loadingBox}>
+              <Text style={styles.loadingText}>FETCHING ARENA QUESTION...</Text>
+            </View>
           ) : game.currentQuestion ? (
             <>
-              <Text style={styles.questionText}>
-                {game.currentQuestion.question}
-              </Text>
+              {/* Question Text Box */}
+              <LinearGradient colors={['#161B33', '#0F1224']} style={styles.questionCard}>
+                <Text style={styles.questionText}>
+                  {game.currentQuestion.question}
+                </Text>
+              </LinearGradient>
 
+              {/* Options */}
               <View style={styles.optionsContainer}>
-                {game.currentQuestion.options.map((option, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={getOptionStyle(index)}
-                    onPress={() => handleAnswer(index)}
-                    disabled={showResult}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.optionLabel}>
-                      {String.fromCharCode(65 + index)}
-                    </Text>
-                    <Text style={styles.optionText}>{option}</Text>
-                  </TouchableOpacity>
-                ))}
+                {game.currentQuestion.options.map((option, index) => {
+                  const isAnswer = index === game.currentQuestion?.answer;
+                  const isSelected = index === selectedOption;
+
+                  return (
+                    <BouncyButton
+                      key={index}
+                      onPress={() => handleAnswer(index)}
+                      disabled={showResult}
+                      style={styles.optionWrapper}
+                    >
+                      <View
+                        style={[
+                          styles.optionCard,
+                          showResult && isAnswer && styles.optionCardCorrect,
+                          showResult && isSelected && !isCorrect && styles.optionCardWrong,
+                        ]}
+                      >
+                        <View
+                          style={[
+                            styles.optionBadge,
+                            showResult && isAnswer && styles.optionBadgeCorrect,
+                            showResult && isSelected && !isCorrect && styles.optionBadgeWrong,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.optionBadgeText,
+                              showResult && isAnswer && styles.optionBadgeTextActive,
+                              showResult && isSelected && !isCorrect && styles.optionBadgeTextActive,
+                            ]}
+                          >
+                            {String.fromCharCode(65 + index)}
+                          </Text>
+                        </View>
+
+                        <Text style={styles.optionText}>{option}</Text>
+                      </View>
+                    </BouncyButton>
+                  );
+                })}
               </View>
             </>
           ) : (
-            <Text style={styles.loadingText}>No more questions</Text>
+            <Text style={styles.loadingText}>NO MORE QUESTIONS</Text>
           )}
         </View>
 
+        {/* ─── Result Toast Banner ─── */}
         {showResult && (
-          <View
-            style={[
-              styles.resultBanner,
-              isCorrect ? styles.resultCorrect : styles.resultWrong,
-            ]}
+          <LinearGradient
+            colors={
+              isCorrect ? Gradients.success : Gradients.fire
+            }
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.resultBanner}
           >
             <Text style={styles.resultText}>
-              {isCorrect ? 'Correct!' : 'Wrong!'}
+              {isCorrect
+                ? `⚡ PERFECT! +${earnedExpToast || 100} EXP`
+                : '💥 INCORRECT! -1 HEART'}
             </Text>
-          </View>
+          </LinearGradient>
         )}
       </TouchableOpacity>
     </>
@@ -385,152 +433,211 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 60,
-    paddingHorizontal: 24,
+    paddingTop: 56,
+    paddingHorizontal: 20,
     paddingBottom: 16,
   },
-  heartsRow: {
+  heartsCard: {
     flexDirection: 'row',
     gap: 4,
+    backgroundColor: Colors.dark.surface,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
   },
   heart: {
-    fontSize: 24,
+    fontSize: 18,
   },
-  scoreArea: {
+  scoreCard: {
     alignItems: 'center',
+    backgroundColor: Colors.dark.surface,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
   },
-  score: {
-    fontSize: 28,
+  scoreValue: {
+    fontSize: 20,
     fontWeight: 'bold',
     color: Colors.dark.text,
   },
-  scoreLabel: {
-    fontSize: 11,
+  hudLabel: {
+    fontSize: 9,
     color: Colors.dark.textMuted,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
-  expArea: {
+  expCard: {
     alignItems: 'center',
+    backgroundColor: Colors.dark.surface,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.dark.cyan,
   },
-  exp: {
-    fontSize: 22,
+  expValue: {
+    fontSize: 18,
     fontWeight: 'bold',
-    color: Colors.dark.primary,
-  },
-  expLabel: {
-    fontSize: 11,
-    color: Colors.dark.textMuted,
+    color: Colors.dark.cyan,
   },
   difficultyBar: {
-    paddingHorizontal: 24,
-    marginBottom: 24,
+    paddingHorizontal: 20,
+    marginBottom: 20,
   },
-  difficultyLabel: {
+  difficultyLabelRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 8,
   },
+  difficultyBadge: {
+    backgroundColor: 'rgba(5, 213, 230, 0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.dark.cyan,
+  },
   difficultyText: {
-    fontSize: 13,
-    color: Colors.dark.textMuted,
+    fontSize: 11,
+    color: Colors.dark.cyan,
+    fontWeight: 'bold',
+    letterSpacing: 0.5,
+  },
+  streakBadge: {
+    backgroundColor: 'rgba(255, 81, 47, 0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FF512F',
   },
   streakText: {
+    fontSize: 11,
+    color: '#FF512F',
+    fontWeight: 'bold',
+    letterSpacing: 0.5,
+  },
+  timerNumber: {
     fontSize: 13,
-    color: Colors.dark.warning,
-    fontWeight: '600',
+    color: Colors.dark.textMuted,
+    fontWeight: 'bold',
   },
   timerTrack: {
-    height: 4,
-    backgroundColor: Colors.dark.border,
-    borderRadius: 2,
+    height: 6,
+    backgroundColor: Colors.dark.surfaceBorder,
+    borderRadius: 3,
     overflow: 'hidden',
   },
   timerFill: {
     height: '100%',
-    borderRadius: 2,
-  },
-  timerText: {
-    fontSize: 12,
-    color: Colors.dark.textMuted,
-    textAlign: 'right',
-    marginTop: 4,
+    borderRadius: 3,
   },
   questionArea: {
     flex: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     justifyContent: 'center',
+  },
+  loadingBox: {
+    alignItems: 'center',
+    padding: 30,
   },
   loadingText: {
     textAlign: 'center',
     color: Colors.dark.textMuted,
-    fontSize: 16,
+    fontSize: 14,
+    fontWeight: 'bold',
+    letterSpacing: 1,
+  },
+  questionCard: {
+    borderRadius: 20,
+    padding: 24,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    elevation: 6,
   },
   questionText: {
-    fontSize: 20,
+    fontSize: 19,
     fontWeight: '600',
     color: Colors.dark.text,
     lineHeight: 28,
-    marginBottom: 32,
   },
   optionsContainer: {
     gap: 12,
   },
-  option: {
+  optionWrapper: {
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  optionCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.dark.surface,
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 16,
-    borderWidth: 2,
-    borderColor: 'transparent',
+    borderWidth: 1.5,
+    borderColor: Colors.dark.border,
   },
-  optionCorrect: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#00C85320',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 2,
+  optionCardCorrect: {
+    backgroundColor: 'rgba(0, 245, 160, 0.15)',
     borderColor: Colors.dark.success,
   },
-  optionWrong: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FF174420',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 2,
+  optionCardWrong: {
+    backgroundColor: 'rgba(255, 46, 99, 0.15)',
     borderColor: Colors.dark.danger,
   },
-  optionLabel: {
-    fontSize: 16,
+  optionBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: Colors.dark.surfaceLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+  },
+  optionBadgeCorrect: {
+    backgroundColor: Colors.dark.success,
+  },
+  optionBadgeWrong: {
+    backgroundColor: Colors.dark.danger,
+  },
+  optionBadgeText: {
+    fontSize: 15,
     fontWeight: 'bold',
     color: Colors.dark.textMuted,
-    marginRight: 12,
-    width: 24,
+  },
+  optionBadgeTextActive: {
+    color: '#000',
   },
   optionText: {
-    fontSize: 16,
+    fontSize: 15,
     color: Colors.dark.text,
+    fontWeight: '600',
     flex: 1,
   },
   resultBanner: {
     position: 'absolute',
-    bottom: 40,
-    left: 24,
-    right: 24,
-    borderRadius: 12,
-    padding: 16,
+    bottom: 36,
+    left: 20,
+    right: 20,
+    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
     alignItems: 'center',
-  },
-  resultCorrect: {
-    backgroundColor: Colors.dark.success,
-  },
-  resultWrong: {
-    backgroundColor: Colors.dark.danger,
+    elevation: 10,
+    shadowColor: '#000',
+    shadowRadius: 10,
+    shadowOpacity: 0.5,
   },
   resultText: {
-    color: Colors.dark.text,
-    fontSize: 18,
+    color: '#FFF',
+    fontSize: 16,
     fontWeight: 'bold',
+    letterSpacing: 0.5,
   },
 });
