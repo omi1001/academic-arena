@@ -8,7 +8,7 @@ import {
 } from '../constants/config';
 
 interface GameActions {
-  startRun: (runId: string, classNum: number, subject: string) => void;
+  startRun: (runId: string, classNum: number, subject: string, packet?: number) => void;
   setQuestion: (question: GameState['currentQuestion']) => void;
   correctAnswer: (expEarned: number) => void;
   incorrectAnswer: () => number;
@@ -35,6 +35,7 @@ const initialGameState: GameState = {
   runId: null,
   selectedClass: null,
   selectedSubject: null,
+  selectedPacket: 1,
   questions: [],
   answeredQuestionIds: [],
   startTime: 0,
@@ -44,12 +45,13 @@ const initialGameState: GameState = {
 export const useGameStore = create<GameState & GameActions>((set, get) => ({
   ...initialGameState,
 
-  startRun: (runId, classNum, subject) =>
+  startRun: (runId, classNum, subject, packet) =>
     set({
       ...initialGameState,
       runId,
       selectedClass: classNum as 9 | 10,
       selectedSubject: subject as any,
+      selectedPacket: packet || 1,
       isGameActive: true,
       startTime: Date.now(),
     }),

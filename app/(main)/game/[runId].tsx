@@ -34,10 +34,11 @@ import { BouncyButton } from '../../../components/BouncyButton';
 
 export default function GameRunScreen() {
   const router = useRouter();
-  const { runId, class: classStr, subject } = useLocalSearchParams<{
+  const { runId, class: classStr, subject, packet } = useLocalSearchParams<{
     runId: string;
     class: string;
     subject: string;
+    packet?: string;
   }>();
 
   const game = useGameStore();
@@ -121,8 +122,9 @@ export default function GameRunScreen() {
 
   // Initialize game run
   useEffect(() => {
-    game.startRun(runId!, parseInt(classStr!), subject!);
-    fetchQuestions();
+    const initialPacket = packet ? parseInt(packet) : 1;
+    game.startRun(runId!, parseInt(classStr!), subject!, initialPacket);
+    fetchQuestions(initialPacket);
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
       if (passiveRef.current) clearInterval(passiveRef.current);
@@ -188,14 +190,16 @@ export default function GameRunScreen() {
     };
   }, [game.currentQuestion, showResult, isLoading]);
 
-  const fetchQuestions = async () => {
+  const fetchQuestions = async (pktOverride?: number) => {
     try {
       setIsLoading(true);
+      const reqPacket = pktOverride || game.selectedPacket || (packet ? parseInt(packet) : 1);
       const res = await api.get('/questions', {
         params: {
           class: classStr,
           subject,
           difficulty: game.currentDifficulty,
+          packet: reqPacket,
           exclude: game.answeredQuestionIds.join(','),
           limit: QUESTIONS_PER_BATCH,
         },
@@ -427,6 +431,11 @@ export default function GameRunScreen() {
                 LVL {game.currentDifficulty}
               </Text>
             </View>
+            <View style={styles.packetBadge}>
+              <Text style={styles.packetBadgeText}>
+                📦 PKT {game.currentQuestion?.packet || packet || 1}
+              </Text>
+            </View>
             {game.streak > 0 && (
               <Animated.View style={[styles.streakBadge, { transform: [{ scale: streakScaleAnim }] }]}>
                 <Text style={styles.streakText}>🔥 STREAK x{game.streak}</Text>
@@ -641,6 +650,20 @@ const styles = StyleSheet.create({
   difficultyText: {
     fontSize: 11,
     color: Colors.dark.cyan,
+    fontWeight: 'bold',
+    letterSpacing: 0.5,
+  },
+  packetBadge: {
+    backgroundColor: 'rgba(155, 81, 224, 0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#9B51E0',
+  },
+  packetBadgeText: {
+    fontSize: 11,
+    color: '#D6A4FF',
     fontWeight: 'bold',
     letterSpacing: 0.5,
   },

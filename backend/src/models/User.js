@@ -48,8 +48,28 @@ const userSchema = new mongoose.Schema({
     type: Number,
     default: 1,
   },
+  role: {
+    type: String,
+    enum: ['user', 'admin'],
+    default: 'user',
+  },
+  upiId: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  badges: {
+    type: [String],
+    default: [],
+  },
+  activeBorder: {
+    type: String,
+    enum: ['default', 'glowing_gold', 'neon_cyan', 'fire_ring'],
+    default: 'default',
+  },
 }, { timestamps: true });
 
 userSchema.index({ totalEXP: -1 });
 
 module.exports = mongoose.model('User', userSchema);
+

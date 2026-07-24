@@ -47,9 +47,14 @@ const questionSchema = new mongoose.Schema({
     type: String,
     default: '',
   },
+  packet: {
+    type: Number,
+    default: 1,
+    min: 1,
+  },
 }, { timestamps: true });
 
-// Index for fast querying by class, subject, difficulty
-questionSchema.index({ class: 1, subject: 1, difficulty: 1 });
+// Index for fast querying by class, subject, packet, difficulty
+questionSchema.index({ class: 1, subject: 1, packet: 1, difficulty: 1 });
 
 module.exports = mongoose.model('Question', questionSchema);

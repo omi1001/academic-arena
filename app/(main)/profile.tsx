@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
+  TextInput,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { signOut } from 'firebase/auth';
@@ -16,11 +17,13 @@ import { useUserStore } from '../../stores/userStore';
 import { Colors, Gradients } from '../../constants/theme';
 import { LEADERBOARD_TIERS } from '../../constants/config';
 import { BouncyButton } from '../../components/BouncyButton';
+import { GlowingProfileCard } from '../../components/GlowingProfileCard';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { firebaseUser, logout } = useAuthStore();
   const { profile, setProfile } = useUserStore();
+  const [upiInput, setUpiInput] = useState(profile?.upiId || '');
 
   useFocusEffect(
     useCallback(() => {
@@ -30,6 +33,7 @@ export default function ProfileScreen() {
           const res = await api.get('/auth/profile');
           if (res.data?.user) {
             setProfile(res.data.user as any);
+            setUpiInput(res.data.user.upiId || '');
           }
         } catch (e) {
           console.warn('Failed to fetch profile from backend:', e);
@@ -72,6 +76,18 @@ export default function ProfileScreen() {
     }
   };
 
+  const handleSaveUpi = async () => {
+    try {
+      const res = await api.put('/auth/profile', { upiId: upiInput });
+      if (res.data?.user) {
+        setProfile(res.data.user as any);
+        Alert.alert('UPI Saved', 'Your UPI ID has been updated for weekly rewards!');
+      }
+    } catch (e) {
+      Alert.alert('Update Failed', 'Failed to save UPI ID.');
+    }
+  };
+
   const tier = profile ? getTier(profile.totalEXP) : LEADERBOARD_TIERS.BRONZE;
   const accuracy = profile?.totalAnswered
     ? Math.round((profile.totalCorrect / profile.totalAnswered) * 100)
@@ -79,6 +95,7 @@ export default function ProfileScreen() {
 
   const userName = profile?.name || firebaseUser?.displayName || 'Player';
   const initial = userName[0]?.toUpperCase() || 'P';
+  const isAdmin = profile?.role === 'admin' || firebaseUser?.email === 'monus@gmail.com';
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -86,10 +103,14 @@ export default function ProfileScreen() {
 
       {/* ─── Hero Profile Card ─── */}
       <LinearGradient colors={['#161B33', '#0F1224']} style={styles.profileCard}>
-        <View style={[styles.avatarGlow, { borderColor: tier.color }]}>
-          <Text style={styles.avatarText}>{initial}</Text>
-        </View>
-        <Text style={styles.name}>{userName}</Text>
+        <GlowingProfileCard
+          name={userName}
+          initial={initial}
+          activeBorder={profile?.activeBorder || 'default'}
+          badges={profile?.badges || []}
+          size="lg"
+        />
+        <Text style={[styles.name, { marginTop: 14 }]}>{userName}</Text>
         <Text style={styles.email}>{firebaseUser?.email}</Text>
 
         <View style={styles.tierBadge}>
@@ -99,6 +120,43 @@ export default function ProfileScreen() {
           </Text>
         </View>
       </LinearGradient>
+
+      {/* ─── Admin Portal Access (If Admin) ─── */}
+      {isAdmin && (
+        <BouncyButton
+          style={styles.adminPortalButton}
+          onPress={() => router.push('/(main)/admin')}
+        >
+          <LinearGradient
+            colors={['#FFD700', '#FF8C00']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.adminPortalGradient}
+          >
+            <Text style={styles.adminPortalText}>⚡ OPEN ADMIN CONTROL PANEL</Text>
+          </LinearGradient>
+        </BouncyButton>
+      )}
+
+      {/* ─── UPI Details for Weekly ₹10 Reward ─── */}
+      <Text style={styles.sectionHeader}>🎁 WEEKLY UPI REWARD SETTINGS</Text>
+      <View style={styles.upiContainer}>
+        <Text style={styles.upiSubtext}>
+          Top player each week receives ₹10 directly in their UPI account!
+        </Text>
+        <View style={styles.upiRow}>
+          <TextInput
+            style={styles.upiInput}
+            placeholder="Enter UPI ID (e.g. name@upi)"
+            placeholderTextColor="#666"
+            value={upiInput}
+            onChangeText={setUpiInput}
+          />
+          <BouncyButton style={styles.saveUpiBtn} onPress={handleSaveUpi}>
+            <Text style={styles.saveUpiText}>Save</Text>
+          </BouncyButton>
+        </View>
+      </View>
 
       {/* ─── Academic Class Selector ─── */}
       <Text style={styles.sectionHeader}>ACADEMIC CLASS</Text>
@@ -178,25 +236,10 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 24,
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
     borderWidth: 1,
     borderColor: Colors.dark.border,
     elevation: 8,
-  },
-  avatarGlow: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    backgroundColor: Colors.dark.surfaceLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    marginBottom: 12,
-  },
-  avatarText: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: Colors.dark.text,
   },
   name: {
     fontSize: 22,
@@ -229,12 +272,65 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
+  adminPortalButton: {
+    borderRadius: 14,
+    overflow: 'hidden',
+    marginBottom: 24,
+  },
+  adminPortalGradient: {
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderRadius: 14,
+  },
+  adminPortalText: {
+    color: '#000',
+    fontWeight: 'bold',
+    fontSize: 14,
+    letterSpacing: 0.5,
+  },
   sectionHeader: {
     fontSize: 12,
     fontWeight: 'bold',
     color: Colors.dark.cyan,
     letterSpacing: 1,
     marginBottom: 12,
+  },
+  upiContainer: {
+    backgroundColor: Colors.dark.surface,
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    marginBottom: 24,
+  },
+  upiSubtext: {
+    color: Colors.dark.textMuted,
+    fontSize: 12,
+    marginBottom: 12,
+  },
+  upiRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  upiInput: {
+    flex: 1,
+    backgroundColor: '#0F1224',
+    color: '#FFF',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+  },
+  saveUpiBtn: {
+    backgroundColor: Colors.dark.cyan,
+    paddingHorizontal: 18,
+    justifyContent: 'center',
+    borderRadius: 10,
+  },
+  saveUpiText: {
+    color: '#000',
+    fontWeight: 'bold',
   },
   classRow: {
     flexDirection: 'row',

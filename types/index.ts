@@ -11,8 +11,12 @@ export interface User {
   totalAnswered: number;
   highestStreak: number;
   highestDifficulty: number;
-  createdAt: number;
-  updatedAt: number;
+  role?: 'user' | 'admin';
+  upiId?: string;
+  badges?: string[];
+  activeBorder?: 'default' | 'glowing_gold' | 'neon_cyan' | 'fire_ring';
+  createdAt?: string | number;
+  updatedAt?: string | number;
 }
 
 export interface Question {
@@ -24,6 +28,7 @@ export interface Question {
   answer: number;
   difficulty: number;
   explanation?: string;
+  packet?: number;
 }
 
 export interface GameRun {
@@ -65,6 +70,7 @@ export interface GameState {
   runId: string | null;
   selectedClass: ClassOption | null;
   selectedSubject: Subject | null;
+  selectedPacket?: number | null;
   questions: Question[];
   answeredQuestionIds: string[];
   startTime: number;

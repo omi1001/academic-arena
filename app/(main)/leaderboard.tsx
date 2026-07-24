@@ -15,11 +15,15 @@ import { useAuthStore } from '../../stores/authStore';
 import { useUserStore } from '../../stores/userStore';
 import api from '../../lib/api';
 
+import { GlowingProfileCard } from '../../components/GlowingProfileCard';
+
 interface LeaderboardEntry {
   rank: number;
   uid: string;
   name: string;
   totalEXP: number;
+  activeBorder?: 'default' | 'glowing_gold' | 'neon_cyan' | 'fire_ring';
+  badges?: string[];
 }
 
 export default function LeaderboardScreen() {
@@ -73,11 +77,13 @@ export default function LeaderboardScreen() {
         {/* 2nd Place (Left) */}
         {top2 ? (
           <View style={[styles.podiumCard, styles.podiumCard2]}>
-            <View style={[styles.podiumAvatar, { borderColor: Colors.dark.silver }]}>
-              <Text style={styles.podiumAvatarText}>
-                {top2.name[0]?.toUpperCase() || 'P'}
-              </Text>
-            </View>
+            <GlowingProfileCard
+              name={top2.name}
+              initial={top2.name[0]?.toUpperCase() || 'P'}
+              activeBorder={top2.activeBorder || 'default'}
+              badges={top2.badges}
+              size="sm"
+            />
 
             <Text style={styles.podiumMedal}>🥈</Text>
             <Text style={styles.podiumName} numberOfLines={1}>
@@ -95,13 +101,15 @@ export default function LeaderboardScreen() {
             colors={['#2A2206', '#141829']}
             style={[styles.podiumCard, styles.podiumCard1]}
           >
-            <View style={[styles.podiumAvatar, { borderColor: Colors.dark.gold, width: 56, height: 56 }]}>
-              <Text style={[styles.podiumAvatarText, { fontSize: 24 }]}>
-                {top1.name[0]?.toUpperCase() || 'P'}
-              </Text>
-            </View>
+            <GlowingProfileCard
+              name={top1.name}
+              initial={top1.name[0]?.toUpperCase() || 'P'}
+              activeBorder={top1.activeBorder || 'glowing_gold'}
+              badges={top1.badges || ['WEEKLY_CHAMPION_GOLD']}
+              size="lg"
+            />
 
-            <Text style={[styles.podiumMedal, { fontSize: 26 }]}>👑 🥇</Text>
+            <Text style={[styles.podiumMedal, { fontSize: 24, marginTop: 4 }]}>👑 🥇</Text>
             <Text style={[styles.podiumName, { fontSize: 16, fontWeight: 'bold' }]} numberOfLines={1}>
               {top1.name}
             </Text>
@@ -114,11 +122,13 @@ export default function LeaderboardScreen() {
         {/* 3rd Place (Right) */}
         {top3 ? (
           <View style={[styles.podiumCard, styles.podiumCard3]}>
-            <View style={[styles.podiumAvatar, { borderColor: Colors.dark.bronze }]}>
-              <Text style={styles.podiumAvatarText}>
-                {top3.name[0]?.toUpperCase() || 'P'}
-              </Text>
-            </View>
+            <GlowingProfileCard
+              name={top3.name}
+              initial={top3.name[0]?.toUpperCase() || 'P'}
+              activeBorder={top3.activeBorder || 'default'}
+              badges={top3.badges}
+              size="sm"
+            />
 
             <Text style={styles.podiumMedal}>🥉</Text>
             <Text style={styles.podiumName} numberOfLines={1}>

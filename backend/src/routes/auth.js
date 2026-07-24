@@ -67,10 +67,10 @@ router.get('/profile', verifyFirebaseToken, async (req, res) => {
 });
 
 // PUT /api/auth/profile
-// Update name or class
+// Update name, class, upiId, activeBorder
 router.put('/profile', verifyFirebaseToken, async (req, res) => {
   try {
-    const { name, class: cls } = req.body;
+    const { name, class: cls, upiId, activeBorder } = req.body;
     const update = {};
     if (name) update.name = name.trim();
     if (cls) {
@@ -79,6 +79,12 @@ router.put('/profile', verifyFirebaseToken, async (req, res) => {
         return res.status(400).json({ error: 'class must be 9 or 10' });
       }
       update.class = classNum;
+    }
+    if (upiId !== undefined) {
+      update.upiId = upiId.trim();
+    }
+    if (activeBorder && ['default', 'glowing_gold', 'neon_cyan', 'fire_ring'].includes(activeBorder)) {
+      update.activeBorder = activeBorder;
     }
 
     const user = await User.findOneAndUpdate(

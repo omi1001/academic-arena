@@ -48,10 +48,10 @@ router.get('/', async (req, res) => {
 
     const leaderboard = await Run.aggregate(pipeline);
 
-    // Look up user names
+    // Look up user names and badges
     const uids = leaderboard.map((e) => e._id);
     const users = await User.find({ uid: { $in: uids } })
-      .select('uid name email class')
+      .select('uid name email class activeBorder badges')
       .lean();
 
     const userMap = {};
@@ -74,6 +74,8 @@ router.get('/', async (req, res) => {
         accuracy: entry.accuracy,
         maxStreak: entry.maxStreak,
         highestDifficulty: entry.highestDifficulty,
+        activeBorder: u?.activeBorder || 'default',
+        badges: u?.badges || [],
       };
     });
 
