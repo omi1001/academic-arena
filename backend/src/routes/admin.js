@@ -100,6 +100,16 @@ router.get('/questions', async (req, res) => {
   }
 });
 
+const normalizeSubject = (sub) => {
+  if (!sub) return 'Mathematics';
+  const lower = sub.trim().toLowerCase();
+  if (lower.includes('math')) return 'Mathematics';
+  if (lower.includes('sci')) return 'Science';
+  if (lower.includes('eng')) return 'English';
+  if (lower.includes('soc') || lower.includes('sst')) return 'Social Science';
+  return sub.trim();
+};
+
 // POST /api/admin/questions (Create question)
 router.post('/questions', async (req, res) => {
   try {
@@ -109,13 +119,15 @@ router.post('/questions', async (req, res) => {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    if (options.length !== 4) {
+    if (!Array.isArray(options) || options.length !== 4) {
       return res.status(400).json({ error: 'Must provide exactly 4 options' });
     }
 
+    const normSubject = normalizeSubject(subject);
+
     const newQuestion = await Question.create({
       class: parseInt(cls),
-      subject: sanitize(subject),
+      subject: normSubject,
       difficulty: parseInt(difficulty),
       question: sanitize(question),
       options: options.map((o) => sanitize(o)),
@@ -129,7 +141,7 @@ router.post('/questions', async (req, res) => {
     res.status(201).json(newQuestion);
   } catch (err) {
     console.error('Create question error:', err);
-    res.status(500).json({ error: 'Failed to create question' });
+    res.status(500).json({ error: err.message || 'Failed to create question' });
   }
 });
 

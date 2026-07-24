@@ -36,6 +36,7 @@ app.use('/api/questions', questionRoutes);
 app.use('/api/runs', runRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/users', adminRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
