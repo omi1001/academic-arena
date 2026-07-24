@@ -238,11 +238,12 @@ export default function AdminScreen() {
   // ─── Grant Glow Border to User ───
   const handleGrantBorder = async (uid: string, border: string) => {
     try {
-      await api.post('/users/grant-badge', { uid, activeBorder: border });
+      const res = await api.post('/admin/users/grant-badge', { uid, activeBorder: border });
       Alert.alert('Updated', `User profile card style changed to ${border}`);
       loadData();
     } catch (e: any) {
-      Alert.alert('Error', 'Failed to update user border');
+      console.warn('Grant border error:', e.response?.data || e.message);
+      Alert.alert('Error', e.response?.data?.error || e.message || 'Failed to update user border');
     }
   };
 
@@ -583,11 +584,26 @@ export default function AdminScreen() {
               />
 
               <Text style={styles.fieldLabel}>Subject:</Text>
-              <TextInput
-                style={styles.modalInput}
-                value={editingQuestion.subject}
-                onChangeText={(t) => setEditingQuestion({ ...editingQuestion, subject: t })}
-              />
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginVertical: 6 }}>
+                {['Mathematics', 'Science', 'English', 'Social Science'].map((sub) => (
+                  <TouchableOpacity
+                    key={sub}
+                    style={{
+                      paddingHorizontal: 12,
+                      paddingVertical: 8,
+                      borderRadius: 8,
+                      backgroundColor: editingQuestion.subject === sub ? Colors.dark.cyan : Colors.dark.surfaceLight,
+                      borderWidth: 1,
+                      borderColor: editingQuestion.subject === sub ? Colors.dark.cyan : Colors.dark.border,
+                    }}
+                    onPress={() => setEditingQuestion({ ...editingQuestion, subject: sub })}
+                  >
+                    <Text style={{ color: editingQuestion.subject === sub ? '#000' : '#FFF', fontWeight: 'bold', fontSize: 12 }}>
+                      {sub}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
 
               <Text style={styles.fieldLabel}>Difficulty (1 to 5):</Text>
               <TextInput
