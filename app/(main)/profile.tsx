@@ -95,7 +95,16 @@ export default function ProfileScreen() {
 
   const userName = profile?.name || firebaseUser?.displayName || 'Player';
   const initial = userName[0]?.toUpperCase() || 'P';
-  const isAdmin = profile?.role === 'admin' || firebaseUser?.email === 'monus@gmail.com';
+  const isAdmin =
+    profile?.role === 'admin' ||
+    firebaseUser?.email?.toLowerCase() === 'monusingh2646@gmail.com' ||
+    firebaseUser?.email?.toLowerCase() === 'monus@gmail.com';
+
+  const userBorder = profile?.activeBorder && profile.activeBorder !== 'default'
+    ? profile.activeBorder
+    : isAdmin
+    ? 'glowing_gold'
+    : 'default';
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -106,7 +115,7 @@ export default function ProfileScreen() {
         <GlowingProfileCard
           name={userName}
           initial={initial}
-          activeBorder={profile?.activeBorder || 'default'}
+          activeBorder={userBorder}
           badges={profile?.badges || []}
           size="lg"
         />
