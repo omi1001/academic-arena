@@ -3,9 +3,15 @@ const router = express.Router();
 const verifyFirebaseToken = require('../middleware/verifyToken');
 const User = require('../models/User');
 
+const isAdminEmail = (email) => {
+  if (!email) return false;
+  const adminList = ['monusingh2646@gmail.com', 'monus@gmail.com'];
+  const envList = (process.env.ADMIN_EMAILS || '').split(',').map((e) => e.trim().toLowerCase());
+  return [...adminList, ...envList].includes(email.toLowerCase());
+};
+
 // POST /api/auth/register
-// Called after Firebase client creates the user (signup screen already does createUserWithEmailAndPassword)
-// This endpoint saves/updates the profile in MongoDB
+// Called after Firebase client creates the user
 router.post('/register', verifyFirebaseToken, async (req, res) => {
   try {
     const { name, email, class: cls } = req.body;
@@ -20,7 +26,9 @@ router.post('/register', verifyFirebaseToken, async (req, res) => {
       return res.status(400).json({ error: 'class must be 9 or 10' });
     }
 
-    // Upsert: create if not exists, update if exists
+    const role = isAdminEmail(email) ? 'admin' : 'user';
+    const activeBorder = isAdminEmail(email) ? 'glowing_gold' : 'default';
+
     const user = await User.findOneAndUpdate(
       { uid },
       {
@@ -28,6 +36,8 @@ router.post('/register', verifyFirebaseToken, async (req, res) => {
         name: name.trim(),
         email: email.toLowerCase().trim(),
         class: classNum,
+        role,
+        activeBorder,
       },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     ).select('-__v');
@@ -43,22 +53,36 @@ router.post('/register', verifyFirebaseToken, async (req, res) => {
 // Get the authenticated user's profile (auto-creates if missing)
 router.get('/profile', verifyFirebaseToken, async (req, res) => {
   try {
-    let user = await User.findOne({ uid: req.user.uid }).select('-__v').lean();
+    let user = await User.findOne({ uid: req.user.uid }).select('-__v');
+    const userEmail = req.user.email || user?.email || '';
+
     if (!user) {
-      // Auto-create user profile from Firebase token info if missing
-      const newUser = await User.create({
+      const role = isAdminEmail(userEmail) ? 'admin' : 'user';
+      const activeBorder = isAdminEmail(userEmail) ? 'glowing_gold' : 'default';
+      user = await User.create({
         uid: req.user.uid,
-        name: req.user.name || req.user.email?.split('@')[0] || 'Player',
-        email: req.user.email || `${req.user.uid}@academicarena.com`,
+        name: req.user.name || userEmail.split('@')[0] || 'Player',
+        email: userEmail || `${req.user.uid}@academicarena.com`,
         class: 9,
+        role,
+        activeBorder,
       });
-      user = newUser.toObject();
-      delete user.__v;
-    } else if (req.user.name && (user.name === 'Anonymous' || !user.name)) {
-      // Heal profile name if previously Anonymous
-      await User.updateOne({ uid: req.user.uid }, { $set: { name: req.user.name } });
-      user.name = req.user.name;
+    } else {
+      let needsSave = false;
+      if (isAdminEmail(userEmail) && user.role !== 'admin') {
+        user.role = 'admin';
+        user.activeBorder = 'glowing_gold';
+        needsSave = true;
+      }
+      if (req.user.name && (user.name === 'Anonymous' || !user.name)) {
+        user.name = req.user.name;
+        needsSave = true;
+      }
+      if (needsSave) {
+        await user.save();
+      }
     }
+
     res.json({ user });
   } catch (err) {
     console.error('Profile fetch error:', err);

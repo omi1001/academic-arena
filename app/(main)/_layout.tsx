@@ -69,6 +69,12 @@ export default function MainLayout() {
           href: null,
         }}
       />
+      <Tabs.Screen
+        name="admin"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }
