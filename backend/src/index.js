@@ -16,6 +16,9 @@ const adminRoutes = require('./routes/admin');
 
 const app = express();
 
+// Trust reverse proxy (e.g., Render, Heroku, Nginx) for accurate IP rate limiting
+app.set('trust proxy', 1);
+
 // ─── Global Middleware ───
 app.use(helmet());
 app.use(cors({ origin: '*' }));
