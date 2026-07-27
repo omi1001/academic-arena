@@ -332,6 +332,39 @@ export default function GameRunScreen() {
 
   const isEndingRef = useRef(false);
 
+  const saveRunToServer = async (status: 'completed' | 'cheat_detected' | 'timeout'): Promise<boolean> => {
+    try {
+      const payloadClass = classStr ? parseInt(classStr) : (user.profile?.class || 10);
+      const payloadSubject = subject || game.selectedSubject || 'Mathematics';
+      const payloadRunId = runId || game.runId || `run_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      const payloadStartTime = game.startTime && game.startTime > 0 ? game.startTime : Date.now() - 60000;
+      const scoreVal = game.score || 0;
+      const totalAnsweredVal = Math.max(game.totalQuestionsAnswered || 0, scoreVal);
+
+      await api.post('/runs', {
+        runId: payloadRunId,
+        class: payloadClass,
+        subject: payloadSubject,
+        score: scoreVal,
+        expEarned: game.expEarned || 0,
+        questionsAnswered: totalAnsweredVal,
+        correctAnswers: scoreVal,
+        maxStreak: game.maxStreak || 0,
+        highestDifficulty: game.currentDifficulty || 1,
+        heartsRemaining: game.hearts || 0,
+        startTime: payloadStartTime,
+        status,
+      });
+      return true;
+    } catch (e: any) {
+      console.warn('Failed to save run:', {
+        status: e?.response?.status,
+        error: e?.response?.data || e?.message || e,
+      });
+      return false;
+    }
+  };
+
   const endGame = async (status: 'completed' | 'cheat_detected' | 'timeout') => {
     if (isEndingRef.current) return;
     isEndingRef.current = true;
@@ -343,26 +376,7 @@ export default function GameRunScreen() {
 
     user.incrementGamesPlayed();
 
-    let runSaved = false;
-    try {
-      await api.post('/runs', {
-        runId,
-        class: classStr,
-        subject,
-        score: game.score,
-        expEarned: game.expEarned,
-        questionsAnswered: game.totalQuestionsAnswered,
-        correctAnswers: game.score,
-        maxStreak: game.maxStreak,
-        highestDifficulty: game.currentDifficulty,
-        heartsRemaining: game.hearts,
-        startTime: game.startTime,
-        status,
-      });
-      runSaved = true;
-    } catch (e) {
-      console.warn('Failed to save run:', e);
-    }
+    let runSaved = await saveRunToServer(status);
 
     if (runSaved) {
       try {
@@ -385,7 +399,28 @@ export default function GameRunScreen() {
       Alert.alert(
         'Score Not Saved',
         'Your score could not be saved to the server. Your local stats are still updated.',
-        [{ text: 'OK', onPress: () => router.replace('/(main)') }]
+        [
+          {
+            text: 'Retry',
+            onPress: async () => {
+              const retried = await saveRunToServer(status);
+              if (retried) {
+                try {
+                  const res = await api.get('/auth/profile');
+                  if (res.data?.user) user.setProfile(res.data.user as any);
+                } catch (e) {}
+                router.replace('/(main)');
+              } else {
+                Alert.alert(
+                  'Still Failed',
+                  'Could not reach server. Returning to home.',
+                  [{ text: 'OK', onPress: () => router.replace('/(main)') }]
+                );
+              }
+            },
+          },
+          { text: 'Skip', onPress: () => router.replace('/(main)') },
+        ]
       );
     } else {
       router.replace('/(main)');

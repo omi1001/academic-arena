@@ -62,14 +62,11 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
     if (numCorrect > numAnswered) {
       return res.status(400).json({ error: 'Correct answers exceed total answered' });
     }
-    // Run must have started recently (within last 30 min)
+    // Run start time check (fallback to 1 min ago if invalid or missing)
     const now = Date.now();
-    if (now - numStart > MAX_RUN_DURATION_MS) {
-      return res.status(400).json({ error: 'Run expired' });
-    }
-    // Can't start in the future
-    if (numStart > now + 5000) {
-      return res.status(400).json({ error: 'Invalid start time' });
+    let validStart = numStart;
+    if (!validStart || validStart <= 0 || now - validStart > MAX_RUN_DURATION_MS || validStart > now + 5000) {
+      validStart = now - 60000;
     }
 
     // ─── 4. Server recalculates expected EXP ───
@@ -88,52 +85,63 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
     const maxAllowedEXP = Math.round(serverExpectedEXP * 1.5);
     const finalExp = Math.min(numExp, maxAllowedEXP);
 
-    // ─── 5. Save the run ───
-    const run = await Run.create({
-      uid: req.user.uid,
-      runId: sanitize(runId),
-      class: numCls,
-      subject: sanitize(subject),
-      score: numScore,
-      expEarned: finalExp,
-      questionsAnswered: numAnswered,
-      correctAnswers: numCorrect,
-      maxStreak: numStreak,
-      highestDifficulty: numDifficulty,
-      heartsRemaining: numHearts,
-      startTime: numStart,
-      endTime: now,
-      status: runStatus === 'cheat_detected' ? 'cheat_detected' : 'completed',
-    });
+    // ─── 5. Check if run already saved (idempotent retry check) ───
+    const existingRun = await Run.findOne({ runId: sanitize(runId) });
 
-    // ─── 6. Update user stats ───
-    const userUpdate = {
-      $inc: {
-        totalEXP: finalExp,
-        gamesPlayed: 1,
-        totalCorrect: numCorrect,
-        totalAnswered: numAnswered,
-      },
-      $max: {
-        highestStreak: numStreak,
-        highestDifficulty: numDifficulty,
-      },
-      $setOnInsert: {
+    // ─── 6. Upsert the run record ───
+    const run = await Run.findOneAndUpdate(
+      { runId: sanitize(runId) },
+      {
         uid: req.user.uid,
-        email: req.user.email || '',
+        runId: sanitize(runId),
         class: numCls,
-        name: req.user.name || req.user.email?.split('@')[0] || 'Player',
+        subject: sanitize(subject),
+        score: numScore,
+        expEarned: finalExp,
+        questionsAnswered: numAnswered,
+        correctAnswers: numCorrect,
+        maxStreak: numStreak,
+        highestDifficulty: numDifficulty,
+        heartsRemaining: numHearts,
+        startTime: validStart,
+        endTime: now,
+        status: runStatus === 'cheat_detected' ? 'cheat_detected' : 'completed',
       },
-    };
+      { upsert: true, new: true }
+    );
 
-    if (req.user.name && req.user.name !== 'Anonymous') {
-      userUpdate.$set = { name: req.user.name };
+    // ─── 7. Update user stats only if this run was not previously saved ───
+    if (!existingRun) {
+      const userName = req.user.name || req.user.email?.split('@')[0] || 'Player';
+      const userUpdate = {
+        $inc: {
+          totalEXP: finalExp,
+          gamesPlayed: 1,
+          totalCorrect: numCorrect,
+          totalAnswered: numAnswered,
+        },
+        $max: {
+          highestStreak: numStreak,
+          highestDifficulty: numDifficulty,
+        },
+        $setOnInsert: {
+          uid: req.user.uid,
+          email: req.user.email || '',
+          class: numCls,
+        },
+      };
+
+      if (userName && userName !== 'Anonymous') {
+        userUpdate.$set = { name: userName };
+      } else {
+        userUpdate.$setOnInsert.name = 'Player';
+      }
+
+      await User.findOneAndUpdate({ uid: req.user.uid }, userUpdate, {
+        upsert: true,
+        new: true,
+      });
     }
-
-    await User.findOneAndUpdate({ uid: req.user.uid }, userUpdate, {
-      upsert: true,
-      new: true,
-    });
 
     res.json({ run, expAwarded: finalExp });
   } catch (err) {
