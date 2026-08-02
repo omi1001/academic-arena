@@ -67,6 +67,10 @@ const userSchema = new mongoose.Schema({
     enum: ['default', 'glowing_gold', 'neon_cyan', 'fire_ring'],
     default: 'default',
   },
+  avatar: {
+    type: String,
+    default: '🎓',
+  },
 }, { timestamps: true });
 
 userSchema.index({ totalEXP: -1 });

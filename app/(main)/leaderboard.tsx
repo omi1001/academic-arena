@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,27 +6,33 @@ import {
   StyleSheet,
   RefreshControl,
   ActivityIndicator,
+  TouchableOpacity,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Colors, Gradients } from '../../constants/theme';
+import { Colors } from '../../constants/theme';
 import { LEADERBOARD_TIERS } from '../../constants/config';
 import { useAuthStore } from '../../stores/authStore';
 import { useUserStore } from '../../stores/userStore';
 import api from '../../lib/api';
-
 import { GlowingProfileCard } from '../../components/GlowingProfileCard';
+
+type LeaderboardTab = 'weekly' | 'total';
 
 interface LeaderboardEntry {
   rank: number;
   uid: string;
   name: string;
-  totalEXP: number;
+  exp: number;
+  weeklyEXP?: number;
+  totalEXP?: number;
   activeBorder?: 'default' | 'glowing_gold' | 'neon_cyan' | 'fire_ring';
   badges?: string[];
+  avatar?: string;
 }
 
 export default function LeaderboardScreen() {
+  const [tab, setTab] = useState<LeaderboardTab>('weekly');
   const [data, setData] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -36,8 +42,10 @@ export default function LeaderboardScreen() {
 
   const fetchLeaderboard = async () => {
     try {
-      const res = await api.get('/leaderboard');
-      setData(res.data);
+      const res = await api.get('/leaderboard', {
+        params: { type: tab },
+      });
+      setData(res.data || []);
     } catch (e) {
       console.warn('Failed to fetch leaderboard:', e);
     } finally {
@@ -49,8 +57,13 @@ export default function LeaderboardScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchLeaderboard();
-    }, [])
+    }, [tab])
   );
+
+  useEffect(() => {
+    setLoading(true);
+    fetchLeaderboard();
+  }, [tab]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -64,91 +77,110 @@ export default function LeaderboardScreen() {
     return LEADERBOARD_TIERS.BRONZE;
   };
 
-  // Top 3 Podium
   const top1 = data.find((d) => d.rank === 1);
   const top2 = data.find((d) => d.rank === 2);
   const top3 = data.find((d) => d.rank === 3);
 
   const renderHeader = () => {
-    if (data.length === 0) return null;
-
     return (
-      <View style={styles.podiumSection}>
-        {/* 2nd Place (Left) */}
-        {top2 ? (
-          <View style={[styles.podiumCard, styles.podiumCard2]}>
-            <GlowingProfileCard
-              name={top2.name}
-              initial={top2.name[0]?.toUpperCase() || 'P'}
-              activeBorder={top2.activeBorder || 'default'}
-              badges={top2.badges}
-              size="sm"
-            />
+      <View>
+        {/* Info Banner */}
+        <View style={styles.bannerContainer}>
+          <Text style={styles.bannerTitle}>
+            {tab === 'weekly' ? '⚡ FRESH WEEKLY ARENA' : '🏆 ALL-TIME ARENA LEGENDS'}
+          </Text>
+          <Text style={styles.bannerSubtitle}>
+            {tab === 'weekly'
+              ? 'Calculated freshly every week! Resets every Monday. Top 1 gets ₹10 UPI reward!'
+              : 'Lifetime total EXP accumulated since user registration.'}
+          </Text>
+        </View>
 
-            <Text style={styles.podiumMedal}>🥈</Text>
-            <Text style={styles.podiumName} numberOfLines={1}>
-              {top2.name}
-            </Text>
-            <Text style={styles.podiumExp}>{top2.totalEXP.toLocaleString()} EXP</Text>
+        {/* Podium Section */}
+        {data.length > 0 && (
+          <View style={styles.podiumSection}>
+            {/* 2nd Place (Left) */}
+            {top2 ? (
+              <View style={[styles.podiumCard, styles.podiumCard2]}>
+                <GlowingProfileCard
+                  name={top2.name}
+                  initial={top2.name[0]?.toUpperCase() || 'P'}
+                  avatar={top2.avatar}
+                  activeBorder={top2.activeBorder || 'default'}
+                  badges={top2.badges}
+                  size="sm"
+                />
+
+                <Text style={styles.podiumMedal}>🥈</Text>
+                <Text style={styles.podiumName} numberOfLines={1}>
+                  {top2.name}
+                </Text>
+                <Text style={styles.podiumExp}>{(top2.exp || 0).toLocaleString()} EXP</Text>
+              </View>
+            ) : (
+              <View style={styles.podiumCardPlaceholder} />
+            )}
+
+            {/* 1st Place (Center - Elevated) */}
+            {top1 && (
+              <LinearGradient
+                colors={['#2A2206', '#141829']}
+                style={[styles.podiumCard, styles.podiumCard1]}
+              >
+                <GlowingProfileCard
+                  name={top1.name}
+                  initial={top1.name[0]?.toUpperCase() || 'P'}
+                  avatar={top1.avatar}
+                  activeBorder={top1.activeBorder || 'glowing_gold'}
+                  badges={top1.badges || ['WEEKLY_CHAMPION_GOLD']}
+                  size="lg"
+                />
+
+                <Text style={[styles.podiumMedal, { fontSize: 24, marginTop: 4 }]}>👑 🥇</Text>
+                <Text style={[styles.podiumName, { fontSize: 16, fontWeight: 'bold' }]} numberOfLines={1}>
+                  {top1.name}
+                </Text>
+                <Text style={[styles.podiumExp, { color: Colors.dark.gold }]}>
+                  {(top1.exp || 0).toLocaleString()} EXP
+                </Text>
+              </LinearGradient>
+            )}
+
+            {/* 3rd Place (Right) */}
+            {top3 ? (
+              <View style={[styles.podiumCard, styles.podiumCard3]}>
+                <GlowingProfileCard
+                  name={top3.name}
+                  initial={top3.name[0]?.toUpperCase() || 'P'}
+                  avatar={top3.avatar}
+                  activeBorder={top3.activeBorder || 'default'}
+                  badges={top3.badges}
+                  size="sm"
+                />
+
+                <Text style={styles.podiumMedal}>🥉</Text>
+                <Text style={styles.podiumName} numberOfLines={1}>
+                  {top3.name}
+                </Text>
+                <Text style={styles.podiumExp}>{(top3.exp || 0).toLocaleString()} EXP</Text>
+              </View>
+            ) : (
+              <View style={styles.podiumCardPlaceholder} />
+            )}
           </View>
-        ) : (
-          <View style={styles.podiumCardPlaceholder} />
-        )}
-
-        {/* 1st Place (Center - Elevated) */}
-        {top1 && (
-          <LinearGradient
-            colors={['#2A2206', '#141829']}
-            style={[styles.podiumCard, styles.podiumCard1]}
-          >
-            <GlowingProfileCard
-              name={top1.name}
-              initial={top1.name[0]?.toUpperCase() || 'P'}
-              activeBorder={top1.activeBorder || 'glowing_gold'}
-              badges={top1.badges || ['WEEKLY_CHAMPION_GOLD']}
-              size="lg"
-            />
-
-            <Text style={[styles.podiumMedal, { fontSize: 24, marginTop: 4 }]}>👑 🥇</Text>
-            <Text style={[styles.podiumName, { fontSize: 16, fontWeight: 'bold' }]} numberOfLines={1}>
-              {top1.name}
-            </Text>
-            <Text style={[styles.podiumExp, { color: Colors.dark.gold }]}>
-              {top1.totalEXP.toLocaleString()} EXP
-            </Text>
-          </LinearGradient>
-        )}
-
-        {/* 3rd Place (Right) */}
-        {top3 ? (
-          <View style={[styles.podiumCard, styles.podiumCard3]}>
-            <GlowingProfileCard
-              name={top3.name}
-              initial={top3.name[0]?.toUpperCase() || 'P'}
-              activeBorder={top3.activeBorder || 'default'}
-              badges={top3.badges}
-              size="sm"
-            />
-
-            <Text style={styles.podiumMedal}>🥉</Text>
-            <Text style={styles.podiumName} numberOfLines={1}>
-              {top3.name}
-            </Text>
-            <Text style={styles.podiumExp}>{top3.totalEXP.toLocaleString()} EXP</Text>
-          </View>
-        ) : (
-          <View style={styles.podiumCardPlaceholder} />
         )}
       </View>
     );
   };
 
   const renderItem = ({ item }: { item: LeaderboardEntry }) => {
-    const tier = getTier(item.totalEXP);
+    const tier = getTier(item.exp || 0);
     const isTop3 = item.rank <= 3;
     const isCurrentUser = firebaseUser && item.uid === firebaseUser.uid;
     const displayName =
       (isCurrentUser ? (profile?.name || firebaseUser.displayName) : item.name) || 'Player';
+    const displayAvatar = isCurrentUser ? (profile?.avatar || item.avatar) : item.avatar;
+    const displayBorder = isCurrentUser ? (profile?.activeBorder || item.activeBorder) : item.activeBorder;
 
     return (
       <View
@@ -169,6 +201,17 @@ export default function LeaderboardScreen() {
           #{item.rank}
         </Text>
 
+        <View style={styles.avatarMiniWrap}>
+          <GlowingProfileCard
+            name={displayName}
+            initial={displayName[0]?.toUpperCase() || 'P'}
+            avatar={displayAvatar}
+            activeBorder={displayBorder || 'default'}
+            badges={item.badges}
+            size="sm"
+          />
+        </View>
+
         <View style={styles.userInfo}>
           <View style={styles.nameRow}>
             <Text
@@ -176,6 +219,7 @@ export default function LeaderboardScreen() {
                 styles.userName,
                 isCurrentUser && { color: Colors.dark.primary, fontWeight: 'bold' },
               ]}
+              numberOfLines={1}
             >
               {displayName}
             </Text>
@@ -195,40 +239,65 @@ export default function LeaderboardScreen() {
         </View>
 
         <View style={styles.expPill}>
-          <Text style={styles.expText}>{item.totalEXP.toLocaleString()} EXP</Text>
+          <Text style={styles.expText}>
+            {(item.exp || 0).toLocaleString()} {tab === 'weekly' ? 'W-EXP' : 'EXP'}
+          </Text>
         </View>
       </View>
     );
   };
 
-  if (loading) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color={Colors.dark.primary} />
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
       <Text style={styles.title}>ARENA LEADERBOARD</Text>
-      <FlatList
-        data={data}
-        keyExtractor={(item) => item.uid}
-        ListHeaderComponent={renderHeader}
-        renderItem={renderItem}
-        contentContainerStyle={styles.list}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={Colors.dark.primary}
-          />
-        }
-        ListEmptyComponent={
-          <Text style={styles.empty}>No arena runners yet. Be the first!</Text>
-        }
-      />
+
+      {/* Tab Switcher */}
+      <View style={styles.tabContainer}>
+        <TouchableOpacity
+          style={[styles.tabButton, tab === 'weekly' && styles.tabButtonActive]}
+          onPress={() => setTab('weekly')}
+        >
+          <Text style={[styles.tabButtonText, tab === 'weekly' && styles.tabButtonTextActive]}>
+            ⚡ WEEKLY
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tabButton, tab === 'total' && styles.tabButtonActive]}
+          onPress={() => setTab('total')}
+        >
+          <Text style={[styles.tabButtonText, tab === 'total' && styles.tabButtonTextActive]}>
+            🏆 ALL-TIME (TOTAL)
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {loading ? (
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color={Colors.dark.primary} />
+        </View>
+      ) : (
+        <FlatList
+          data={data}
+          keyExtractor={(item) => item.uid}
+          ListHeaderComponent={renderHeader}
+          renderItem={renderItem}
+          contentContainerStyle={styles.list}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={Colors.dark.primary}
+            />
+          }
+          ListEmptyComponent={
+            <Text style={styles.empty}>
+              {tab === 'weekly'
+                ? 'No weekly arena points yet this week. Play a game run to claim rank #1!'
+                : 'No arena runners registered yet.'}
+            </Text>
+          }
+        />
+      )}
     </View>
   );
 }
@@ -243,15 +312,59 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: Colors.dark.background,
   },
   title: {
     fontSize: 22,
     fontWeight: 'bold',
     color: Colors.dark.text,
     paddingHorizontal: 20,
-    marginBottom: 16,
+    marginBottom: 12,
     letterSpacing: 1,
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    marginHorizontal: 20,
+    marginBottom: 16,
+    backgroundColor: Colors.dark.surface,
+    borderRadius: 14,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+  },
+  tabButton: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 10,
+  },
+  tabButtonActive: {
+    backgroundColor: Colors.dark.primary,
+  },
+  tabButtonText: {
+    color: Colors.dark.textMuted,
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  tabButtonTextActive: {
+    color: '#FFF',
+  },
+  bannerContainer: {
+    backgroundColor: 'rgba(5, 213, 230, 0.08)',
+    borderWidth: 1,
+    borderColor: Colors.dark.cyan,
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 16,
+  },
+  bannerTitle: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: Colors.dark.cyan,
+    marginBottom: 2,
+  },
+  bannerSubtitle: {
+    fontSize: 11,
+    color: Colors.dark.textMuted,
   },
   list: {
     paddingHorizontal: 20,
@@ -263,7 +376,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 10,
     marginBottom: 24,
-    marginTop: 8,
+    marginTop: 4,
   },
   podiumCard: {
     flex: 1,
@@ -291,21 +404,6 @@ const styles = StyleSheet.create({
   podiumCardPlaceholder: {
     flex: 1,
   },
-  podiumAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: Colors.dark.surfaceLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    marginBottom: 6,
-  },
-  podiumAvatarText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: Colors.dark.text,
-  },
   podiumMedal: {
     fontSize: 18,
     marginBottom: 4,
@@ -327,7 +425,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: Colors.dark.surface,
     borderRadius: 14,
-    padding: 14,
+    padding: 12,
     marginBottom: 10,
     borderWidth: 1,
     borderColor: Colors.dark.border,
@@ -341,15 +439,17 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 42, 109, 0.1)',
   },
   rankText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: 'bold',
     color: Colors.dark.textMuted,
-    width: 36,
+    width: 32,
     textAlign: 'center',
+  },
+  avatarMiniWrap: {
+    marginRight: 8,
   },
   userInfo: {
     flex: 1,
-    marginLeft: 10,
   },
   nameRow: {
     flexDirection: 'row',
@@ -357,9 +457,10 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   userName: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
     color: Colors.dark.text,
+    maxWidth: 130,
   },
   youBadge: {
     backgroundColor: Colors.dark.primary,
@@ -389,7 +490,7 @@ const styles = StyleSheet.create({
   },
   expPill: {
     backgroundColor: 'rgba(5, 213, 230, 0.12)',
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 10,
     borderWidth: 1,

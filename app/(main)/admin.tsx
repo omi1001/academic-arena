@@ -72,6 +72,7 @@ interface UserItem {
   upiId?: string;
   activeBorder?: string;
   badges?: string[];
+  avatar?: string;
 }
 
 export default function AdminScreen() {
@@ -244,6 +245,40 @@ export default function AdminScreen() {
     } catch (e: any) {
       console.warn('Grant border error:', e.response?.data || e.message);
       Alert.alert('Error', e.response?.data?.error || e.message || 'Failed to update user border');
+    }
+  };
+
+  // ─── Toggle User Badge / Banner ───
+  const handleToggleBadge = async (uid: string, badge: string) => {
+    try {
+      await api.post('/admin/users/grant-badge', { uid, badge });
+      Alert.alert('Updated', `Toggled badge: ${badge}`);
+      loadData();
+    } catch (e: any) {
+      Alert.alert('Error', e.response?.data?.error || 'Failed to update badge');
+    }
+  };
+
+  // ─── Toggle User Role ───
+  const handleToggleRole = async (uid: string, currentRole?: string) => {
+    const newRole = currentRole === 'admin' ? 'user' : 'admin';
+    try {
+      await api.post('/admin/users/grant-badge', { uid, role: newRole });
+      Alert.alert('Role Updated', `User role set to ${newRole.toUpperCase()}`);
+      loadData();
+    } catch (e: any) {
+      Alert.alert('Error', e.response?.data?.error || 'Failed to update role');
+    }
+  };
+
+  // ─── Set User Avatar ───
+  const handleGrantAvatar = async (uid: string, avatar: string) => {
+    try {
+      await api.post('/admin/users/grant-badge', { uid, avatar });
+      Alert.alert('Avatar Updated', `User avatar set to ${avatar}`);
+      loadData();
+    } catch (e: any) {
+      Alert.alert('Error', e.response?.data?.error || 'Failed to update avatar');
     }
   };
 
@@ -484,19 +519,21 @@ export default function AdminScreen() {
                   <View key={u._id} style={styles.userCard}>
                     <View style={styles.userHeader}>
                       <View>
-                        <Text style={styles.userNameText}>{u.name}</Text>
+                        <Text style={styles.userNameText}>{u.avatar || '🎓'} {u.name}</Text>
                         <Text style={styles.userSubText}>{u.email}</Text>
                         <Text style={styles.userSubText}>
                           Total EXP: {u.totalEXP} | UPI: {u.upiId || 'None'}
                         </Text>
                       </View>
-                      <Text style={[styles.roleTag, u.role === 'admin' && styles.adminRoleTag]}>
-                        {u.role ? u.role.toUpperCase() : 'USER'}
-                      </Text>
+                      <TouchableOpacity onPress={() => handleToggleRole(u.uid, u.role)}>
+                        <Text style={[styles.roleTag, u.role === 'admin' && styles.adminRoleTag]}>
+                          {u.role ? u.role.toUpperCase() : 'USER'} (Tap to change)
+                        </Text>
+                      </TouchableOpacity>
                     </View>
 
                     {/* Grant Glowing Borders */}
-                    <Text style={styles.grantTitle}>PROFILE CARD GLOW:</Text>
+                    <Text style={styles.grantTitle}>PROFILE CARD BORDER / GLOW:</Text>
                     <View style={styles.borderBtnRow}>
                       {(['default', 'glowing_gold', 'neon_cyan', 'fire_ring'] as const).map((border) => (
                         <TouchableOpacity
@@ -509,13 +546,60 @@ export default function AdminScreen() {
                         >
                           <Text style={styles.borderBtnText}>
                             {border === 'glowing_gold'
-                              ? '👑 Gold'
+                              ? '👑 Gold Glow'
                               : border === 'neon_cyan'
-                              ? '⚡ Cyan'
+                              ? '⚡ Neon Cyan'
                               : border === 'fire_ring'
-                              ? '🔥 Fire'
+                              ? '🔥 Fire Ring'
                               : 'Normal'}
                           </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+
+                    {/* Grant Badges / Banners */}
+                    <Text style={styles.grantTitle}>BADGES & BANNERS (TAP TO TOGGLE):</Text>
+                    <View style={styles.borderBtnRow}>
+                      {[
+                        { id: 'WEEKLY_CHAMPION_GOLD', label: '👑 Weekly Champion' },
+                        { id: 'ARENA_LEGEND', label: '🌟 Arena Legend' },
+                        { id: 'FIRE_WARRIOR', label: '🔥 Fire Warrior' },
+                        { id: 'CYAN_HERO', label: '⚡ Cyan Hero' },
+                        { id: 'TOP_SCORER', label: '🎯 Top Scorer' },
+                        { id: 'CLASS_CHAMP', label: '🎓 Class Champ' },
+                      ].map((b) => {
+                        const hasBadge = (u.badges || []).includes(b.id);
+                        return (
+                          <TouchableOpacity
+                            key={b.id}
+                            style={[
+                              styles.borderBtn,
+                              hasBadge && styles.borderBtnSelected,
+                            ]}
+                            onPress={() => handleToggleBadge(u.uid, b.id)}
+                          >
+                            <Text style={styles.borderBtnText}>
+                              {hasBadge ? `${b.label} ✓` : b.label}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+
+                    {/* Set Avatar */}
+                    <Text style={styles.grantTitle}>SET USER AVATAR:</Text>
+                    <View style={styles.borderBtnRow}>
+                      {['🎓', '⚡', '🥷', '🧙‍♂️', '🚀', '👑', '🦁', '🔥', '🤖', '🐯', '🦅', '👾'].map((av) => (
+                        <TouchableOpacity
+                          key={av}
+                          style={[
+                            styles.borderBtn,
+                            { paddingHorizontal: 10 },
+                            u.avatar === av && styles.borderBtnSelected,
+                          ]}
+                          onPress={() => handleGrantAvatar(u.uid, av)}
+                        >
+                          <Text style={{ fontSize: 16 }}>{av}</Text>
                         </TouchableOpacity>
                       ))}
                     </View>

@@ -6,6 +6,7 @@ import {
   ScrollView,
   Alert,
   TextInput,
+  TouchableOpacity,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { signOut } from 'firebase/auth';
@@ -88,6 +89,20 @@ export default function ProfileScreen() {
     }
   };
 
+  const handleUpdateAvatar = async (selectedAvatar: string) => {
+    try {
+      const res = await api.put('/auth/profile', { avatar: selectedAvatar });
+      if (res.data?.user) {
+        setProfile(res.data.user as any);
+        Alert.alert('Avatar Updated', `Selected avatar: ${selectedAvatar}`);
+      }
+    } catch (e) {
+      Alert.alert('Update Failed', 'Failed to save avatar.');
+    }
+  };
+
+  const AVATAR_LIST = ['🎓', '⚡', '🥷', '🧙‍♂️', '🚀', '👑', '🦁', '🔥', '🤖', '🐯', '🦅', '👾'];
+
   const tier = profile ? getTier(profile.totalEXP) : LEADERBOARD_TIERS.BRONZE;
   const accuracy = profile?.totalAnswered
     ? Math.round((profile.totalCorrect / profile.totalAnswered) * 100)
@@ -95,6 +110,7 @@ export default function ProfileScreen() {
 
   const userName = profile?.name || firebaseUser?.displayName || 'Player';
   const initial = userName[0]?.toUpperCase() || 'P';
+  const userAvatar = profile?.avatar;
   const isAdmin =
     profile?.role === 'admin' ||
     firebaseUser?.email?.toLowerCase() === 'monusingh2646@gmail.com' ||
@@ -115,6 +131,7 @@ export default function ProfileScreen() {
         <GlowingProfileCard
           name={userName}
           initial={initial}
+          avatar={userAvatar}
           activeBorder={userBorder}
           badges={profile?.badges || []}
           size="lg"
@@ -129,6 +146,23 @@ export default function ProfileScreen() {
           </Text>
         </View>
       </LinearGradient>
+
+      {/* ─── Select Avatar ─── */}
+      <Text style={styles.sectionHeader}>CHOOSE YOUR AVATAR</Text>
+      <View style={styles.avatarGrid}>
+        {AVATAR_LIST.map((av) => (
+          <TouchableOpacity
+            key={av}
+            style={[
+              styles.avatarItem,
+              profile?.avatar === av && styles.avatarItemSelected,
+            ]}
+            onPress={() => handleUpdateAvatar(av)}
+          >
+            <Text style={styles.avatarEmoji}>{av}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
 
       {/* ─── Admin Portal Access (If Admin) ─── */}
       {isAdmin && (
@@ -398,6 +432,35 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontWeight: '700',
     textTransform: 'uppercase',
+  },
+  avatarGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 24,
+    backgroundColor: Colors.dark.surface,
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+  },
+  avatarItem: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: '#0F1224',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: Colors.dark.border,
+  },
+  avatarItemSelected: {
+    borderColor: Colors.dark.cyan,
+    backgroundColor: 'rgba(5, 213, 230, 0.15)',
+    transform: [{ scale: 1.1 }],
+  },
+  avatarEmoji: {
+    fontSize: 22,
   },
   helpButton: {
     backgroundColor: Colors.dark.surface,

@@ -94,7 +94,7 @@ router.get('/profile', verifyFirebaseToken, async (req, res) => {
 // Update name, class, upiId, activeBorder
 router.put('/profile', verifyFirebaseToken, async (req, res) => {
   try {
-    const { name, class: cls, upiId, activeBorder } = req.body;
+    const { name, class: cls, upiId, activeBorder, avatar } = req.body;
     const update = {};
     if (name) update.name = name.trim();
     if (cls) {
@@ -109,6 +109,9 @@ router.put('/profile', verifyFirebaseToken, async (req, res) => {
     }
     if (activeBorder && ['default', 'glowing_gold', 'neon_cyan', 'fire_ring'].includes(activeBorder)) {
       update.activeBorder = activeBorder;
+    }
+    if (avatar !== undefined) {
+      update.avatar = avatar.trim();
     }
 
     const user = await User.findOneAndUpdate(

@@ -310,10 +310,10 @@ router.get('/users', async (req, res) => {
   }
 });
 
-// POST /api/admin/users/grant-badge
+// POST /api/admin/users/grant-badge (and profile management)
 router.post('/users/grant-badge', async (req, res) => {
   try {
-    const { uid, activeBorder, badge, role, upiId } = req.body;
+    const { uid, activeBorder, badge, badges, role, upiId, avatar } = req.body;
 
     if (!uid) return res.status(400).json({ error: 'User UID is required' });
 
@@ -324,23 +324,35 @@ router.post('/users/grant-badge', async (req, res) => {
       user.activeBorder = activeBorder;
     }
 
-    if (badge && !user.badges.includes(badge)) {
-      user.badges.push(badge);
+    if (Array.isArray(badges)) {
+      user.badges = badges.map((b) => sanitize(String(b)));
+    } else if (badge) {
+      const cleanBadge = sanitize(String(badge));
+      if (user.badges.includes(cleanBadge)) {
+        user.badges = user.badges.filter((b) => b !== cleanBadge);
+      } else {
+        user.badges.push(cleanBadge);
+      }
     }
 
     if (role && ['user', 'admin'].includes(role)) {
       user.role = role;
     }
 
+    if (avatar !== undefined) {
+      user.avatar = sanitize(String(avatar));
+    }
+
     if (upiId !== undefined) {
-      user.upiId = sanitize(upiId);
+      user.upiId = sanitize(String(upiId));
     }
 
     await user.save();
 
     res.json({ message: 'User updated successfully', user });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to update user badges' });
+    console.error('Admin update user error:', err);
+    res.status(500).json({ error: 'Failed to update user profile' });
   }
 });
 

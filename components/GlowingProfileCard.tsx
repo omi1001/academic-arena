@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 interface Props {
   name: string;
   initial: string;
+  avatar?: string;
   activeBorder?: 'default' | 'glowing_gold' | 'neon_cyan' | 'fire_ring';
   badges?: string[];
   role?: string;
@@ -14,6 +15,7 @@ interface Props {
 export const GlowingProfileCard: React.FC<Props> = ({
   name,
   initial,
+  avatar,
   activeBorder = 'default',
   badges = [],
   role = 'user',
@@ -99,7 +101,7 @@ export const GlowingProfileCard: React.FC<Props> = ({
                 { width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 },
               ]}
             >
-              <Text style={[styles.avatarText, { fontSize: textSize }]}>{initial}</Text>
+              <Text style={[styles.avatarText, { fontSize: textSize }]}>{avatar || initial}</Text>
             </View>
           </LinearGradient>
         </Animated.View>
@@ -111,7 +113,7 @@ export const GlowingProfileCard: React.FC<Props> = ({
             { width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 },
           ]}
         >
-          <Text style={[styles.avatarText, { fontSize: textSize }]}>{initial}</Text>
+          <Text style={[styles.avatarText, { fontSize: textSize }]}>{avatar || initial}</Text>
         </View>
       )}
 

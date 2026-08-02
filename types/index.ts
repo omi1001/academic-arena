@@ -15,6 +15,7 @@ export interface User {
   upiId?: string;
   badges?: string[];
   activeBorder?: 'default' | 'glowing_gold' | 'neon_cyan' | 'fire_ring';
+  avatar?: string;
   createdAt?: string | number;
   updatedAt?: string | number;
 }
