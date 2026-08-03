@@ -17,7 +17,7 @@ import { useUserStore } from '../../stores/userStore';
 import api from '../../lib/api';
 import { GlowingProfileCard } from '../../components/GlowingProfileCard';
 
-type LeaderboardTab = 'weekly' | 'total';
+type LeaderboardTab = 'weekly' | 'total' | 'challenge';
 
 interface LeaderboardEntry {
   rank: number;
@@ -26,6 +26,10 @@ interface LeaderboardEntry {
   exp: number;
   weeklyEXP?: number;
   totalEXP?: number;
+  highestChallengeDifficulty?: number;
+  challengeWins?: number;
+  challengeLosses?: number;
+  challengeGamesPlayed?: number;
   activeBorder?: 'default' | 'glowing_gold' | 'neon_cyan' | 'fire_ring';
   badges?: string[];
   avatar?: string;
@@ -87,12 +91,18 @@ export default function LeaderboardScreen() {
         {/* Info Banner */}
         <View style={styles.bannerContainer}>
           <Text style={styles.bannerTitle}>
-            {tab === 'weekly' ? '⚡ FRESH WEEKLY ARENA' : '🏆 ALL-TIME ARENA LEGENDS'}
+            {tab === 'weekly'
+              ? '⚡ FRESH WEEKLY ARENA'
+              : tab === 'total'
+                ? '🏆 ALL-TIME ARENA LEGENDS'
+                : '⚔️ 1v1 CHALLENGE MASTERS'}
           </Text>
           <Text style={styles.bannerSubtitle}>
             {tab === 'weekly'
               ? 'Calculated freshly every week! Resets every Monday. Top 1 gets ₹10 UPI reward!'
-              : 'Lifetime total EXP accumulated since user registration.'}
+              : tab === 'total'
+                ? 'Lifetime total EXP accumulated since user registration.'
+                : 'Ranked by highest bot difficulty level defeated and total 1v1 challenge wins.'}
           </Text>
         </View>
 
@@ -115,7 +125,11 @@ export default function LeaderboardScreen() {
                 <Text style={styles.podiumName} numberOfLines={1}>
                   {top2.name}
                 </Text>
-                <Text style={styles.podiumExp}>{(top2.exp || 0).toLocaleString()} EXP</Text>
+                <Text style={styles.podiumExp}>
+                  {tab === 'challenge'
+                    ? `Lv.${top2.highestChallengeDifficulty || 1} Bot • ${top2.challengeWins || 0}W`
+                    : `${(top2.exp || 0).toLocaleString()} EXP`}
+                </Text>
               </View>
             ) : (
               <View style={styles.podiumCardPlaceholder} />
@@ -141,7 +155,9 @@ export default function LeaderboardScreen() {
                   {top1.name}
                 </Text>
                 <Text style={[styles.podiumExp, { color: Colors.dark.gold }]}>
-                  {(top1.exp || 0).toLocaleString()} EXP
+                  {tab === 'challenge'
+                    ? `Lv.${top1.highestChallengeDifficulty || 1} Bot • ${top1.challengeWins || 0} Wins`
+                    : `${(top1.exp || 0).toLocaleString()} EXP`}
                 </Text>
               </LinearGradient>
             )}
@@ -162,7 +178,11 @@ export default function LeaderboardScreen() {
                 <Text style={styles.podiumName} numberOfLines={1}>
                   {top3.name}
                 </Text>
-                <Text style={styles.podiumExp}>{(top3.exp || 0).toLocaleString()} EXP</Text>
+                <Text style={styles.podiumExp}>
+                  {tab === 'challenge'
+                    ? `Lv.${top3.highestChallengeDifficulty || 1} Bot • ${top3.challengeWins || 0}W`
+                    : `${(top3.exp || 0).toLocaleString()} EXP`}
+                </Text>
               </View>
             ) : (
               <View style={styles.podiumCardPlaceholder} />
@@ -231,16 +251,28 @@ export default function LeaderboardScreen() {
           </View>
 
           <View style={styles.tierRow}>
-            <View style={[styles.tierDot, { backgroundColor: tier.color }]} />
-            <Text style={[styles.tierLabel, { color: tier.color }]}>
-              {tier.name}
-            </Text>
+            {tab === 'challenge' ? (
+              <Text style={{ color: Colors.dark.cyan, fontSize: 11, fontWeight: 'bold' }}>
+                🤖 Lv.{item.highestChallengeDifficulty || 1} Bot
+              </Text>
+            ) : (
+              <>
+                <View style={[styles.tierDot, { backgroundColor: tier.color }]} />
+                <Text style={[styles.tierLabel, { color: tier.color }]}>
+                  {tier.name}
+                </Text>
+              </>
+            )}
           </View>
         </View>
 
         <View style={styles.expPill}>
           <Text style={styles.expText}>
-            {(item.exp || 0).toLocaleString()} {tab === 'weekly' ? 'W-EXP' : 'EXP'}
+            {tab === 'challenge'
+              ? `${item.challengeWins || 0}W / ${item.challengeLosses || 0}L`
+              : tab === 'weekly'
+                ? `${(item.exp || 0).toLocaleString()} W-EXP`
+                : `${(item.exp || 0).toLocaleString()} EXP`}
           </Text>
         </View>
       </View>
@@ -266,7 +298,15 @@ export default function LeaderboardScreen() {
           onPress={() => setTab('total')}
         >
           <Text style={[styles.tabButtonText, tab === 'total' && styles.tabButtonTextActive]}>
-            🏆 ALL-TIME (TOTAL)
+            🏆 TOTAL
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tabButton, tab === 'challenge' && styles.tabButtonActive]}
+          onPress={() => setTab('challenge')}
+        >
+          <Text style={[styles.tabButtonText, tab === 'challenge' && styles.tabButtonTextActive]}>
+            ⚔️ CHALLENGE
           </Text>
         </TouchableOpacity>
       </View>

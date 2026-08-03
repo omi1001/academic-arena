@@ -64,6 +64,19 @@ const runSchema = new mongoose.Schema({
     enum: ['completed', 'cheat_detected', 'timeout'],
     default: 'completed',
   },
+  mode: {
+    type: String,
+    enum: ['solo', 'challenge'],
+    default: 'solo',
+  },
+  challengeDifficulty: {
+    type: Number,
+    default: 1,
+  },
+  isChallengeWin: {
+    type: Boolean,
+    default: false,
+  },
 }, { timestamps: true });
 
 // Index for leaderboard queries

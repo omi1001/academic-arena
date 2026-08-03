@@ -71,6 +71,22 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: '🎓',
   },
+  challengeWins: {
+    type: Number,
+    default: 0,
+  },
+  challengeLosses: {
+    type: Number,
+    default: 0,
+  },
+  challengeGamesPlayed: {
+    type: Number,
+    default: 0,
+  },
+  highestChallengeDifficulty: {
+    type: Number,
+    default: 1,
+  },
 }, { timestamps: true });
 
 userSchema.index({ totalEXP: -1 });

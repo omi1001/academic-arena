@@ -1,10 +1,11 @@
 import { useEffect, useState, useRef } from 'react';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
-import { View, Text, StyleSheet, Animated, Easing, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Animated, Easing, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Gradients } from '../../../constants/theme';
-import { MAX_HEARTS } from '../../../constants/config';
+import { MAX_HEARTS, LEADERBOARD_TIERS } from '../../../constants/config';
 import { BouncyButton } from '../../../components/BouncyButton';
+import { useUserStore } from '../../../stores/userStore';
 import api from '../../../lib/api';
 
 interface PacketInfo {
@@ -20,9 +21,14 @@ export default function GameSetupScreen() {
     subject: string;
   }>();
 
+  const { profile } = useUserStore();
+  const playerExp = profile?.totalEXP || 0;
+  const isSilverUnlocked = playerExp >= LEADERBOARD_TIERS.SILVER.minEXP;
+
   const [packets, setPackets] = useState<PacketInfo[]>([]);
   const [selectedPacket, setSelectedPacket] = useState<number>(1);
   const [loadingPackets, setLoadingPackets] = useState<boolean>(true);
+  const [gameMode, setGameMode] = useState<'solo' | 'challenge'>('solo');
 
   // ─── Animations ───
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -79,7 +85,6 @@ export default function GameSetupScreen() {
         setPackets(res.data);
         setSelectedPacket(res.data[0].packet);
       } else {
-        // Fallback default 5 packets if API doesn't return
         const fallback = Array.from({ length: 5 }, (_, i) => ({
           packet: i + 1,
           totalQuestions: 10,
@@ -89,7 +94,6 @@ export default function GameSetupScreen() {
       }
     } catch (e) {
       console.warn('Failed to fetch packets:', e);
-      // Fallback
       const fallback = Array.from({ length: 5 }, (_, i) => ({
         packet: i + 1,
         totalQuestions: 10,
@@ -101,17 +105,41 @@ export default function GameSetupScreen() {
     }
   };
 
+  const handleSelectChallengeMode = () => {
+    if (!isSilverUnlocked) {
+      const remaining = LEADERBOARD_TIERS.SILVER.minEXP - playerExp;
+      Alert.alert(
+        '🔒 Challenge Mode Locked',
+        `Reach Silver Division (${LEADERBOARD_TIERS.SILVER.minEXP.toLocaleString()} EXP) to unlock 1v1 Bot Challenge Mode!\n\nYou need ${remaining.toLocaleString()} more EXP.`
+      );
+      return;
+    }
+    setGameMode('challenge');
+  };
+
   const handleStart = () => {
     const runId = `run_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    router.replace({
-      pathname: '/(main)/game/[runId]',
-      params: {
-        runId,
-        class: classStr,
-        subject,
-        packet: selectedPacket.toString(),
-      },
-    });
+    if (gameMode === 'challenge') {
+      router.replace({
+        pathname: '/(main)/game/challenge',
+        params: {
+          runId,
+          class: classStr,
+          subject,
+          packet: selectedPacket.toString(),
+        },
+      });
+    } else {
+      router.replace({
+        pathname: '/(main)/game/[runId]',
+        params: {
+          runId,
+          class: classStr,
+          subject,
+          packet: selectedPacket.toString(),
+        },
+      });
+    }
   };
 
   return (
@@ -161,6 +189,41 @@ export default function GameSetupScreen() {
             <Text style={styles.className}>CLASS {classStr} ARENA</Text>
           </View>
 
+          {/* ─── Game Mode Selection ─── */}
+          <Text style={styles.sectionHeader}>SELECT ARENA GAME MODE</Text>
+          <View style={styles.modeGrid}>
+            {/* Solo Arena Mode Card */}
+            <BouncyButton
+              style={[styles.modeCard, gameMode === 'solo' && styles.modeCardSelected]}
+              onPress={() => setGameMode('solo')}
+            >
+              <Text style={styles.modeEmoji}>⚡</Text>
+              <Text style={styles.modeTitle}>SOLO RUN</Text>
+              <Text style={styles.modeDesc}>Classic endless practice run</Text>
+            </BouncyButton>
+
+            {/* 1v1 Bot Challenge Mode Card */}
+            <BouncyButton
+              style={[
+                styles.modeCard,
+                gameMode === 'challenge' && styles.modeCardSelected,
+                !isSilverUnlocked && styles.modeCardLocked,
+              ]}
+              onPress={handleSelectChallengeMode}
+            >
+              <View style={styles.modeHeaderRow}>
+                <Text style={styles.modeEmoji}>⚔️</Text>
+                {!isSilverUnlocked && <Text style={styles.lockBadge}>🔒 LOCKED</Text>}
+              </View>
+              <Text style={styles.modeTitle}>1v1 CHALLENGE</Text>
+              <Text style={styles.modeDesc}>
+                {isSilverUnlocked
+                  ? '15 Questions Race vs Adaptive Bot'
+                  : 'Unlocks at Silver (5,000 EXP)'}
+              </Text>
+            </BouncyButton>
+          </View>
+
           {/* ─── Question Packet Selector Section ─── */}
           <View style={styles.packetSection}>
             <Text style={styles.sectionHeader}>SELECT QUESTION PACKET</Text>
@@ -208,8 +271,10 @@ export default function GameSetupScreen() {
           {/* Info Card */}
           <LinearGradient colors={['#161B33', '#0F1224']} style={styles.infoCard}>
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>SELECTED PACKET</Text>
-              <Text style={styles.infoValueHighlight}>Packet {selectedPacket}</Text>
+              <Text style={styles.infoLabel}>SELECTED MODE</Text>
+              <Text style={styles.infoValueHighlight}>
+                {gameMode === 'challenge' ? '⚔️ 1v1 Bot Challenge (15 Qs)' : '⚡ Solo Arena Run'}
+              </Text>
             </View>
 
             <View style={styles.divider} />
@@ -228,13 +293,17 @@ export default function GameSetupScreen() {
             <View style={styles.divider} />
 
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>DIFFICULTY</Text>
-              <Text style={styles.infoValue}>Scales Lv 1 ➔ 10</Text>
+              <Text style={styles.infoLabel}>BOT DIFFICULTY</Text>
+              <Text style={styles.infoValue}>
+                {gameMode === 'challenge' ? 'Adaptive to your EXP' : 'Standard Scaling'}
+              </Text>
             </View>
           </LinearGradient>
 
           <Text style={styles.rules}>
-            🎯 Answer fast to level up difficulty & multiplier. When a packet ends, the next packet begins seamlessly!
+            {gameMode === 'challenge'
+              ? '⚔️ Race the bot to answer 15 questions! Keep your hearts for high EXP bonuses.'
+              : '🎯 Answer fast to level up difficulty & multiplier. When a packet ends, the next packet begins seamlessly!'}
           </Text>
 
           <BouncyButton style={styles.startBtnWrapper} onPress={handleStart}>
@@ -244,7 +313,11 @@ export default function GameSetupScreen() {
               end={{ x: 1, y: 0 }}
               style={styles.startButton}
             >
-              <Text style={styles.startButtonText}>⚡ LAUNCH PACKET {selectedPacket} ⚡</Text>
+              <Text style={styles.startButtonText}>
+                {gameMode === 'challenge'
+                  ? `⚔️ START 1v1 BOT RACE (PACKET ${selectedPacket})`
+                  : `⚡ LAUNCH PACKET ${selectedPacket} ⚡`}
+              </Text>
             </LinearGradient>
           </BouncyButton>
         </Animated.View>
@@ -306,6 +379,58 @@ const styles = StyleSheet.create({
     color: Colors.dark.cyan,
     fontWeight: 'bold',
     letterSpacing: 1,
+  },
+  modeGrid: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+    marginBottom: 24,
+  },
+  modeCard: {
+    flex: 1,
+    backgroundColor: Colors.dark.surface,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1.5,
+    borderColor: Colors.dark.border,
+  },
+  modeCardSelected: {
+    borderColor: Colors.dark.cyan,
+    backgroundColor: 'rgba(5, 213, 230, 0.12)',
+  },
+  modeCardLocked: {
+    opacity: 0.7,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  modeHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  lockBadge: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: Colors.dark.danger,
+    backgroundColor: 'rgba(255, 46, 99, 0.15)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    overflow: 'hidden',
+  },
+  modeEmoji: {
+    fontSize: 24,
+    marginBottom: 6,
+  },
+  modeTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: Colors.dark.text,
+    marginBottom: 2,
+  },
+  modeDesc: {
+    fontSize: 11,
+    color: Colors.dark.textMuted,
+    lineHeight: 14,
   },
   packetSection: {
     width: '100%',

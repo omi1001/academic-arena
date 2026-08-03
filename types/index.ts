@@ -11,6 +11,10 @@ export interface User {
   totalAnswered: number;
   highestStreak: number;
   highestDifficulty: number;
+  challengeWins?: number;
+  challengeLosses?: number;
+  challengeGamesPlayed?: number;
+  highestChallengeDifficulty?: number;
   role?: 'user' | 'admin';
   upiId?: string;
   badges?: string[];
@@ -52,9 +56,18 @@ export interface GameRun {
 export interface LeaderboardEntry {
   rank: number;
   uid: string;
-  displayName: string;
+  displayName?: string;
+  name?: string;
   totalEXP: number;
-  tier: string;
+  exp?: number;
+  tier?: string;
+  challengeWins?: number;
+  challengeLosses?: number;
+  challengeGamesPlayed?: number;
+  highestChallengeDifficulty?: number;
+  activeBorder?: 'default' | 'glowing_gold' | 'neon_cyan' | 'fire_ring';
+  badges?: string[];
+  avatar?: string;
 }
 
 export interface GameState {

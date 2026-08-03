@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { signOut } from 'firebase/auth';
+import { signOut, sendPasswordResetEmail } from 'firebase/auth';
 import { LinearGradient } from 'expo-linear-gradient';
 import { auth } from '../../lib/firebase';
 import api from '../../lib/api';
@@ -63,6 +63,35 @@ export default function ProfileScreen() {
         },
       },
     ]);
+  };
+
+  const handleResetPassword = async () => {
+    if (!firebaseUser?.email) {
+      Alert.alert('Error', 'No email address found for this account.');
+      return;
+    }
+
+    Alert.alert(
+      'Reset Password',
+      `Send a password reset link to ${firebaseUser.email}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Send Link',
+          onPress: async () => {
+            try {
+              await sendPasswordResetEmail(auth, firebaseUser.email!);
+              Alert.alert(
+                'Reset Email Sent! 📩',
+                `A password reset link has been sent to ${firebaseUser.email}. Please check your inbox.`
+              );
+            } catch (e: any) {
+              Alert.alert('Error', e.message || 'Failed to send password reset email.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleUpdateClass = async (newClass: 9 | 10) => {
@@ -222,6 +251,37 @@ export default function ProfileScreen() {
         </BouncyButton>
       </View>
 
+      {/* ─── 1v1 Bot Challenge Stats ─── */}
+      <Text style={styles.sectionHeader}>⚔️ 1v1 BOT CHALLENGE STATS</Text>
+      <View style={styles.statsGrid}>
+        <View style={styles.statBox}>
+          <Text style={styles.statIcon}>⚔️</Text>
+          <Text style={styles.statValue}>{profile?.challengeGamesPlayed || 0}</Text>
+          <Text style={styles.statLabel}>Challenges</Text>
+        </View>
+        <View style={styles.statBox}>
+          <Text style={styles.statIcon}>🏆</Text>
+          <Text style={styles.statValue}>
+            {profile?.challengeWins || 0}W / {profile?.challengeLosses || 0}L
+          </Text>
+          <Text style={styles.statLabel}>Record</Text>
+        </View>
+        <View style={styles.statBox}>
+          <Text style={styles.statIcon}>📈</Text>
+          <Text style={styles.statValue}>
+            {profile?.challengeGamesPlayed
+              ? Math.round(((profile?.challengeWins || 0) / profile.challengeGamesPlayed) * 100)
+              : 0}%
+          </Text>
+          <Text style={styles.statLabel}>Win Rate</Text>
+        </View>
+        <View style={styles.statBox}>
+          <Text style={styles.statIcon}>🤖</Text>
+          <Text style={styles.statValue}>Lv.{profile?.highestChallengeDifficulty || 1}</Text>
+          <Text style={styles.statLabel}>Peak Bot</Text>
+        </View>
+      </View>
+
       {/* ─── Lifetime Stats Grid ─── */}
       <Text style={styles.sectionHeader}>LIFETIME STATS</Text>
       <View style={styles.statsGrid}>
@@ -246,6 +306,10 @@ export default function ProfileScreen() {
           <Text style={styles.statLabel}>Accuracy</Text>
         </View>
       </View>
+
+      <BouncyButton style={styles.resetPasswordBtn} onPress={handleResetPassword}>
+        <Text style={styles.resetPasswordText}>🔒 Reset Password</Text>
+      </BouncyButton>
 
       <BouncyButton style={styles.helpButton} onPress={() => router.push('/(main)/help')}>
         <Text style={styles.helpButtonText}>💬 Help & Support</Text>
@@ -461,6 +525,20 @@ const styles = StyleSheet.create({
   },
   avatarEmoji: {
     fontSize: 22,
+  },
+  resetPasswordBtn: {
+    backgroundColor: Colors.dark.surface,
+    borderRadius: 14,
+    padding: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.dark.cyan,
+    marginBottom: 12,
+  },
+  resetPasswordText: {
+    color: Colors.dark.cyan,
+    fontSize: 15,
+    fontWeight: 'bold',
   },
   helpButton: {
     backgroundColor: Colors.dark.surface,

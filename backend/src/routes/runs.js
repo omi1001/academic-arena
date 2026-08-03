@@ -19,6 +19,7 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
       runId, class: cls, subject, score, expEarned,
       questionsAnswered, correctAnswers, maxStreak,
       highestDifficulty, heartsRemaining, startTime, status,
+      mode, challengeDifficulty, isChallengeWin,
     } = req.body;
 
     // ─── 1. Validate required fields ───
@@ -38,6 +39,10 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
     const numCls = parseInt(cls);
     const runStatus = sanitize(status || 'completed');
 
+    const runMode = mode === 'challenge' ? 'challenge' : 'solo';
+    const numChallengeDiff = parseInt(challengeDifficulty) || 1;
+    const boolChallengeWin = Boolean(isChallengeWin);
+
     // ─── 2. Validate types and ranges ───
     if (numCls !== 9 && numCls !== 10) {
       return res.status(400).json({ error: 'Invalid class' });
@@ -54,15 +59,12 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
     }
 
     // ─── 3. Validate integrity ───
-    // score must equal correctAnswers
     if (numScore !== numCorrect) {
       return res.status(400).json({ error: 'Score mismatch' });
     }
-    // Can't answer more than total questions
     if (numCorrect > numAnswered) {
       return res.status(400).json({ error: 'Correct answers exceed total answered' });
     }
-    // Run start time check (fallback to 1 min ago if invalid or missing)
     const now = Date.now();
     let validStart = numStart;
     if (!validStart || validStart <= 0 || now - validStart > MAX_RUN_DURATION_MS || validStart > now + 5000) {
@@ -70,19 +72,16 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
     }
 
     // ─── 4. Server recalculates expected EXP ───
-    // We use a simplified model: each correct answer earns base EXP scaled by difficulty
-    // The client applies speed multipliers and combo bonuses — we cap the server EXP
     let serverExpectedEXP = 0;
     for (let d = 1; d <= Math.min(numDifficulty, MAX_DIFFICULTY); d++) {
       serverExpectedEXP += d * EXP_PER_DIFFICULTY;
     }
-    // Add max combo bonus
     serverExpectedEXP += Math.min(numStreak * COMBO_BONUS_PER_STREAK, MAX_COMBO_BONUS);
-    // Passive EXP (max 10 min at 5 EXP per 30s = 100 EXP)
     serverExpectedEXP += 100;
 
-    // Accept client EXP if within 50% above server calculation (allows speed bonus)
-    const maxAllowedEXP = Math.round(serverExpectedEXP * 1.5);
+    // For challenge mode, allow higher bonus threshold
+    const expMultiplierCap = runMode === 'challenge' ? 2.5 : 1.5;
+    const maxAllowedEXP = Math.round(serverExpectedEXP * expMultiplierCap);
     const finalExp = Math.min(numExp, maxAllowedEXP);
 
     // ─── 5. Check if run already saved (idempotent retry check) ───
@@ -106,6 +105,9 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
         startTime: validStart,
         endTime: now,
         status: runStatus === 'cheat_detected' ? 'cheat_detected' : 'completed',
+        mode: runMode,
+        challengeDifficulty: numChallengeDiff,
+        isChallengeWin: boolChallengeWin,
       },
       { upsert: true, new: true }
     );
@@ -130,6 +132,16 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
           class: numCls,
         },
       };
+
+      if (runMode === 'challenge') {
+        userUpdate.$inc.challengeGamesPlayed = 1;
+        if (boolChallengeWin) {
+          userUpdate.$inc.challengeWins = 1;
+        } else {
+          userUpdate.$inc.challengeLosses = 1;
+        }
+        userUpdate.$max.highestChallengeDifficulty = numChallengeDiff;
+      }
 
       if (userName && userName !== 'Anonymous') {
         userUpdate.$set = { name: userName };

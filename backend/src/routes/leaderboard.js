@@ -19,7 +19,41 @@ router.get('/', async (req, res) => {
   const targetLimit = parseInt(lim) || 50;
 
   try {
-    if (type === 'weekly') {
+    if (type === 'challenge') {
+      const query = {};
+      if (cls) query.class = parseInt(cls);
+
+      const users = await User.find(query)
+        .sort({ highestChallengeDifficulty: -1, challengeWins: -1, totalEXP: -1 })
+        .limit(targetLimit)
+        .select('uid name email class totalEXP gamesPlayed challengeWins challengeLosses challengeGamesPlayed highestChallengeDifficulty activeBorder badges avatar')
+        .lean();
+
+      const result = users.map((u, index) => {
+        let displayName = u.name;
+        if (!displayName || displayName === 'Anonymous') {
+          displayName = u.email ? u.email.split('@')[0] : 'Player';
+        }
+
+        return {
+          rank: index + 1,
+          uid: u.uid,
+          name: displayName,
+          class: u.class || null,
+          exp: u.totalEXP,
+          totalEXP: u.totalEXP,
+          challengeWins: u.challengeWins || 0,
+          challengeLosses: u.challengeLosses || 0,
+          challengeGamesPlayed: u.challengeGamesPlayed || 0,
+          highestChallengeDifficulty: u.highestChallengeDifficulty || 1,
+          activeBorder: u.activeBorder || 'default',
+          badges: u.badges || [],
+          avatar: u.avatar || '🎓',
+        };
+      });
+
+      return res.json(result);
+    } else if (type === 'weekly') {
       const startOfWeek = getStartOfWeek();
       const match = { createdAt: { $gte: startOfWeek } };
       if (subject) match.subject = subject;
