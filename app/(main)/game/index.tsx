@@ -16,9 +16,10 @@ interface PacketInfo {
 
 export default function GameSetupScreen() {
   const router = useRouter();
-  const { class: classStr, subject } = useLocalSearchParams<{
+  const { class: classStr, subject, mode } = useLocalSearchParams<{
     class: string;
     subject: string;
+    mode?: 'solo' | 'challenge';
   }>();
 
   const { profile } = useUserStore();
@@ -28,7 +29,9 @@ export default function GameSetupScreen() {
   const [packets, setPackets] = useState<PacketInfo[]>([]);
   const [selectedPacket, setSelectedPacket] = useState<number>(1);
   const [loadingPackets, setLoadingPackets] = useState<boolean>(true);
-  const [gameMode, setGameMode] = useState<'solo' | 'challenge'>('solo');
+  const [gameMode, setGameMode] = useState<'solo' | 'challenge'>(
+    mode === 'challenge' && isSilverUnlocked ? 'challenge' : 'solo'
+  );
 
   // ─── Animations ───
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -399,8 +402,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(5, 213, 230, 0.12)',
   },
   modeCardLocked: {
-    opacity: 0.7,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    opacity: 0.45,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: 'rgba(20, 24, 45, 0.6)',
   },
   modeHeaderRow: {
     flexDirection: 'row',

@@ -7,6 +7,7 @@ import {
   RefreshControl,
   Animated,
   Easing,
+  Alert,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { signOut } from 'firebase/auth';
@@ -26,6 +27,7 @@ export default function DashboardScreen() {
   const { profile, setProfile } = useUserStore();
   const [selectedClass, setSelectedClass] = useState<ClassOption | null>(null);
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
+  const [gameMode, setGameMode] = useState<'solo' | 'challenge'>('solo');
   const [refreshing, setRefreshing] = useState(false);
 
   // ─── Animations ───
@@ -122,11 +124,25 @@ export default function DashboardScreen() {
     return LEADERBOARD_TIERS.BRONZE;
   };
 
+  const isSilverUnlocked = (profile?.totalEXP || 0) >= LEADERBOARD_TIERS.SILVER.minEXP;
+
+  const handleSelectChallengeMode = () => {
+    if (!isSilverUnlocked) {
+      const remaining = LEADERBOARD_TIERS.SILVER.minEXP - (profile?.totalEXP || 0);
+      Alert.alert(
+        '🔒 Challenge Mode Locked',
+        `Reach Silver Division (${LEADERBOARD_TIERS.SILVER.minEXP.toLocaleString()} EXP) to unlock 1v1 Bot Challenge Mode!\n\nYou need ${remaining.toLocaleString()} more EXP.`
+      );
+      return;
+    }
+    setGameMode('challenge');
+  };
+
   const handleStartGame = () => {
     if (!selectedClass || !selectedSubject) return;
     router.push({
       pathname: '/(main)/game',
-      params: { class: selectedClass, subject: selectedSubject },
+      params: { class: selectedClass, subject: selectedSubject, mode: gameMode },
     });
   };
 
@@ -233,6 +249,41 @@ export default function DashboardScreen() {
           </View>
         </Animated.View>
 
+        {/* ─── Game Mode Selection ─── */}
+        <Text style={styles.sectionTitle}>SELECT GAME MODE</Text>
+        <View style={styles.modeGrid}>
+          {/* Solo Arena Mode Card */}
+          <BouncyButton
+            style={[styles.modeCard, gameMode === 'solo' && styles.modeCardSelected]}
+            onPress={() => setGameMode('solo')}
+          >
+            <Text style={styles.modeEmoji}>⚡</Text>
+            <Text style={styles.modeTitle}>SOLO RUN</Text>
+            <Text style={styles.modeDesc}>Classic endless practice run</Text>
+          </BouncyButton>
+
+          {/* 1v1 Bot Challenge Mode Card */}
+          <BouncyButton
+            style={[
+              styles.modeCard,
+              gameMode === 'challenge' && styles.modeCardSelected,
+              !isSilverUnlocked && styles.modeCardLocked,
+            ]}
+            onPress={handleSelectChallengeMode}
+          >
+            <View style={styles.modeHeaderRow}>
+              <Text style={styles.modeEmoji}>⚔️</Text>
+              {!isSilverUnlocked && <Text style={styles.lockBadge}>🔒 LOCKED</Text>}
+            </View>
+            <Text style={styles.modeTitle}>1v1 CHALLENGE</Text>
+            <Text style={styles.modeDesc}>
+              {isSilverUnlocked
+                ? '15 Qs Race vs Adaptive Bot'
+                : 'Unlocks at Silver (5,000 EXP)'}
+            </Text>
+          </BouncyButton>
+        </View>
+
         {/* ─── Class Selection ─── */}
         <Text style={styles.sectionTitle}>SELECT GRADE</Text>
         <View style={styles.optionRow}>
@@ -316,7 +367,9 @@ export default function DashboardScreen() {
               <Text style={styles.startButtonText}>
                 {!selectedClass || !selectedSubject
                   ? 'SELECT CLASS & SUBJECT'
-                  : '⚡ LAUNCH RUN'}
+                  : gameMode === 'challenge'
+                    ? '⚔️ LAUNCH 1v1 CHALLENGE'
+                    : '⚡ LAUNCH RUN'}
               </Text>
             </LinearGradient>
           </BouncyButton>
@@ -568,5 +621,57 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     letterSpacing: 1,
+  },
+  modeGrid: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 20,
+  },
+  modeCard: {
+    flex: 1,
+    backgroundColor: Colors.dark.surface,
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1.5,
+    borderColor: Colors.dark.border,
+  },
+  modeCardSelected: {
+    borderColor: Colors.dark.cyan,
+    backgroundColor: 'rgba(5, 213, 230, 0.12)',
+  },
+  modeCardLocked: {
+    opacity: 0.45,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: 'rgba(20, 24, 45, 0.6)',
+  },
+  modeHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  lockBadge: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: Colors.dark.danger,
+    backgroundColor: 'rgba(255, 46, 99, 0.15)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    overflow: 'hidden',
+  },
+  modeEmoji: {
+    fontSize: 24,
+    marginBottom: 6,
+  },
+  modeTitle: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: Colors.dark.text,
+    marginBottom: 2,
+  },
+  modeDesc: {
+    fontSize: 11,
+    color: Colors.dark.textMuted,
+    lineHeight: 14,
   },
 });
