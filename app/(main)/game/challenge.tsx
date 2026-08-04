@@ -188,9 +188,14 @@ export default function ChallengeGameScreen() {
     }
   };
 
-  // Bot Engine Loop
+  // Bot Engine Loop Refs to prevent stale closures
+  const botQIndexRef = useRef(0);
+  const botHeartsRef = useRef(MAX_HEARTS);
+  const botScoreRef = useRef(0);
+  const matchEndedRef = useRef(false);
+
   const scheduleBotTurn = useCallback(() => {
-    if (matchEnded || botHearts <= 0 || botQIndex >= TOTAL_CHALLENGE_QUESTIONS) return;
+    if (matchEndedRef.current || botHeartsRef.current <= 0 || botQIndexRef.current >= TOTAL_CHALLENGE_QUESTIONS) return;
 
     const delay =
       botMinSpeedMsRef.current +
@@ -199,26 +204,26 @@ export default function ChallengeGameScreen() {
     setBotStatusText('Thinking...');
 
     botTimeoutRef.current = setTimeout(() => {
-      if (matchEnded) return;
+      if (matchEndedRef.current) return;
 
       const isBotCorrect = Math.random() < botAccuracyRef.current;
       if (isBotCorrect) {
-        const newBotQ = botQIndex + 1;
-        const newBotScore = botScore + 1;
-        setBotQIndex(newBotQ);
-        setBotScore(newBotScore);
-        setBotStatusText(`Answered Q${newBotQ} correctly!`);
+        botQIndexRef.current += 1;
+        botScoreRef.current += 1;
+        setBotQIndex(botQIndexRef.current);
+        setBotScore(botScoreRef.current);
+        setBotStatusText(`Answered Q${botQIndexRef.current} correctly!`);
 
-        if (newBotQ >= TOTAL_CHALLENGE_QUESTIONS) {
+        if (botQIndexRef.current >= TOTAL_CHALLENGE_QUESTIONS) {
           finishMatch(false); // Bot won the race!
           return;
         }
       } else {
-        const newBotHearts = botHearts - 1;
-        setBotHearts(newBotHearts);
+        botHeartsRef.current -= 1;
+        setBotHearts(botHeartsRef.current);
         setBotStatusText('Made an error! 💔');
 
-        if (newBotHearts <= 0) {
+        if (botHeartsRef.current <= 0) {
           finishMatch(true); // Player wins because bot lost all hearts!
           return;
         }
@@ -227,7 +232,7 @@ export default function ChallengeGameScreen() {
       // Schedule next bot turn if match is still going
       scheduleBotTurn();
     }, delay);
-  }, [botQIndex, botHearts, botScore, matchEnded]);
+  }, []);
 
   // Start bot engine once questions are loaded
   useEffect(() => {
@@ -278,7 +283,8 @@ export default function ChallengeGameScreen() {
 
   // Finish Match & Calculate EXP Rewards based on Hearts Remaining
   const finishMatch = (playerWon: boolean) => {
-    if (matchEnded) return;
+    if (matchEndedRef.current) return;
+    matchEndedRef.current = true;
     setMatchEnded(true);
     setIsPlayerWinner(playerWon);
 
