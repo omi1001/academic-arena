@@ -125,8 +125,9 @@ export default function ChallengeGameScreen() {
           packet: packet || 1,
         },
       });
-      if (res.data?.questions && res.data.questions.length > 0) {
-        setQuestions(res.data.questions.slice(0, TOTAL_CHALLENGE_QUESTIONS));
+      const qList = Array.isArray(res.data) ? res.data : res.data?.questions;
+      if (qList && qList.length > 0) {
+        setQuestions(qList.slice(0, TOTAL_CHALLENGE_QUESTIONS));
       } else {
         Alert.alert('Error', 'No questions available for this subject packet.');
         router.back();
