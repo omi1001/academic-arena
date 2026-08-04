@@ -113,21 +113,33 @@ export default function ChallengeGameScreen() {
     ]).start();
   }, []);
 
-  // Fetch Questions (Exactly 15 questions)
+  // Fetch Questions (Exactly 15 questions with auto packet progression & variety)
   const fetchQuestions = async () => {
     try {
       setIsLoading(true);
+      const wins = profile?.challengeWins || 0;
+      const basePacket = packet ? parseInt(packet) : 1;
+      // Auto-advance packet on challenge wins so user receives a fresh packet each win!
+      const effectivePacket = ((basePacket - 1 + wins) % 10) + 1;
+      // Scale target difficulty dynamically with challenge wins (1 to 10)
+      const targetDiff = Math.min(10, Math.floor(wins / 2) + 1);
+
       const res = await api.get('/questions', {
         params: {
           class: classStr,
           subject,
           limit: TOTAL_CHALLENGE_QUESTIONS,
-          packet: packet || 1,
+          packet: effectivePacket,
+          difficulty: targetDiff,
+          random: 'true',
+          mode: 'challenge',
         },
       });
       const qList = Array.isArray(res.data) ? res.data : res.data?.questions;
       if (qList && qList.length > 0) {
-        setQuestions(qList.slice(0, TOTAL_CHALLENGE_QUESTIONS));
+        // Shuffle questions on client side for guaranteed variety
+        const shuffled = [...qList].sort(() => Math.random() - 0.5);
+        setQuestions(shuffled.slice(0, TOTAL_CHALLENGE_QUESTIONS));
       } else {
         Alert.alert('Error', 'No questions available for this subject packet.');
         router.back();

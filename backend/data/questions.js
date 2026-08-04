@@ -5475,6 +5475,346 @@ const questions = [
     "source": "NCERT",
     "chapter": "English Literature",
     "packet": 2
+  },
+  {
+    "class": 9,
+    "subject": "Science",
+    "difficulty": 7,
+    "question": "Which cell organelle contains its own circular DNA and 70S ribosomes, allowing it to synthesize its own proteins?",
+    "options": [
+      "Mitochondria",
+      "Golgi apparatus",
+      "Lysosomes",
+      "Endoplasmic reticulum"
+    ],
+    "answer": 0,
+    "explanation": "Mitochondria and plastids possess their own circular DNA and 70S ribosomes, making them semi-autonomous organelles.",
+    "source": "NCERT",
+    "chapter": "The Fundamental Unit of Life",
+    "packet": 1
+  },
+  {
+    "class": 9,
+    "subject": "Science",
+    "difficulty": 8,
+    "question": "What is the approximate latent heat of vaporization of water?",
+    "options": [
+      "3.34 × 10⁵ J/kg",
+      "22.59 × 10⁵ J/kg",
+      "4.18 × 10³ J/kg",
+      "1.00 × 10⁶ J/kg"
+    ],
+    "answer": 1,
+    "explanation": "The latent heat of vaporization of water is 22.59 × 10⁵ J/kg (or ~2.26 × 10⁶ J/kg), which is the heat needed to convert 1 kg of boiling water to steam.",
+    "source": "NCERT",
+    "chapter": "Matter in Our Surroundings",
+    "packet": 2
+  },
+  {
+    "class": 9,
+    "subject": "Science",
+    "difficulty": 7,
+    "question": "Which technique is best used to separate a mixture of two miscible liquids whose boiling points differ by less than 25 K?",
+    "options": [
+      "Simple Distillation",
+      "Fractional Distillation",
+      "Crystallisation",
+      "Centrifugation"
+    ],
+    "answer": 1,
+    "explanation": "Fractional distillation uses a fractionating column to separate miscible liquids with boiling point differences less than 25 K.",
+    "source": "NCERT",
+    "chapter": "Is Matter Around Us Pure",
+    "packet": 2
+  },
+  {
+    "class": 9,
+    "subject": "Science",
+    "difficulty": 8,
+    "question": "A salt solution contains 40 g of salt dissolved in 320 g of water. What is the mass percentage of the solution?",
+    "options": [
+      "11.1%",
+      "12.5%",
+      "10.0%",
+      "14.2%"
+    ],
+    "answer": 0,
+    "explanation": "Mass of solution = 40 + 320 = 360 g. Mass percentage = (40 / 360) × 100 = 11.11%.",
+    "source": "NCERT",
+    "chapter": "Is Matter Around Us Pure",
+    "packet": 3
+  },
+  {
+    "class": 9,
+    "subject": "Science",
+    "difficulty": 7,
+    "question": "What is the formula unit mass of Calcium Carbonate (CaCO₃)? [Atomic masses: Ca=40 u, C=12 u, O=16 u]",
+    "options": [
+      "84 u",
+      "100 u",
+      "112 u",
+      "96 u"
+    ],
+    "answer": 1,
+    "explanation": "Formula mass = 40 + 12 + (3 × 16) = 40 + 12 + 48 = 100 u.",
+    "source": "NCERT",
+    "chapter": "Atoms and Molecules",
+    "packet": 1
+  },
+  {
+    "class": 9,
+    "subject": "Science",
+    "difficulty": 8,
+    "question": "How many moles are present in 12 g of Oxygen gas (O₂)? [Atomic mass of O = 16 u]",
+    "options": [
+      "0.75 moles",
+      "0.375 moles",
+      "0.5 moles",
+      "1.0 mole"
+    ],
+    "answer": 1,
+    "explanation": "Molar mass of O₂ = 32 g/mol. Number of moles = 12 / 32 = 0.375 moles.",
+    "source": "NCERT",
+    "chapter": "Atoms and Molecules",
+    "packet": 4
+  },
+  {
+    "class": 9,
+    "subject": "Science",
+    "difficulty": 6,
+    "question": "According to the Law of Constant Proportions, what is the fixed mass ratio of Hydrogen to Oxygen in water (H₂O)?",
+    "options": [
+      "1 : 2",
+      "1 : 8",
+      "2 : 1",
+      "1 : 16"
+    ],
+    "answer": 1,
+    "explanation": "In water (H₂O), mass ratio of H : O is (2 × 1) : 16 = 2 : 16 = 1 : 8.",
+    "source": "NCERT",
+    "chapter": "Atoms and Molecules",
+    "packet": 3
+  },
+  {
+    "class": 9,
+    "subject": "Science",
+    "difficulty": 6,
+    "question": "An element X has an atomic number of 17 and mass number 35. How many neutrons are in its nucleus?",
+    "options": [
+      "17",
+      "18",
+      "35",
+      "52"
+    ],
+    "answer": 1,
+    "explanation": "Neutrons = Mass Number - Atomic Number = 35 - 17 = 18.",
+    "source": "NCERT",
+    "chapter": "Structure of the Atom",
+    "packet": 2
+  },
+  {
+    "class": 9,
+    "subject": "Science",
+    "difficulty": 8,
+    "question": "What is the maximum number of electrons that can be accommodated in the M-shell of an atom?",
+    "options": [
+      "8",
+      "18",
+      "32",
+      "2"
+    ],
+    "answer": 1,
+    "explanation": "By Bohr-Bury formula (2n²), for M-shell (n=3), max electrons = 2 × 3² = 18.",
+    "source": "NCERT",
+    "chapter": "Structure of the Atom",
+    "packet": 7
+  },
+  {
+    "class": 9,
+    "subject": "Science",
+    "difficulty": 7,
+    "question": "Plasmolysis in a plant cell is defined as:",
+    "options": [
+      "Breakdown of cell wall in hypertonic solution",
+      "Shrinkage of cytoplasm away from cell wall in hypertonic solution",
+      "Swelling of cytoplasm in hypotonic solution",
+      "Lysis of plasma membrane in isotonic solution"
+    ],
+    "answer": 1,
+    "explanation": "When a living plant cell loses water through osmosis in a hypertonic solution, the cytoplasm shrinks away from the cell wall (plasmolysis).",
+    "source": "NCERT",
+    "chapter": "The Fundamental Unit of Life",
+    "packet": 4
+  },
+  {
+    "class": 9,
+    "subject": "Science",
+    "difficulty": 7,
+    "question": "Which plant tissue is responsible for increasing the girth (thickness) of stems and roots?",
+    "options": [
+      "Apical Meristem",
+      "Lateral Meristem (Cambium)",
+      "Intercalary Meristem",
+      "Parenchyma"
+    ],
+    "answer": 1,
+    "explanation": "Lateral meristem (cambium) causes secondary growth, increasing the girth of stems and roots.",
+    "source": "NCERT",
+    "chapter": "Tissues",
+    "packet": 5
+  },
+  {
+    "class": 9,
+    "subject": "Science",
+    "difficulty": 8,
+    "question": "A train starting from rest attains a velocity of 72 km/h in 5 minutes. Assuming uniform acceleration, what is its acceleration?",
+    "options": [
+      "0.5 m/s²",
+      "0.067 m/s² (1/15 m/s²)",
+      "1.2 m/s²",
+      "0.2 m/s²"
+    ],
+    "answer": 1,
+    "explanation": "v = 72 km/h = 20 m/s, t = 300 s. Acceleration a = (20 - 0)/300 = 1/15 m/s² ≈ 0.067 m/s².",
+    "source": "NCERT",
+    "chapter": "Motion",
+    "packet": 2
+  },
+  {
+    "class": 9,
+    "subject": "Science",
+    "difficulty": 9,
+    "question": "A force of 5 N produces an acceleration of 8 m/s² on mass m₁ and 24 m/s² on mass m₂. What acceleration would it produce if both masses are tied together?",
+    "options": [
+      "4 m/s²",
+      "6 m/s²",
+      "16 m/s²",
+      "32 m/s²"
+    ],
+    "answer": 1,
+    "explanation": "m₁ = 5/8 kg, m₂ = 5/24 kg. Total mass = 5/8 + 5/24 = 20/24 = 5/6 kg. Acceleration a = F / total mass = 5 / (5/6) = 6 m/s².",
+    "source": "NCERT",
+    "chapter": "Force and Laws of Motion",
+    "packet": 3
+  },
+  {
+    "class": 9,
+    "subject": "Science",
+    "difficulty": 7,
+    "question": "What is the value of acceleration due to gravity (g) at the center of the Earth?",
+    "options": [
+      "9.8 m/s²",
+      "0 m/s²",
+      "4.9 m/s²",
+      "Infinite"
+    ],
+    "answer": 1,
+    "explanation": "At the center of the Earth, gravitational attraction from all directions cancels out, so g = 0 m/s².",
+    "source": "NCERT",
+    "chapter": "Gravitation",
+    "packet": 6
+  },
+  {
+    "class": 9,
+    "subject": "Science",
+    "difficulty": 8,
+    "question": "An object weighs 60 N on Earth. What will be its weight on the surface of the Moon?",
+    "options": [
+      "60 N",
+      "10 N",
+      "360 N",
+      "0 N"
+    ],
+    "answer": 1,
+    "explanation": "Weight on Moon is 1/6th of weight on Earth: 60 N / 6 = 10 N.",
+    "source": "NCERT",
+    "chapter": "Gravitation",
+    "packet": 8
+  },
+  {
+    "class": 9,
+    "subject": "Science",
+    "difficulty": 9,
+    "question": "A body of mass 2 kg is dropped from a height of 10 m. What is its kinetic energy just before striking the ground? (g = 10 m/s²)",
+    "options": [
+      "100 J",
+      "200 J",
+      "20 J",
+      "400 J"
+    ],
+    "answer": 1,
+    "explanation": "By Conservation of Energy, Kinetic Energy at bottom = Potential Energy at top = mgh = 2 × 10 × 10 = 200 J.",
+    "source": "NCERT",
+    "chapter": "Work Energy Power",
+    "packet": 4
+  },
+  {
+    "class": 9,
+    "subject": "Science",
+    "difficulty": 8,
+    "question": "One commercial unit of electrical energy (1 kWh) is equal to how many Joules?",
+    "options": [
+      "3.6 × 10⁵ J",
+      "3.6 × 10⁶ J",
+      "1.0 × 10⁶ J",
+      "3600 J"
+    ],
+    "answer": 1,
+    "explanation": "1 kWh = 1000 W × 3600 s = 3,600,000 J = 3.6 × 10⁶ Joules.",
+    "source": "NCERT",
+    "chapter": "Work Energy Power",
+    "packet": 5
+  },
+  {
+    "class": 9,
+    "subject": "Science",
+    "difficulty": 7,
+    "question": "What is the phenomenon of persistence of sound in an auditorium due to repeated reflections called?",
+    "options": [
+      "Echo",
+      "Reverberation",
+      "Refraction",
+      "Diffraction"
+    ],
+    "answer": 1,
+    "explanation": "The repeated multiple reflection that results in the persistence of sound is called reverberation.",
+    "source": "NCERT",
+    "chapter": "Sound",
+    "packet": 10
+  },
+  {
+    "class": 9,
+    "subject": "Science",
+    "difficulty": 9,
+    "question": "A submarine sends a SONAR signal down into the ocean and receives the echo after 4 seconds. If the speed of sound in seawater is 1500 m/s, how deep is the seabed?",
+    "options": [
+      "6000 m",
+      "3000 m",
+      "1500 m",
+      "4500 m"
+    ],
+    "answer": 1,
+    "explanation": "Total distance 2d = speed × time = 1500 × 4 = 6000 m. Depth d = 6000 / 2 = 3000 m.",
+    "source": "NCERT",
+    "chapter": "Sound",
+    "packet": 9
+  },
+  {
+    "class": 9,
+    "subject": "Science",
+    "difficulty": 10,
+    "question": "An alpha particle (⁴He²⁺) has a mass of 4 u and a charge of +2. What is its exact composition?",
+    "options": [
+      "2 protons and 2 electrons",
+      "2 protons and 2 neutrons",
+      "4 protons",
+      "2 neutrons and 2 electrons"
+    ],
+    "answer": 1,
+    "explanation": "An alpha particle is a doubly ionized Helium nucleus containing 2 protons and 2 neutrons.",
+    "source": "NCERT",
+    "chapter": "Structure of the Atom",
+    "packet": 10
   }
 ];
 

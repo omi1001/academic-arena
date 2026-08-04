@@ -87,6 +87,13 @@ router.get('/', async (req, res) => {
       questions = await Question.find(queryGen).limit(targetLimit).select('-__v').lean();
     }
 
+    if (req.query.random === 'true' || req.query.shuffle === 'true' || req.query.mode === 'challenge') {
+      for (let i = questions.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [questions[i], questions[j]] = [questions[j], questions[i]];
+      }
+    }
+
     res.json(questions);
   } catch (err) {
     console.error('Questions fetch error:', err);
