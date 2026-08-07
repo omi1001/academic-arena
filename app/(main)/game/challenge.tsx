@@ -13,6 +13,7 @@ import {
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUserStore } from '../../../stores/userStore';
 import { Colors, Gradients } from '../../../constants/theme';
 import { MAX_HEARTS, LEADERBOARD_TIERS } from '../../../constants/config';
@@ -21,6 +22,28 @@ import type { Question } from '../../../types';
 import { BouncyButton } from '../../../components/BouncyButton';
 
 const TOTAL_CHALLENGE_QUESTIONS = 15;
+const SEEN_QUESTIONS_KEY = '@seen_challenge_questions';
+const MAX_SEEN_HISTORY = 150; // Keeps history of 10 challenge matches (10 * 15 = 150 questions)
+
+const getSeenQuestionIds = async (): Promise<string[]> => {
+  try {
+    const raw = await AsyncStorage.getItem(SEEN_QUESTIONS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+};
+
+const saveSeenQuestionIds = async (newIds: string[]) => {
+  try {
+    const existing = await getSeenQuestionIds();
+    const combined = [...existing, ...newIds];
+    const trimmed = combined.slice(-MAX_SEEN_HISTORY);
+    await AsyncStorage.setItem(SEEN_QUESTIONS_KEY, JSON.stringify(trimmed));
+  } catch (e) {
+    console.warn('Failed to save seen challenge question IDs:', e);
+  }
+};
 
 const BOT_NAMES = [
   'CyberNinja',
@@ -119,10 +142,13 @@ export default function ChallengeGameScreen() {
       setIsLoading(true);
       const wins = profile?.challengeWins || 0;
       const basePacket = packet ? parseInt(packet) : 1;
-      // Auto-advance packet on challenge wins so user receives a fresh packet each win!
-      const effectivePacket = ((basePacket - 1 + wins) % 10) + 1;
-      // Scale target difficulty dynamically with challenge wins (1 to 10)
+      // Cycle effective packet across wins with random offset for fresh variety
+      const randomOffset = Math.floor(Math.random() * 10);
+      const effectivePacket = ((basePacket - 1 + wins + randomOffset) % 10) + 1;
       const targetDiff = Math.min(10, Math.floor(wins / 2) + 1);
+
+      // Load recently seen question IDs to prevent duplicate questions across challenges
+      const seenIds = await getSeenQuestionIds();
 
       const res = await api.get('/questions', {
         params: {
@@ -133,13 +159,21 @@ export default function ChallengeGameScreen() {
           difficulty: targetDiff,
           random: 'true',
           mode: 'challenge',
+          exclude: seenIds.join(','),
         },
       });
       const qList = Array.isArray(res.data) ? res.data : res.data?.questions;
       if (qList && qList.length > 0) {
         // Shuffle questions on client side for guaranteed variety
         const shuffled = [...qList].sort(() => Math.random() - 0.5);
-        setQuestions(shuffled.slice(0, TOTAL_CHALLENGE_QUESTIONS));
+        const selected = shuffled.slice(0, TOTAL_CHALLENGE_QUESTIONS);
+        setQuestions(selected);
+
+        // Save these question IDs into persistent history (up to 150 questions / ~10 matches)
+        const fetchedIds = selected.map((q: Question) => q._id || (q as any).id).filter(Boolean);
+        if (fetchedIds.length > 0) {
+          await saveSeenQuestionIds(fetchedIds);
+        }
       } else {
         Alert.alert('Error', 'No questions available for this subject packet.');
         router.back();
