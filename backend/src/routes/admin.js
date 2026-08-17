@@ -18,13 +18,13 @@ router.get('/stats', async (req, res) => {
     const totalQuestions = await Question.countDocuments();
     const pendingRewards = await Reward.countDocuments({ status: 'pending' });
 
-    // Calculate current week top player
+    // Calculate current week top player and deduplicate against existing rewards
     const startOfWeek = new Date();
     startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
     startOfWeek.setHours(0, 0, 0, 0);
 
     const weeklyTop = await Run.aggregate([
-      { $match: { createdAt: { $gte: startOfWeek } } },
+      { $match: { createdAt: { $gte: startOfWeek }, status: { $ne: 'cheat_detected' } } },
       {
         $group: {
           _id: '$uid',
@@ -33,13 +33,20 @@ router.get('/stats', async (req, res) => {
         },
       },
       { $sort: { weeklyEXP: -1 } },
-      { $limit: 5 },
+      { $limit: 10 },
     ]);
 
     const uids = weeklyTop.map((w) => w._id);
-    const users = await User.find({ uid: { $in: uids } }).select('uid name email upiId activeBorder badges').lean();
+    const [users, existingRewards] = await Promise.all([
+      User.find({ uid: { $in: uids } }).select('uid name email upiId activeBorder badges').lean(),
+      Reward.find({ uid: { $in: uids }, createdAt: { $gte: startOfWeek } }).lean(),
+    ]);
+
     const userMap = {};
     users.forEach((u) => { userMap[u.uid] = u; });
+
+    const rewardMap = {};
+    existingRewards.forEach((r) => { rewardMap[r.uid] = r.status; });
 
     const weeklyCandidates = weeklyTop.map((w, idx) => ({
       rank: idx + 1,
@@ -50,6 +57,8 @@ router.get('/stats', async (req, res) => {
       activeBorder: userMap[w._id]?.activeBorder || 'default',
       weeklyEXP: w.weeklyEXP,
       runsPlayed: w.runsPlayed,
+      rewardStatus: rewardMap[w._id] || 'unrewarded',
+      isEligible: !rewardMap[w._id] || rewardMap[w._id] === 'rejected',
     }));
 
     res.json({
@@ -197,35 +206,65 @@ router.get('/rewards', async (req, res) => {
 });
 
 // POST /api/admin/rewards/trigger-weekly
-// Calculates top weekly player, awards glowing gold border & creates ₹10 UPI payout entry
+// Calculates top eligible weekly player, awards glowing gold border & creates ₹10 UPI payout entry
 router.post('/rewards/trigger-weekly', async (req, res) => {
   try {
+    const { targetUid } = req.body || {};
     const startOfWeek = new Date();
-    startOfWeek.setDate(startOfWeek.getDate() - 7);
+    startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+    startOfWeek.setHours(0, 0, 0, 0);
 
-    const winner = await Run.aggregate([
-      { $match: { createdAt: { $gte: startOfWeek } } },
-      {
-        $group: {
-          _id: '$uid',
-          weeklyEXP: { $sum: '$expEarned' },
+    const weekLabel = `Week of ${startOfWeek.toISOString().slice(0, 10)}`;
+
+    // Find all already rewarded UIDs for the current week
+    const existingWeeklyRewards = await Reward.find({
+      createdAt: { $gte: startOfWeek },
+      status: { $in: ['pending', 'paid'] },
+    }).select('uid').lean();
+
+    const alreadyRewardedUids = existingWeeklyRewards.map((r) => r.uid);
+
+    let topUid = targetUid ? sanitize(targetUid) : null;
+    let winnerEXP = 0;
+
+    if (topUid) {
+      if (alreadyRewardedUids.includes(topUid)) {
+        return res.status(400).json({ error: 'This player has already been rewarded for the current week.' });
+      }
+    } else {
+      // Find top candidates excluding already rewarded users
+      const topCandidates = await Run.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: startOfWeek },
+            status: { $ne: 'cheat_detected' },
+            uid: { $nin: alreadyRewardedUids },
+          },
         },
-      },
-      { $sort: { weeklyEXP: -1 } },
-      { $limit: 1 },
-    ]);
+        {
+          $group: {
+            _id: '$uid',
+            weeklyEXP: { $sum: '$expEarned' },
+          },
+        },
+        { $sort: { weeklyEXP: -1 } },
+        { $limit: 1 },
+      ]);
 
-    if (winner.length === 0) {
-      return res.status(400).json({ error: 'No user runs found for the past week' });
+      if (topCandidates.length === 0) {
+        return res.status(400).json({
+          error: 'No unrewarded players found for this week. All top performers have already received their rewards!',
+        });
+      }
+
+      topUid = topCandidates[0]._id;
+      winnerEXP = topCandidates[0].weeklyEXP;
     }
 
-    const topUid = winner[0]._id;
     const user = await User.findOne({ uid: topUid });
     if (!user) {
-      return res.status(404).json({ error: 'Weekly champion user record not found' });
+      return res.status(404).json({ error: 'Player user record not found' });
     }
-
-    const weekLabel = `Week of ${new Date().toISOString().slice(0, 10)}`;
 
     // Create Reward record
     const reward = await Reward.create({
@@ -246,11 +285,11 @@ router.post('/rewards/trigger-weekly', async (req, res) => {
     await user.save();
 
     res.json({
-      message: 'Weekly reward successfully triggered!',
+      message: `Weekly reward successfully created for ${user.name || 'Player'}!`,
       winner: {
         uid: user.uid,
         name: user.name,
-        weeklyEXP: winner[0].weeklyEXP,
+        weeklyEXP: winnerEXP,
         upiId: user.upiId,
       },
       reward,

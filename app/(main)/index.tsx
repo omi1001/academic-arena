@@ -8,6 +8,7 @@ import {
   Animated,
   Easing,
   Alert,
+  TouchableOpacity,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { signOut } from 'firebase/auth';
@@ -16,6 +17,10 @@ import { auth } from '../../lib/firebase';
 import api from '../../lib/api';
 import { useAuthStore } from '../../stores/authStore';
 import { useUserStore } from '../../stores/userStore';
+import { useThemeStore } from '../../stores/themeStore';
+import { soundManager } from '../../lib/soundManager';
+import { ThemedBackground } from '../../components/ThemedBackground';
+import { ThemeSelectorModal } from '../../components/ThemeSelectorModal';
 import { Colors, Gradients } from '../../constants/theme';
 import { SUBJECTS, CLASS_OPTIONS, LEADERBOARD_TIERS } from '../../constants/config';
 import type { Subject, ClassOption } from '../../constants/config';
@@ -25,10 +30,14 @@ export default function DashboardScreen() {
   const router = useRouter();
   const { firebaseUser, logout } = useAuthStore();
   const { profile, setProfile } = useUserStore();
+  const { mode, toggleMode, getColors } = useThemeStore();
+  const colors = getColors();
+
   const [selectedClass, setSelectedClass] = useState<ClassOption | null>(null);
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
   const [gameMode, setGameMode] = useState<'solo' | 'challenge'>('solo');
   const [refreshing, setRefreshing] = useState(false);
+  const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
 
   // ─── Animations ───
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -167,58 +176,82 @@ export default function DashboardScreen() {
   const progressPercent = Math.min(Math.round((currentExp / nextTierExp) * 100), 100);
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          tintColor={Colors.dark.primary}
-        />
-      }
-    >
-      <Animated.View style={{ opacity: fadeAnim }}>
-        {/* ─── Hero User Card ─── */}
-        <Animated.View style={{ transform: [{ translateY: heroSlideAnim }] }}>
-          <LinearGradient colors={['#161B33', '#0F1224']} style={styles.heroCard}>
-            <View style={styles.heroHeader}>
-              <View style={styles.userProfileGroup}>
-                <View style={[styles.avatarGlow, { borderColor: tier.color }]}>
-                  <Text style={styles.avatarText}>{initial}</Text>
-                </View>
-                <View>
-                  <Text style={styles.greetingTitle}>{userName}</Text>
-                  <View style={styles.tierBadge}>
-                    <View style={[styles.tierDot, { backgroundColor: tier.color }]} />
-                    <Text style={[styles.tierText, { color: tier.color }]}>
-                      {tier.name} Division
-                    </Text>
+    <ThemedBackground>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+          />
+        }
+      >
+        <Animated.View style={{ opacity: fadeAnim }}>
+          {/* ─── Top Control Bar ─── */}
+          <View style={styles.topControlBar}>
+            <TouchableOpacity
+              style={[styles.themePillBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+              onPress={() => setIsThemeModalOpen(true)}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.themePillText, { color: colors.text }]}>🎨 Theme & Wallpaper</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.modeToggleBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+              onPress={toggleMode}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.modeToggleIcon}>{mode === 'dark' ? '🌙' : '☀️'}</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* ─── Hero User Card ─── */}
+          <Animated.View style={{ transform: [{ translateY: heroSlideAnim }] }}>
+            <LinearGradient
+              colors={mode === 'dark' ? ['#161B33', '#0F1224'] : ['#FFFFFF', '#F1F5F9']}
+              style={[styles.heroCard, { borderColor: colors.border }]}
+            >
+              <View style={styles.heroHeader}>
+                <View style={styles.userProfileGroup}>
+                  <View style={[styles.avatarGlow, { borderColor: tier.color }]}>
+                    <Text style={styles.avatarText}>{initial}</Text>
+                  </View>
+                  <View>
+                    <Text style={[styles.greetingTitle, { color: colors.text }]}>{userName}</Text>
+                    <View style={styles.tierBadge}>
+                      <View style={[styles.tierDot, { backgroundColor: tier.color }]} />
+                      <Text style={[styles.tierText, { color: tier.color }]}>
+                        {tier.name} Division
+                      </Text>
+                    </View>
                   </View>
                 </View>
+
+                <BouncyButton onPress={handleLogout} style={styles.logoutBtn}>
+                  <Text style={styles.logoutText}>Exit</Text>
+                </BouncyButton>
               </View>
 
-              <BouncyButton onPress={handleLogout} style={styles.logoutBtn}>
-                <Text style={styles.logoutText}>Exit</Text>
-              </BouncyButton>
-            </View>
-
-            {/* Level XP Bar */}
-            <View style={styles.progressContainer}>
-              <View style={styles.progressLabelRow}>
-                <Text style={styles.progressText}>Tier Progress</Text>
-                <Text style={styles.progressPercentText}>{progressPercent}%</Text>
+              {/* Level XP Bar */}
+              <View style={styles.progressContainer}>
+                <View style={styles.progressLabelRow}>
+                  <Text style={[styles.progressText, { color: colors.textMuted }]}>Tier Progress</Text>
+                  <Text style={[styles.progressPercentText, { color: colors.primary }]}>{progressPercent}%</Text>
+                </View>
+                <View style={[styles.progressTrack, { backgroundColor: mode === 'dark' ? '#0B0E1B' : '#E2E8F0' }]}>
+                  <LinearGradient
+                    colors={[colors.primary, colors.secondary]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={[styles.progressFill, { width: `${progressPercent}%` }]}
+                  />
+                </View>
               </View>
-              <View style={styles.progressTrack}>
-                <LinearGradient
-                  colors={Gradients.primary}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={[styles.progressFill, { width: `${progressPercent}%` }]}
-                />
-              </View>
-            </View>
-          </LinearGradient>
+            </LinearGradient>
+          </Animated.View>
         </Animated.View>
 
         {/* ─── Stats Grid ─── */}
@@ -374,20 +407,57 @@ export default function DashboardScreen() {
             </LinearGradient>
           </BouncyButton>
         </Animated.View>
-      </Animated.View>
-    </ScrollView>
+      </ScrollView>
+      <ThemeSelectorModal
+        visible={isThemeModalOpen}
+        onClose={() => setIsThemeModalOpen(false)}
+      />
+    </ThemedBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.dark.background,
+    backgroundColor: 'transparent',
   },
   content: {
     padding: 20,
-    paddingTop: 56,
+    paddingTop: 52,
     paddingBottom: 110,
+  },
+  topControlBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 12,
+  },
+  themePillBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    elevation: 3,
+  },
+  themePillText: {
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  modeToggleBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 3,
+  },
+  modeToggleIcon: {
+    fontSize: 18,
   },
   heroCard: {
     borderRadius: 20,

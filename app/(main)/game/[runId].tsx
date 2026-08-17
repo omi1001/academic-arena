@@ -16,6 +16,8 @@ import * as Haptics from 'expo-haptics';
 import { useGameStore } from '../../../stores/gameStore';
 import { useUserStore } from '../../../stores/userStore';
 import { Colors, Gradients } from '../../../constants/theme';
+import { getStreakAtmosphere } from '../../../constants/themes';
+import { soundManager } from '../../../lib/soundManager';
 import {
   MAX_HEARTS,
   SPEED_THRESHOLDS,
@@ -56,6 +58,8 @@ export default function GameRunScreen() {
   const inactivityRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastTouchRef = useRef(Date.now());
   const questionBatchRef = useRef<Question[]>([]);
+  const questionStartTimeRef = useRef<number>(Date.now());
+  const answersRecordRef = useRef<Array<{ questionId: string; selectedOption: number; timeTakenMs: number }>>([]);
 
   // ─── Animation Drivers ───
   const questionFadeAnim = useRef(new Animated.Value(0)).current;
@@ -260,8 +264,19 @@ export default function GameRunScreen() {
     if (showResult || !game.currentQuestion) return;
     if (timerRef.current) clearInterval(timerRef.current);
 
-    lastTouchRef.current = Date.now();
+    const now = Date.now();
+    const timeTakenMs = Math.max(100, now - (questionStartTimeRef.current || now));
+    lastTouchRef.current = now;
     setSelectedOption(optionIndex);
+
+    // Record answer telemetry for S-Tier backend verification
+    if (game.currentQuestion?._id) {
+      answersRecordRef.current.push({
+        questionId: game.currentQuestion._id,
+        selectedOption: optionIndex,
+        timeTakenMs,
+      });
+    }
 
     const correct = optionIndex === game.currentQuestion.answer;
     setIsCorrect(correct);
@@ -269,6 +284,14 @@ export default function GameRunScreen() {
     animateResultToast();
 
     if (correct) {
+      const nextStreak = game.streak + 1;
+      // Trigger "MUDA MUDA MUDA!" on big streaks, otherwise hype correct audio
+      if (nextStreak >= 3 && (nextStreak % 3 === 0 || nextStreak % 5 === 0)) {
+        soundManager.playMudaMuda();
+      } else {
+        soundManager.playCorrect();
+      }
+
       const exp = calculateEXP();
       setEarnedExpToast(exp);
       game.correctAnswer(exp);
@@ -291,6 +314,9 @@ export default function GameRunScreen() {
         }),
       ]).start();
     } else {
+      // Sarcastic meme sound (Faah! / Chii Sasur / Aayein / Bruh)
+      soundManager.playWrong();
+
       setEarnedExpToast(null);
       game.markQuestionAnswered(game.currentQuestion._id);
       const remaining = game.incorrectAnswer();
@@ -322,6 +348,7 @@ export default function GameRunScreen() {
   };
 
   const loadNextQuestion = () => {
+    questionStartTimeRef.current = Date.now();
     const nextIndex = game.questionIndex;
     if (nextIndex < game.questions.length) {
       game.setQuestion(game.questions[nextIndex]);
@@ -354,6 +381,7 @@ export default function GameRunScreen() {
         heartsRemaining: game.hearts || 0,
         startTime: payloadStartTime,
         status,
+        answers: answersRecordRef.current,
       });
       return true;
     } catch (e: any) {
@@ -373,6 +401,12 @@ export default function GameRunScreen() {
     if (timerRef.current) clearInterval(timerRef.current);
     if (passiveRef.current) clearInterval(passiveRef.current);
     if (inactivityRef.current) clearInterval(inactivityRef.current);
+
+    if (game.hearts > 0 && game.score > 0) {
+      soundManager.playVictory();
+    } else {
+      soundManager.playDefeat();
+    }
 
     user.incrementGamesPlayed();
 
@@ -427,57 +461,70 @@ export default function GameRunScreen() {
     }
   };
 
+  const currentAtmosphere = getStreakAtmosphere(game.streak);
+
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
-      <TouchableOpacity
+      <LinearGradient
+        colors={currentAtmosphere.gradient as [string, string, ...string[]]}
         style={styles.container}
-        activeOpacity={1}
-        onPress={() => {
-          lastTouchRef.current = Date.now();
-        }}
       >
-        {/* ─── Top HUD Bar ─── */}
-        <View style={styles.topBar}>
-          <Animated.View style={[styles.heartsCard, { transform: [{ translateX: heartShakeAnim }] }]}>
-            {Array.from({ length: MAX_HEARTS }).map((_, i) => (
-              <Text key={i} style={styles.heart}>
-                {i < game.hearts ? '❤️' : '🖤'}
-              </Text>
-            ))}
-          </Animated.View>
+        <TouchableOpacity
+          style={styles.touchWrapper}
+          activeOpacity={1}
+          onPress={() => {
+            lastTouchRef.current = Date.now();
+          }}
+        >
+          {/* ─── Top HUD Bar ─── */}
+          <View style={styles.topBar}>
+            <Animated.View style={[styles.heartsCard, { transform: [{ translateX: heartShakeAnim }] }]}>
+              {Array.from({ length: MAX_HEARTS }).map((_, i) => (
+                <Text key={i} style={styles.heart}>
+                  {i < game.hearts ? '❤️' : '🖤'}
+                </Text>
+              ))}
+            </Animated.View>
 
-          <View style={styles.scoreCard}>
-            <Text style={styles.scoreValue}>{game.score}</Text>
-            <Text style={styles.hudLabel}>SCORE</Text>
-          </View>
-
-          <View style={styles.expCard}>
-            <Text style={styles.expValue}>⚡ {game.expEarned}</Text>
-            <Text style={styles.hudLabel}>TOTAL EXP</Text>
-          </View>
-        </View>
-
-        {/* ─── Difficulty & Timer Track ─── */}
-        <View style={styles.difficultyBar}>
-          <View style={styles.difficultyLabelRow}>
-            <View style={styles.difficultyBadge}>
-              <Text style={styles.difficultyText}>
-                LVL {game.currentDifficulty}
-              </Text>
+            <View style={styles.scoreCard}>
+              <Text style={styles.scoreValue}>{game.score}</Text>
+              <Text style={styles.hudLabel}>SCORE</Text>
             </View>
-            <View style={styles.packetBadge}>
-              <Text style={styles.packetBadgeText}>
-                📦 PKT {game.currentQuestion?.packet || packet || 1}
-              </Text>
+
+            <View style={styles.expCard}>
+              <Text style={styles.expValue}>⚡ {game.expEarned}</Text>
+              <Text style={styles.hudLabel}>TOTAL EXP</Text>
             </View>
-            {game.streak > 0 && (
-              <Animated.View style={[styles.streakBadge, { transform: [{ scale: streakScaleAnim }] }]}>
-                <Text style={styles.streakText}>🔥 STREAK x{game.streak}</Text>
-              </Animated.View>
-            )}
-            <Text style={styles.timerNumber}>{timeLeft}s</Text>
           </View>
+
+          {/* ─── Difficulty & Timer Track ─── */}
+          <View style={styles.difficultyBar}>
+            <View style={styles.difficultyLabelRow}>
+              <View style={styles.difficultyBadge}>
+                <Text style={styles.difficultyText}>
+                  LVL {game.currentDifficulty}
+                </Text>
+              </View>
+              <View style={styles.packetBadge}>
+                <Text style={styles.packetBadgeText}>
+                  📦 PKT {game.currentQuestion?.packet || packet || 1}
+                </Text>
+              </View>
+              {game.streak > 0 && (
+                <Animated.View
+                  style={[
+                    styles.streakBadge,
+                    { backgroundColor: currentAtmosphere.badgeBg, borderColor: currentAtmosphere.accent, transform: [{ scale: streakScaleAnim }] },
+                  ]}
+                >
+                  <Text style={[styles.streakText, { color: currentAtmosphere.accent }]}>
+                    🔥 STREAK x{game.streak} • {currentAtmosphere.tag}
+                  </Text>
+                </Animated.View>
+              )}
+              <Text style={styles.timerNumber}>{timeLeft}s</Text>
+            </View>
 
           <View style={styles.timerTrack}>
             <LinearGradient
@@ -599,7 +646,8 @@ export default function GameRunScreen() {
             </LinearGradient>
           </Animated.View>
         )}
-      </TouchableOpacity>
+        </TouchableOpacity>
+      </LinearGradient>
     </>
   );
 }
@@ -607,7 +655,9 @@ export default function GameRunScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.dark.background,
+  },
+  touchWrapper: {
+    flex: 1,
   },
   topBar: {
     flexDirection: 'row',

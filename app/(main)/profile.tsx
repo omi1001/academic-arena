@@ -15,6 +15,10 @@ import { auth } from '../../lib/firebase';
 import api from '../../lib/api';
 import { useAuthStore } from '../../stores/authStore';
 import { useUserStore } from '../../stores/userStore';
+import { useThemeStore } from '../../stores/themeStore';
+import { soundManager } from '../../lib/soundManager';
+import { ThemedBackground } from '../../components/ThemedBackground';
+import { ThemeSelectorModal } from '../../components/ThemeSelectorModal';
 import { Colors, Gradients } from '../../constants/theme';
 import { LEADERBOARD_TIERS } from '../../constants/config';
 import { BouncyButton } from '../../components/BouncyButton';
@@ -24,7 +28,11 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { firebaseUser, logout } = useAuthStore();
   const { profile, setProfile } = useUserStore();
+  const { mode, toggleMode, getColors } = useThemeStore();
+  const colors = getColors();
+
   const [upiInput, setUpiInput] = useState(profile?.upiId || '');
+  const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -152,8 +160,9 @@ export default function ProfileScreen() {
     : 'default';
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>PLAYER PROFILE</Text>
+    <ThemedBackground>
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        <Text style={styles.title}>PLAYER PROFILE</Text>
 
       {/* ─── Hero Profile Card ─── */}
       <LinearGradient colors={['#161B33', '#0F1224']} style={styles.profileCard}>
@@ -307,6 +316,13 @@ export default function ProfileScreen() {
         </View>
       </View>
 
+      <BouncyButton
+        style={[styles.themeSettingsBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+        onPress={() => setIsThemeModalOpen(true)}
+      >
+        <Text style={[styles.themeSettingsBtnText, { color: colors.text }]}>🎨 Theme, Wallpaper & Sound Settings</Text>
+      </BouncyButton>
+
       <BouncyButton style={styles.resetPasswordBtn} onPress={handleResetPassword}>
         <Text style={styles.resetPasswordText}>🔒 Reset Password</Text>
       </BouncyButton>
@@ -319,13 +335,29 @@ export default function ProfileScreen() {
         <Text style={styles.logoutButtonText}>🚪 Logout Account</Text>
       </BouncyButton>
     </ScrollView>
+    <ThemeSelectorModal
+      visible={isThemeModalOpen}
+      onClose={() => setIsThemeModalOpen(false)}
+    />
+  </ThemedBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.dark.background,
+    backgroundColor: 'transparent',
+  },
+  themeSettingsBtn: {
+    padding: 16,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  themeSettingsBtnText: {
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   content: {
     padding: 20,

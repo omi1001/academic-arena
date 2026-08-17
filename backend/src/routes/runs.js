@@ -58,13 +58,54 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
       return res.status(400).json({ error: 'Invalid difficulty range' });
     }
 
-    // ─── 3. Validate integrity ───
-    if (numScore !== numCorrect) {
-      return res.status(400).json({ error: 'Score mismatch' });
+    // ─── 3. S-Tier Anti-Cheat & Answer Verification ───
+    let computedCorrect = numCorrect;
+    let computedScore = numScore;
+    let computedStreak = numStreak;
+    let isCheatDetected = runStatus === 'cheat_detected';
+
+    const { answers } = req.body;
+    if (Array.isArray(answers) && answers.length > 0) {
+      const Question = require('../models/Question');
+      const qIds = answers.map((a) => a.questionId).filter(Boolean);
+      const dbQuestions = await Question.find({ _id: { $in: qIds } }).select('_id answer difficulty').lean();
+      const qMap = new Map(dbQuestions.map((q) => [q._id.toString(), q]));
+
+      let realCorrect = 0;
+      let currentStreak = 0;
+      let peakStreak = 0;
+      let suspiciousSpeedCount = 0;
+
+      for (const item of answers) {
+        const dbQ = qMap.get(item.questionId?.toString());
+        if (dbQ) {
+          if (item.timeTakenMs != null && item.timeTakenMs < 350) {
+            suspiciousSpeedCount++;
+          }
+          if (item.selectedOption === dbQ.answer) {
+            realCorrect++;
+            currentStreak++;
+            if (currentStreak > peakStreak) peakStreak = currentStreak;
+          } else {
+            currentStreak = 0;
+          }
+        }
+      }
+
+      // Check if robotic speed or spoofed score
+      if (suspiciousSpeedCount >= 3 || realCorrect !== numCorrect) {
+        isCheatDetected = true;
+      }
+
+      computedCorrect = realCorrect;
+      computedScore = realCorrect;
+      computedStreak = peakStreak;
     }
-    if (numCorrect > numAnswered) {
+
+    if (computedCorrect > numAnswered) {
       return res.status(400).json({ error: 'Correct answers exceed total answered' });
     }
+
     const now = Date.now();
     let validStart = numStart;
     if (!validStart || validStart <= 0 || now - validStart > MAX_RUN_DURATION_MS || validStart > now + 5000) {
@@ -76,13 +117,13 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
     for (let d = 1; d <= Math.min(numDifficulty, MAX_DIFFICULTY); d++) {
       serverExpectedEXP += d * EXP_PER_DIFFICULTY;
     }
-    serverExpectedEXP += Math.min(numStreak * COMBO_BONUS_PER_STREAK, MAX_COMBO_BONUS);
+    serverExpectedEXP += Math.min(computedStreak * COMBO_BONUS_PER_STREAK, MAX_COMBO_BONUS);
     serverExpectedEXP += 100;
 
     // For challenge mode, allow higher bonus threshold
     const expMultiplierCap = runMode === 'challenge' ? 2.5 : 1.5;
     const maxAllowedEXP = Math.round(serverExpectedEXP * expMultiplierCap);
-    const finalExp = Math.min(numExp, maxAllowedEXP);
+    let finalExp = isCheatDetected ? 0 : Math.min(numExp, maxAllowedEXP);
 
     // ─── 5. Check if run already saved (idempotent retry check) ───
     const existingRun = await Run.findOne({ runId: sanitize(runId) });
@@ -95,16 +136,16 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
         runId: sanitize(runId),
         class: numCls,
         subject: sanitize(subject),
-        score: numScore,
+        score: computedScore,
         expEarned: finalExp,
         questionsAnswered: numAnswered,
-        correctAnswers: numCorrect,
-        maxStreak: numStreak,
+        correctAnswers: computedCorrect,
+        maxStreak: computedStreak,
         highestDifficulty: numDifficulty,
         heartsRemaining: numHearts,
         startTime: validStart,
         endTime: now,
-        status: runStatus === 'cheat_detected' ? 'cheat_detected' : 'completed',
+        status: isCheatDetected ? 'cheat_detected' : (runStatus === 'timeout' ? 'timeout' : 'completed'),
         mode: runMode,
         challengeDifficulty: numChallengeDiff,
         isChallengeWin: boolChallengeWin,
@@ -112,18 +153,18 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
       { upsert: true, new: true }
     );
 
-    // ─── 7. Update user stats only if this run was not previously saved ───
-    if (!existingRun) {
+    // ─── 7. Update user stats only if this run was not previously saved and not cheated ───
+    if (!existingRun && !isCheatDetected) {
       const userName = req.user.name || req.user.email?.split('@')[0] || 'Player';
       const userUpdate = {
         $inc: {
           totalEXP: finalExp,
           gamesPlayed: 1,
-          totalCorrect: numCorrect,
+          totalCorrect: computedCorrect,
           totalAnswered: numAnswered,
         },
         $max: {
-          highestStreak: numStreak,
+          highestStreak: computedStreak,
           highestDifficulty: numDifficulty,
         },
         $setOnInsert: {

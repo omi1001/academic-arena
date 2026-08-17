@@ -17,6 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUserStore } from '../../../stores/userStore';
 import { Colors, Gradients } from '../../../constants/theme';
 import { MAX_HEARTS, LEADERBOARD_TIERS } from '../../../constants/config';
+import { soundManager } from '../../../lib/soundManager';
 import api from '../../../lib/api';
 import type { Question } from '../../../types';
 import { BouncyButton } from '../../../components/BouncyButton';
@@ -287,21 +288,45 @@ export default function ChallengeGameScreen() {
     }
   }, [isLoading, questions]);
 
+  const questionStartTimeRef = useRef<number>(Date.now());
+  const answersRecordRef = useRef<Array<{ questionId: string; selectedOption: number; timeTakenMs: number }>>([]);
+
   // Handle Player Answer Selection
   const handleSelectOption = (index: number) => {
     if (showResult || matchEnded) return;
     if (timerRef.current) clearInterval(timerRef.current);
 
+    const now = Date.now();
+    const timeTakenMs = Math.max(100, now - (questionStartTimeRef.current || now));
     setSelectedOption(index);
     const currentQ = questions[currentQIndex];
+
+    if (currentQ?._id) {
+      answersRecordRef.current.push({
+        questionId: currentQ._id,
+        selectedOption: index,
+        timeTakenMs,
+      });
+    }
+
     const correct = index === currentQ.answer;
     setIsCorrect(correct);
     setShowResult(true);
 
     if (correct) {
+      const nextScore = playerScore + 1;
+      // Trigger "MUDA MUDA MUDA!" anime audio on high battle surges
+      if (nextScore >= 3 && (nextScore % 3 === 0 || nextScore % 5 === 0)) {
+        soundManager.playMudaMuda();
+      } else {
+        soundManager.playCorrect();
+      }
+
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setPlayerScore((prev) => prev + 1);
+      setPlayerScore(nextScore);
     } else {
+      // Sarcastic meme sound (Faah! / Chii Sasur / Aayein / Bruh)
+      soundManager.playWrong();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       const newHearts = playerHearts - 1;
       setPlayerHearts(newHearts);
@@ -315,6 +340,7 @@ export default function ChallengeGameScreen() {
   const handleNextQuestion = () => {
     if (matchEnded) return;
 
+    questionStartTimeRef.current = Date.now();
     setShowResult(false);
     setSelectedOption(null);
 
@@ -337,6 +363,12 @@ export default function ChallengeGameScreen() {
     if (timerRef.current) clearInterval(timerRef.current);
     if (botTimeoutRef.current) clearTimeout(botTimeoutRef.current);
 
+    if (playerWon) {
+      soundManager.playVictory();
+    } else {
+      soundManager.playDefeat();
+    }
+
     let baseExp = playerWon ? 400 : 50;
     let bonusExp = 0;
 
@@ -354,7 +386,7 @@ export default function ChallengeGameScreen() {
     setHeartBonusExp(bonusExp);
     setExpEarnedTotal(totalExp);
 
-    // Save run to backend server
+    // Save run to backend server with telemetry
     saveRunToServer(playerWon ? 'completed' : 'timeout', totalExp, playerWon);
 
     // Show result entrance animation
@@ -387,6 +419,7 @@ export default function ChallengeGameScreen() {
         mode: 'challenge',
         challengeDifficulty: botDifficultyLevel,
         isChallengeWin: playerWon,
+        answers: answersRecordRef.current,
       });
 
       // Update local profile store
@@ -431,9 +464,14 @@ export default function ChallengeGameScreen() {
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
-      <View style={styles.container}>
-        {/* ─── DUAL HUD HEADER ─── */}
-        <LinearGradient colors={['#161B33', '#0A0D1B']} style={styles.hudContainer}>
+      <LinearGradient colors={['#1F0307', '#3A060E', '#0D0003']} style={styles.container}>
+        {/* ─── HELL FIGHT DUAL HUD HEADER ─── */}
+        <LinearGradient colors={['#2E040B', '#140003']} style={styles.hudContainer}>
+          {/* Battle Header Tag */}
+          <View style={styles.battleHeaderTag}>
+            <Text style={styles.battleHeaderText}>⚔️ HELL FIGHT 1v1 ARENA 🔥</Text>
+          </View>
+
           {/* Top Row: User vs Bot Avatars & Hearts */}
           <View style={styles.hudTopRow}>
             {/* Player Side */}
@@ -456,9 +494,9 @@ export default function ChallengeGameScreen() {
             </View>
 
             {/* VS Badge */}
-            <View style={styles.vsBadge}>
+            <LinearGradient colors={['#FF0055', '#FF5500']} style={styles.vsBadge}>
               <Text style={styles.vsText}>VS</Text>
-            </View>
+            </LinearGradient>
 
             {/* Bot Side */}
             <View style={[styles.playerHudBox, { justifyContent: 'flex-end' }]}>
@@ -474,7 +512,7 @@ export default function ChallengeGameScreen() {
                   ))}
                 </View>
               </View>
-              <View style={[styles.avatarCircle, { borderColor: Colors.dark.cyan }]}>
+              <View style={[styles.avatarCircle, { borderColor: '#FF3300' }]}>
                 <Text style={styles.avatarText}>{botAvatar}</Text>
               </View>
             </View>
@@ -635,7 +673,7 @@ export default function ChallengeGameScreen() {
             </View>
           </Animated.View>
         )}
-      </View>
+      </LinearGradient>
     </>
   );
 }
@@ -643,27 +681,42 @@ export default function ChallengeGameScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.dark.background,
+  },
+  battleHeaderTag: {
+    alignSelf: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 46, 0, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 60, 0, 0.4)',
+    marginBottom: 10,
+  },
+  battleHeaderText: {
+    color: '#FF4500',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1.5,
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: Colors.dark.background,
+    backgroundColor: '#140306',
     justifyContent: 'center',
     alignItems: 'center',
   },
   loadingText: {
-    color: Colors.dark.cyan,
+    color: '#FF4500',
     fontSize: 16,
     fontWeight: 'bold',
     letterSpacing: 1,
   },
   // HUD
   hudContainer: {
-    paddingTop: 48,
+    paddingTop: 44,
     paddingBottom: 16,
     paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderColor: Colors.dark.border,
+    borderBottomWidth: 1.5,
+    borderColor: 'rgba(255, 50, 0, 0.35)',
   },
   hudTopRow: {
     flexDirection: 'row',
