@@ -5,12 +5,15 @@ import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 import { useAuthStore } from '../stores/authStore';
+import { useThemeStore } from '../stores/themeStore';
 import { Colors } from '../constants/theme';
 
 export default function RootLayout() {
   const { setFirebaseUser, setLoading, isLoading } = useAuthStore();
+  const { loadStoredTheme, mode } = useThemeStore();
 
   useEffect(() => {
+    loadStoredTheme().catch(() => {});
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setFirebaseUser(user);
       setLoading(false);
