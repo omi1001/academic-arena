@@ -81,7 +81,9 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
 
   getColors: () => {
     const { mode, presetKey } = get();
+    const currentMode = mode === 'light' ? 'light' : 'dark';
     const preset = THEME_PRESETS[presetKey] || THEME_PRESETS.cosmic_lofi;
-    return preset.colors[mode] || preset.colors.dark;
+    if (!preset || !preset.colors) return THEME_PRESETS.cosmic_lofi.colors.dark;
+    return preset.colors[currentMode] || preset.colors.dark || THEME_PRESETS.cosmic_lofi.colors.dark;
   },
 }));

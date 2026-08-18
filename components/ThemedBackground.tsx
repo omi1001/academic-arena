@@ -2,6 +2,7 @@ import React from 'react';
 import { View, ImageBackground, StyleSheet, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useThemeStore } from '../stores/themeStore';
+import { THEME_PRESETS } from '../constants/themes';
 
 interface ThemedBackgroundProps {
   children: React.ReactNode;
@@ -17,20 +18,24 @@ export const ThemedBackground: React.FC<ThemedBackgroundProps> = ({
   useWallpaper = true,
 }) => {
   const { mode, getPreset, customWallpaper } = useThemeStore();
-  const preset = getPreset();
-  const colors = preset.colors[mode];
-  const wallpaper = customWallpaper || preset.wallpaperUrl;
+  const preset = getPreset() || THEME_PRESETS.cosmic_lofi;
+  const currentMode = mode === 'light' ? 'light' : 'dark';
+  const colors = (preset && preset.colors && preset.colors[currentMode])
+    ? preset.colors[currentMode]
+    : THEME_PRESETS.cosmic_lofi.colors.dark;
+  const wallpaper = customWallpaper || preset?.wallpaperUrl;
 
-  const defaultOpacity = mode === 'dark' ? 0.82 : 0.72;
+  const defaultOpacity = currentMode === 'dark' ? 0.82 : 0.72;
   const finalOpacity = overlayOpacity !== undefined ? overlayOpacity : defaultOpacity;
 
-  const gradientColors = mode === 'dark'
-    ? [colors.background, 'rgba(10, 13, 27, 0.94)', colors.background]
-    : [colors.background, 'rgba(255, 255, 255, 0.88)', colors.background];
+  const bg = colors?.background || '#0B0D1B';
+  const gradientColors = currentMode === 'dark'
+    ? [bg, 'rgba(10, 13, 27, 0.94)', bg]
+    : [bg, 'rgba(255, 255, 255, 0.88)', bg];
 
   if (!useWallpaper || !wallpaper) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.background }, style]}>
+      <View style={[styles.container, { backgroundColor: bg }, style]}>
         {children}
       </View>
     );
