@@ -13,13 +13,17 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../stores/authStore';
-import { Colors } from '../../constants/theme';
+import { useThemeStore } from '../../stores/themeStore';
+import { ThemedBackground } from '../../components/ThemedBackground';
 
 const DEVELOPER_EMAIL = 'monusingh2646@gmail.com';
 
 export default function HelpSupportScreen() {
   const router = useRouter();
   const { firebaseUser } = useAuthStore();
+  const { getColors, mode } = useThemeStore();
+  const colors = getColors();
+
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
@@ -53,67 +57,88 @@ export default function HelpSupportScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <ScrollView contentContainerStyle={styles.content}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
-
-        <Text style={styles.title}>Help & Support</Text>
-        <Text style={styles.subtitle}>
-          Found a bug or have a suggestion? Let us know!
-        </Text>
-
-        <View style={styles.form}>
-          <TextInput
-            style={styles.input}
-            placeholder="Subject (e.g., Bug Report, Suggestion)"
-            placeholderTextColor={Colors.dark.textMuted}
-            value={subject}
-            onChangeText={setSubject}
-          />
-
-          <TextInput
-            style={[styles.input, styles.messageInput]}
-            placeholder="Describe your issue or suggestion in detail..."
-            placeholderTextColor={Colors.dark.textMuted}
-            value={message}
-            onChangeText={setMessage}
-            multiline
-            textAlignVertical="top"
-          />
-
-          <TouchableOpacity
-            style={[styles.sendButton, sending && styles.sendButtonDisabled]}
-            onPress={handleSend}
-            disabled={sending}
-          >
-            <Text style={styles.sendButtonText}>
-              {sending ? 'Opening Email...' : 'Send Feedback'}
-            </Text>
+    <ThemedBackground>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView contentContainerStyle={styles.content}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <Text style={[styles.backText, { color: colors.primary }]}>← Back</Text>
           </TouchableOpacity>
-        </View>
 
-        <View style={styles.infoSection}>
-          <Text style={styles.infoTitle}>Other ways to reach us</Text>
-          <TouchableOpacity
-            onPress={() => Linking.openURL(`mailto:${DEVELOPER_EMAIL}`)}
-          >
-            <Text style={styles.infoLink}>{DEVELOPER_EMAIL}</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+          <Text style={[styles.title, { color: colors.text }]}>Help & Support</Text>
+          <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+            Found a bug or have a suggestion? Let us know!
+          </Text>
+
+          <View style={styles.form}>
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: colors.border,
+                  color: colors.text,
+                },
+              ]}
+              placeholder="Subject (e.g., Bug Report, Suggestion)"
+              placeholderTextColor={colors.textMuted}
+              value={subject}
+              onChangeText={setSubject}
+            />
+
+            <TextInput
+              style={[
+                styles.input,
+                styles.messageInput,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: colors.border,
+                  color: colors.text,
+                },
+              ]}
+              placeholder="Describe your issue or suggestion in detail..."
+              placeholderTextColor={colors.textMuted}
+              value={message}
+              onChangeText={setMessage}
+              multiline
+              textAlignVertical="top"
+            />
+
+            <TouchableOpacity
+              style={[
+                styles.sendButton,
+                { backgroundColor: colors.primary },
+                sending && styles.sendButtonDisabled,
+              ]}
+              onPress={handleSend}
+              disabled={sending}
+            >
+              <Text style={styles.sendButtonText}>
+                {sending ? 'Opening Email...' : 'Send Feedback'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={[styles.infoSection, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.infoTitle, { color: colors.text }]}>Other ways to reach us</Text>
+            <TouchableOpacity
+              onPress={() => Linking.openURL(`mailto:${DEVELOPER_EMAIL}`)}
+            >
+              <Text style={[styles.infoLink, { color: colors.primary }]}>{DEVELOPER_EMAIL}</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </ThemedBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.dark.background,
+    backgroundColor: 'transparent',
   },
   content: {
     padding: 24,
@@ -124,19 +149,16 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   backText: {
-    color: Colors.dark.primary,
     fontSize: 16,
     fontWeight: '600',
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: Colors.dark.text,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 15,
-    color: Colors.dark.textMuted,
     marginBottom: 32,
   },
   form: {
@@ -144,46 +166,40 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   input: {
-    backgroundColor: Colors.dark.surface,
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
-    color: Colors.dark.text,
     borderWidth: 1,
-    borderColor: Colors.dark.border,
   },
   messageInput: {
-    height: 160,
+    height: 140,
   },
   sendButton: {
-    backgroundColor: Colors.dark.primary,
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
-    marginTop: 4,
+    marginTop: 8,
   },
   sendButtonDisabled: {
     opacity: 0.6,
   },
   sendButtonText: {
-    color: Colors.dark.text,
-    fontSize: 18,
+    color: '#FFF',
+    fontSize: 16,
     fontWeight: 'bold',
   },
   infoSection: {
-    backgroundColor: Colors.dark.surface,
-    borderRadius: 12,
-    padding: 20,
+    borderRadius: 14,
+    padding: 18,
+    borderWidth: 1,
     alignItems: 'center',
   },
   infoTitle: {
     fontSize: 14,
-    color: Colors.dark.textMuted,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   infoLink: {
-    color: Colors.dark.primary,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: 'bold',
   },
 });

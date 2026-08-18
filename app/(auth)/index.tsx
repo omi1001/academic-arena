@@ -17,6 +17,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { auth } from '../../lib/firebase';
 import api from '../../lib/api';
 import { useUserStore } from '../../stores/userStore';
+import { useThemeStore } from '../../stores/themeStore';
+import { ThemedBackground } from '../../components/ThemedBackground';
 import { Colors, Gradients } from '../../constants/theme';
 import { BouncyButton } from '../../components/BouncyButton';
 
@@ -100,137 +102,142 @@ export default function LoginScreen() {
     }
   };
 
+  const { getColors, mode } = useThemeStore();
+  const colors = getColors();
+
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <View style={styles.inner}>
-        {/* Logo Badge */}
-        <View style={styles.logoBadge}>
-          <Text style={styles.logoEmoji}>⚔️</Text>
-        </View>
-
-        <Text style={styles.title}>ACADEMIC ARENA</Text>
-        <Text style={styles.subtitle}>Level up your knowledge</Text>
-
-        <View style={styles.form}>
-          <TextInput
-            style={styles.input}
-            placeholder="Email Address"
-            placeholderTextColor={Colors.dark.textMuted}
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            placeholderTextColor={Colors.dark.textMuted}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
-
-          <TouchableOpacity style={styles.forgotLink} onPress={handleOpenForgotModal}>
-            <Text style={styles.forgotLinkText}>Forgot Password?</Text>
-          </TouchableOpacity>
-
-          <BouncyButton
-            style={styles.buttonWrapper}
-            onPress={handleLogin}
-            disabled={loading}
-          >
-            <LinearGradient
-              colors={Gradients.primary}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={[styles.button, loading && styles.buttonDisabled]}
-            >
-              {loading ? (
-                <ActivityIndicator color={Colors.dark.text} />
-              ) : (
-                <Text style={styles.buttonText}>LOG IN ➔</Text>
-              )}
-            </LinearGradient>
-          </BouncyButton>
-
-          <Link href="/(auth)/signup" asChild>
-            <TouchableOpacity style={styles.linkButton}>
-              <Text style={styles.linkText}>
-                Don't have an account? <Text style={styles.linkBold}>Sign Up</Text>
-              </Text>
-            </TouchableOpacity>
-          </Link>
-        </View>
-      </View>
-
-      {/* Forgot Password Modal */}
-      <Modal
-        visible={showForgotModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowForgotModal(false)}
+    <ThemedBackground>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalIcon}>🔑</Text>
-            <Text style={styles.modalTitle}>RESET PASSWORD</Text>
-            <Text style={styles.modalDescription}>
-              Enter your registered email address and we'll send you a link to reset your password.
-            </Text>
+        <View style={styles.inner}>
+          {/* Logo Badge */}
+          <View style={[styles.logoBadge, { backgroundColor: colors.surface, borderColor: colors.primary }]}>
+            <Text style={styles.logoEmoji}>⚔️</Text>
+          </View>
 
+          <Text style={[styles.title, { color: colors.text }]}>ACADEMIC ARENA</Text>
+          <Text style={[styles.subtitle, { color: colors.textMuted }]}>Level up your knowledge</Text>
+
+          <View style={styles.form}>
             <TextInput
-              style={styles.modalInput}
-              placeholder="Registered Email Address"
-              placeholderTextColor={Colors.dark.textMuted}
-              value={resetEmail}
-              onChangeText={setResetEmail}
+              style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+              placeholder="Email Address"
+              placeholderTextColor={colors.textMuted}
+              value={email}
+              onChangeText={setEmail}
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
             />
 
+            <TextInput
+              style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+              placeholder="Password"
+              placeholderTextColor={colors.textMuted}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+            />
+
+            <TouchableOpacity style={styles.forgotLink} onPress={handleOpenForgotModal}>
+              <Text style={[styles.forgotLinkText, { color: colors.primary }]}>Forgot Password?</Text>
+            </TouchableOpacity>
+
             <BouncyButton
-              style={styles.resetButtonWrapper}
-              onPress={handleSendResetEmail}
-              disabled={resetLoading}
+              style={styles.buttonWrapper}
+              onPress={handleLogin}
+              disabled={loading}
             >
               <LinearGradient
-                colors={['#05D5E6', '#0072FF']}
+                colors={[colors.primary, colors.secondary]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
-                style={styles.resetButton}
+                style={[styles.button, loading && styles.buttonDisabled]}
               >
-                {resetLoading ? (
+                {loading ? (
                   <ActivityIndicator color="#FFF" />
                 ) : (
-                  <Text style={styles.resetButtonText}>SEND RESET LINK 📩</Text>
+                  <Text style={styles.buttonText}>LOG IN ➔</Text>
                 )}
               </LinearGradient>
             </BouncyButton>
 
-            <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={() => setShowForgotModal(false)}
-              disabled={resetLoading}
-            >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
+            <Link href="/(auth)/signup" asChild>
+              <TouchableOpacity style={styles.linkButton}>
+                <Text style={[styles.linkText, { color: colors.textMuted }]}>
+                  Don't have an account? <Text style={[styles.linkBold, { color: colors.primary }]}>Sign Up</Text>
+                </Text>
+              </TouchableOpacity>
+            </Link>
           </View>
         </View>
-      </Modal>
-    </KeyboardAvoidingView>
+
+        {/* Forgot Password Modal */}
+        <Modal
+          visible={showForgotModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowForgotModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, { backgroundColor: colors.cardBg || colors.surface, borderColor: colors.border }]}>
+              <Text style={styles.modalIcon}>🔑</Text>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>RESET PASSWORD</Text>
+              <Text style={[styles.modalDescription, { color: colors.textMuted }]}>
+                Enter your registered email address and we'll send you a link to reset your password.
+              </Text>
+
+              <TextInput
+                style={[styles.modalInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+                placeholder="Registered Email Address"
+                placeholderTextColor={colors.textMuted}
+                value={resetEmail}
+                onChangeText={setResetEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+
+              <BouncyButton
+                style={styles.resetButtonWrapper}
+                onPress={handleSendResetEmail}
+                disabled={resetLoading}
+              >
+                <LinearGradient
+                  colors={[colors.primary, colors.secondary]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.resetButton}
+                >
+                  {resetLoading ? (
+                    <ActivityIndicator color="#FFF" />
+                  ) : (
+                    <Text style={styles.resetButtonText}>SEND RESET LINK 📩</Text>
+                  )}
+                </LinearGradient>
+              </BouncyButton>
+
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => setShowForgotModal(false)}
+                disabled={resetLoading}
+              >
+                <Text style={[styles.cancelButtonText, { color: colors.textMuted }]}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      </KeyboardAvoidingView>
+    </ThemedBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.dark.background,
+    backgroundColor: 'transparent',
   },
   inner: {
     flex: 1,

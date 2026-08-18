@@ -162,159 +162,171 @@ export default function ProfileScreen() {
   return (
     <ThemedBackground>
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-        <Text style={styles.title}>PLAYER PROFILE</Text>
+        <Text style={[styles.title, { color: colors.text }]}>PLAYER PROFILE</Text>
 
-      {/* ─── Hero Profile Card ─── */}
-      <LinearGradient colors={['#161B33', '#0F1224']} style={styles.profileCard}>
-        <GlowingProfileCard
-          name={userName}
-          initial={initial}
-          avatar={userAvatar}
-          activeBorder={userBorder}
-          badges={profile?.badges || []}
-          size="lg"
-        />
-        <Text style={[styles.name, { marginTop: 14 }]}>{userName}</Text>
-        <Text style={styles.email}>{firebaseUser?.email}</Text>
-
-        <View style={styles.tierBadge}>
-          <View style={[styles.tierDot, { backgroundColor: tier.color }]} />
-          <Text style={[styles.tierText, { color: tier.color }]}>
-            {tier.name} Division
-          </Text>
-        </View>
-      </LinearGradient>
-
-      {/* ─── Select Avatar ─── */}
-      <Text style={styles.sectionHeader}>CHOOSE YOUR AVATAR</Text>
-      <View style={styles.avatarGrid}>
-        {AVATAR_LIST.map((av) => (
-          <TouchableOpacity
-            key={av}
-            style={[
-              styles.avatarItem,
-              profile?.avatar === av && styles.avatarItemSelected,
-            ]}
-            onPress={() => handleUpdateAvatar(av)}
-          >
-            <Text style={styles.avatarEmoji}>{av}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* ─── Admin Portal Access (If Admin) ─── */}
-      {isAdmin && (
-        <BouncyButton
-          style={styles.adminPortalButton}
-          onPress={() => router.push('/(main)/admin')}
+        {/* ─── Hero Profile Card ─── */}
+        <LinearGradient
+          colors={mode === 'dark' ? ['#161B33', '#0F1224'] : ['#FFFFFF', '#F1F5F9']}
+          style={[styles.profileCard, { borderColor: colors.border }]}
         >
-          <LinearGradient
-            colors={['#FFD700', '#FF8C00']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.adminPortalGradient}
-          >
-            <Text style={styles.adminPortalText}>⚡ OPEN ADMIN CONTROL PANEL</Text>
-          </LinearGradient>
-        </BouncyButton>
-      )}
-
-      {/* ─── UPI Details for Weekly ₹10 Reward ─── */}
-      <Text style={styles.sectionHeader}>🎁 WEEKLY UPI REWARD SETTINGS</Text>
-      <View style={styles.upiContainer}>
-        <Text style={styles.upiSubtext}>
-          Top player each week receives ₹10 directly in their UPI account!
-        </Text>
-        <View style={styles.upiRow}>
-          <TextInput
-            style={styles.upiInput}
-            placeholder="Enter UPI ID (e.g. name@upi)"
-            placeholderTextColor="#666"
-            value={upiInput}
-            onChangeText={setUpiInput}
+          <GlowingProfileCard
+            name={userName}
+            initial={initial}
+            avatar={userAvatar}
+            activeBorder={userBorder}
+            badges={profile?.badges || []}
+            size="lg"
           />
-          <BouncyButton style={styles.saveUpiBtn} onPress={handleSaveUpi}>
-            <Text style={styles.saveUpiText}>Save</Text>
+          <Text style={[styles.name, { color: colors.text, marginTop: 14 }]}>{userName}</Text>
+          <Text style={[styles.email, { color: colors.textMuted }]}>{firebaseUser?.email}</Text>
+
+          <View style={[styles.tierBadge, { backgroundColor: mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)' }]}>
+            <View style={[styles.tierDot, { backgroundColor: tier.color }]} />
+            <Text style={[styles.tierText, { color: tier.color }]}>
+              {tier.name} Division
+            </Text>
+          </View>
+        </LinearGradient>
+
+        {/* ─── Select Avatar ─── */}
+        <Text style={[styles.sectionHeader, { color: colors.primary }]}>CHOOSE YOUR AVATAR</Text>
+        <View style={styles.avatarGrid}>
+          {AVATAR_LIST.map((av) => (
+            <TouchableOpacity
+              key={av}
+              style={[
+                styles.avatarItem,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+                profile?.avatar === av && [styles.avatarItemSelected, { borderColor: colors.primary, backgroundColor: colors.surfaceHighlight }],
+              ]}
+              onPress={() => handleUpdateAvatar(av)}
+            >
+              <Text style={styles.avatarEmoji}>{av}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* ─── Admin Portal Access (If Admin) ─── */}
+        {isAdmin && (
+          <BouncyButton
+            style={styles.adminPortalButton}
+            onPress={() => router.push('/(main)/admin')}
+          >
+            <LinearGradient
+              colors={['#FFD700', '#FF8C00']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.adminPortalGradient}
+            >
+              <Text style={styles.adminPortalText}>⚡ OPEN ADMIN CONTROL PANEL</Text>
+            </LinearGradient>
+          </BouncyButton>
+        )}
+
+        {/* ─── UPI Details for Weekly ₹10 Reward ─── */}
+        <Text style={[styles.sectionHeader, { color: colors.primary }]}>🎁 WEEKLY UPI REWARD SETTINGS</Text>
+        <View style={[styles.upiContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[styles.upiSubtext, { color: colors.textMuted }]}>
+            Top player each week receives ₹10 directly in their UPI account!
+          </Text>
+          <View style={styles.upiRow}>
+            <TextInput
+              style={[styles.upiInput, { color: colors.text, borderColor: colors.border, backgroundColor: mode === 'dark' ? '#0B0D1B' : '#FFFFFF' }]}
+              placeholder="Enter UPI ID (e.g. name@upi)"
+              placeholderTextColor={colors.textMuted}
+              value={upiInput}
+              onChangeText={setUpiInput}
+            />
+            <BouncyButton style={[styles.saveUpiBtn, { backgroundColor: colors.primary }]} onPress={handleSaveUpi}>
+              <Text style={styles.saveUpiText}>Save</Text>
+            </BouncyButton>
+          </View>
+        </View>
+
+        {/* ─── Academic Class Selector ─── */}
+        <Text style={[styles.sectionHeader, { color: colors.primary }]}>ACADEMIC CLASS</Text>
+        <View style={styles.classRow}>
+          <BouncyButton
+            style={[
+              styles.classChip,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+              profile?.class === 9 && [styles.classChipSelected, { borderColor: colors.primary, backgroundColor: colors.surfaceHighlight }],
+            ]}
+            onPress={() => handleUpdateClass(9)}
+          >
+            <Text style={[styles.classChipText, { color: colors.textMuted }, profile?.class === 9 && [styles.classChipTextSelected, { color: colors.primary }]]}>
+              CLASS 9
+            </Text>
+          </BouncyButton>
+          <BouncyButton
+            style={[
+              styles.classChip,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+              profile?.class === 10 && [styles.classChipSelected, { borderColor: colors.primary, backgroundColor: colors.surfaceHighlight }],
+            ]}
+            onPress={() => handleUpdateClass(10)}
+          >
+            <Text style={[styles.classChipText, { color: colors.textMuted }, profile?.class === 10 && [styles.classChipTextSelected, { color: colors.primary }]]}>
+              CLASS 10
+            </Text>
           </BouncyButton>
         </View>
-      </View>
 
-      {/* ─── Academic Class Selector ─── */}
-      <Text style={styles.sectionHeader}>ACADEMIC CLASS</Text>
-      <View style={styles.classRow}>
-        <BouncyButton
-          style={[styles.classChip, profile?.class === 9 && styles.classChipSelected]}
-          onPress={() => handleUpdateClass(9)}
-        >
-          <Text style={[styles.classChipText, profile?.class === 9 && styles.classChipTextSelected]}>
-            CLASS 9
-          </Text>
-        </BouncyButton>
-        <BouncyButton
-          style={[styles.classChip, profile?.class === 10 && styles.classChipSelected]}
-          onPress={() => handleUpdateClass(10)}
-        >
-          <Text style={[styles.classChipText, profile?.class === 10 && styles.classChipTextSelected]}>
-            CLASS 10
-          </Text>
-        </BouncyButton>
-      </View>
+        {/* ─── 1v1 Bot Challenge Stats ─── */}
+        <Text style={[styles.sectionHeader, { color: colors.primary }]}>⚔️ 1v1 BOT CHALLENGE STATS</Text>
+        <View style={styles.statsGrid}>
+          <View style={[styles.statBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={styles.statIcon}>⚔️</Text>
+            <Text style={[styles.statValue, { color: colors.text }]}>{profile?.challengeGamesPlayed || 0}</Text>
+            <Text style={[styles.statLabel, { color: colors.textMuted }]}>Challenges</Text>
+          </View>
+          <View style={[styles.statBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={styles.statIcon}>🏆</Text>
+            <Text style={[styles.statValue, { color: colors.text }]}>
+              {profile?.challengeWins || 0}W / {profile?.challengeLosses || 0}L
+            </Text>
+            <Text style={[styles.statLabel, { color: colors.textMuted }]}>Record</Text>
+          </View>
+          <View style={[styles.statBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={styles.statIcon}>📈</Text>
+            <Text style={[styles.statValue, { color: colors.text }]}>
+              {profile?.challengeGamesPlayed
+                ? Math.round(((profile?.challengeWins || 0) / profile.challengeGamesPlayed) * 100)
+                : 0}%
+            </Text>
+            <Text style={[styles.statLabel, { color: colors.textMuted }]}>Win Rate</Text>
+          </View>
+          <View style={[styles.statBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={styles.statIcon}>🤖</Text>
+            <Text style={[styles.statValue, { color: colors.text }]}>Lv.{profile?.highestChallengeDifficulty || 1}</Text>
+            <Text style={[styles.statLabel, { color: colors.textMuted }]}>Peak Bot</Text>
+          </View>
+        </View>
 
-      {/* ─── 1v1 Bot Challenge Stats ─── */}
-      <Text style={styles.sectionHeader}>⚔️ 1v1 BOT CHALLENGE STATS</Text>
-      <View style={styles.statsGrid}>
-        <View style={styles.statBox}>
-          <Text style={styles.statIcon}>⚔️</Text>
-          <Text style={styles.statValue}>{profile?.challengeGamesPlayed || 0}</Text>
-          <Text style={styles.statLabel}>Challenges</Text>
+        {/* ─── Lifetime Stats Grid ─── */}
+        <Text style={[styles.sectionHeader, { color: colors.primary }]}>LIFETIME STATS</Text>
+        <View style={styles.statsGrid}>
+          <View style={[styles.statBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={styles.statIcon}>⚡</Text>
+            <Text style={[styles.statValue, { color: colors.text }]}>{profile?.totalEXP || 0}</Text>
+            <Text style={[styles.statLabel, { color: colors.textMuted }]}>Total EXP</Text>
+          </View>
+          <View style={[styles.statBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={styles.statIcon}>🎮</Text>
+            <Text style={[styles.statValue, { color: colors.text }]}>{profile?.gamesPlayed || 0}</Text>
+            <Text style={[styles.statLabel, { color: colors.textMuted }]}>Runs Played</Text>
+          </View>
+          <View style={[styles.statBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={styles.statIcon}>❓</Text>
+            <Text style={[styles.statValue, { color: colors.text }]}>{profile?.totalAnswered || 0}</Text>
+            <Text style={[styles.statLabel, { color: colors.textMuted }]}>Questions</Text>
+          </View>
+          <View style={[styles.statBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={styles.statIcon}>🎯</Text>
+            <Text style={[styles.statValue, { color: colors.text }]}>{accuracy}%</Text>
+            <Text style={[styles.statLabel, { color: colors.textMuted }]}>Accuracy</Text>
+          </View>
         </View>
-        <View style={styles.statBox}>
-          <Text style={styles.statIcon}>🏆</Text>
-          <Text style={styles.statValue}>
-            {profile?.challengeWins || 0}W / {profile?.challengeLosses || 0}L
-          </Text>
-          <Text style={styles.statLabel}>Record</Text>
-        </View>
-        <View style={styles.statBox}>
-          <Text style={styles.statIcon}>📈</Text>
-          <Text style={styles.statValue}>
-            {profile?.challengeGamesPlayed
-              ? Math.round(((profile?.challengeWins || 0) / profile.challengeGamesPlayed) * 100)
-              : 0}%
-          </Text>
-          <Text style={styles.statLabel}>Win Rate</Text>
-        </View>
-        <View style={styles.statBox}>
-          <Text style={styles.statIcon}>🤖</Text>
-          <Text style={styles.statValue}>Lv.{profile?.highestChallengeDifficulty || 1}</Text>
-          <Text style={styles.statLabel}>Peak Bot</Text>
-        </View>
-      </View>
-
-      {/* ─── Lifetime Stats Grid ─── */}
-      <Text style={styles.sectionHeader}>LIFETIME STATS</Text>
-      <View style={styles.statsGrid}>
-        <View style={styles.statBox}>
-          <Text style={styles.statIcon}>⚡</Text>
-          <Text style={styles.statValue}>{profile?.totalEXP || 0}</Text>
-          <Text style={styles.statLabel}>Total EXP</Text>
-        </View>
-        <View style={styles.statBox}>
-          <Text style={styles.statIcon}>🎮</Text>
-          <Text style={styles.statValue}>{profile?.gamesPlayed || 0}</Text>
-          <Text style={styles.statLabel}>Runs Played</Text>
-        </View>
-        <View style={styles.statBox}>
-          <Text style={styles.statIcon}>❓</Text>
-          <Text style={styles.statValue}>{profile?.totalAnswered || 0}</Text>
-          <Text style={styles.statLabel}>Questions</Text>
-        </View>
-        <View style={styles.statBox}>
-          <Text style={styles.statIcon}>🎯</Text>
-          <Text style={styles.statValue}>{accuracy}%</Text>
-          <Text style={styles.statLabel}>Accuracy</Text>
-        </View>
-      </View>
 
       <BouncyButton
         style={[styles.themeSettingsBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
@@ -468,7 +480,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   saveUpiText: {
-    color: '#000',
+    color: '#FFF',
     fontWeight: 'bold',
   },
   classRow: {

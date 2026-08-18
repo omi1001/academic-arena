@@ -14,6 +14,8 @@ import { Colors } from '../../constants/theme';
 import { LEADERBOARD_TIERS } from '../../constants/config';
 import { useAuthStore } from '../../stores/authStore';
 import { useUserStore } from '../../stores/userStore';
+import { useThemeStore } from '../../stores/themeStore';
+import { ThemedBackground } from '../../components/ThemedBackground';
 import api from '../../lib/api';
 import { GlowingProfileCard } from '../../components/GlowingProfileCard';
 
@@ -43,6 +45,8 @@ export default function LeaderboardScreen() {
 
   const { firebaseUser } = useAuthStore();
   const { profile } = useUserStore();
+  const { getColors, mode } = useThemeStore();
+  const colors = getColors();
 
   const fetchLeaderboard = async () => {
     try {
@@ -89,15 +93,15 @@ export default function LeaderboardScreen() {
     return (
       <View>
         {/* Info Banner */}
-        <View style={styles.bannerContainer}>
-          <Text style={styles.bannerTitle}>
+        <View style={[styles.bannerContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[styles.bannerTitle, { color: colors.primary }]}>
             {tab === 'weekly'
               ? '⚡ FRESH WEEKLY ARENA'
               : tab === 'total'
                 ? '🏆 ALL-TIME ARENA LEGENDS'
                 : '⚔️ 1v1 CHALLENGE MASTERS'}
           </Text>
-          <Text style={styles.bannerSubtitle}>
+          <Text style={[styles.bannerSubtitle, { color: colors.textMuted }]}>
             {tab === 'weekly'
               ? 'Calculated freshly every week! Resets every Monday. Top 1 gets ₹10 UPI reward!'
               : tab === 'total'
@@ -111,7 +115,7 @@ export default function LeaderboardScreen() {
           <View style={styles.podiumSection}>
             {/* 2nd Place (Left) */}
             {top2 ? (
-              <View style={[styles.podiumCard, styles.podiumCard2]}>
+              <View style={[styles.podiumCard, styles.podiumCard2, { backgroundColor: colors.cardBg || colors.surface, borderColor: Colors.dark.silver }]}>
                 <GlowingProfileCard
                   name={top2.name}
                   initial={top2.name[0]?.toUpperCase() || 'P'}
@@ -122,10 +126,10 @@ export default function LeaderboardScreen() {
                 />
 
                 <Text style={styles.podiumMedal}>🥈</Text>
-                <Text style={styles.podiumName} numberOfLines={1}>
+                <Text style={[styles.podiumName, { color: colors.text }]} numberOfLines={1}>
                   {top2.name}
                 </Text>
-                <Text style={styles.podiumExp}>
+                <Text style={[styles.podiumExp, { color: colors.textMuted }]}>
                   {tab === 'challenge'
                     ? `Lv.${top2.highestChallengeDifficulty || 1} Bot • ${top2.challengeWins || 0}W`
                     : `${(top2.exp || 0).toLocaleString()} EXP`}
@@ -138,8 +142,8 @@ export default function LeaderboardScreen() {
             {/* 1st Place (Center - Elevated) */}
             {top1 && (
               <LinearGradient
-                colors={['#2A2206', '#141829']}
-                style={[styles.podiumCard, styles.podiumCard1]}
+                colors={mode === 'dark' ? ['#2A2206', '#141829'] : ['#FFFDF0', '#FFF3C4']}
+                style={[styles.podiumCard, styles.podiumCard1, { borderColor: Colors.dark.gold }]}
               >
                 <GlowingProfileCard
                   name={top1.name}
@@ -151,10 +155,10 @@ export default function LeaderboardScreen() {
                 />
 
                 <Text style={[styles.podiumMedal, { fontSize: 24, marginTop: 4 }]}>👑 🥇</Text>
-                <Text style={[styles.podiumName, { fontSize: 16, fontWeight: 'bold' }]} numberOfLines={1}>
+                <Text style={[styles.podiumName, { fontSize: 16, fontWeight: 'bold', color: colors.text }]} numberOfLines={1}>
                   {top1.name}
                 </Text>
-                <Text style={[styles.podiumExp, { color: Colors.dark.gold }]}>
+                <Text style={[styles.podiumExp, { color: mode === 'dark' ? Colors.dark.gold : '#B45309' }]}>
                   {tab === 'challenge'
                     ? `Lv.${top1.highestChallengeDifficulty || 1} Bot • ${top1.challengeWins || 0} Wins`
                     : `${(top1.exp || 0).toLocaleString()} EXP`}
@@ -164,7 +168,7 @@ export default function LeaderboardScreen() {
 
             {/* 3rd Place (Right) */}
             {top3 ? (
-              <View style={[styles.podiumCard, styles.podiumCard3]}>
+              <View style={[styles.podiumCard, styles.podiumCard3, { backgroundColor: colors.cardBg || colors.surface, borderColor: Colors.dark.bronze }]}>
                 <GlowingProfileCard
                   name={top3.name}
                   initial={top3.name[0]?.toUpperCase() || 'P'}
@@ -175,10 +179,10 @@ export default function LeaderboardScreen() {
                 />
 
                 <Text style={styles.podiumMedal}>🥉</Text>
-                <Text style={styles.podiumName} numberOfLines={1}>
+                <Text style={[styles.podiumName, { color: colors.text }]} numberOfLines={1}>
                   {top3.name}
                 </Text>
-                <Text style={styles.podiumExp}>
+                <Text style={[styles.podiumExp, { color: colors.textMuted }]}>
                   {tab === 'challenge'
                     ? `Lv.${top3.highestChallengeDifficulty || 1} Bot • ${top3.challengeWins || 0}W`
                     : `${(top3.exp || 0).toLocaleString()} EXP`}
@@ -206,8 +210,8 @@ export default function LeaderboardScreen() {
       <View
         style={[
           styles.row,
-          isCurrentUser && styles.currentUserRow,
-          isTop3 && styles.top3Row,
+          { backgroundColor: colors.cardBg || colors.surface, borderColor: colors.border },
+          isCurrentUser && [styles.currentUserRow, { borderColor: colors.primary }],
         ]}
       >
         <Text
@@ -216,6 +220,7 @@ export default function LeaderboardScreen() {
             item.rank === 1 && { color: Colors.dark.gold },
             item.rank === 2 && { color: Colors.dark.silver },
             item.rank === 3 && { color: Colors.dark.bronze },
+            item.rank > 3 && { color: colors.textMuted },
           ]}
         >
           #{item.rank}
@@ -237,14 +242,15 @@ export default function LeaderboardScreen() {
             <Text
               style={[
                 styles.userName,
-                isCurrentUser && { color: Colors.dark.primary, fontWeight: 'bold' },
+                { color: colors.text },
+                isCurrentUser && { color: colors.primary, fontWeight: 'bold' },
               ]}
               numberOfLines={1}
             >
               {displayName}
             </Text>
             {isCurrentUser && (
-              <View style={styles.youBadge}>
+              <View style={[styles.youBadge, { backgroundColor: colors.primary }]}>
                 <Text style={styles.youBadgeText}>YOU</Text>
               </View>
             )}
@@ -252,7 +258,7 @@ export default function LeaderboardScreen() {
 
           <View style={styles.tierRow}>
             {tab === 'challenge' ? (
-              <Text style={{ color: Colors.dark.cyan, fontSize: 11, fontWeight: 'bold' }}>
+              <Text style={{ color: colors.primary, fontSize: 11, fontWeight: 'bold' }}>
                 🤖 Lv.{item.highestChallengeDifficulty || 1} Bot
               </Text>
             ) : (
@@ -266,8 +272,8 @@ export default function LeaderboardScreen() {
           </View>
         </View>
 
-        <View style={styles.expPill}>
-          <Text style={styles.expText}>
+        <View style={[styles.expPill, { backgroundColor: colors.surface, borderColor: colors.primary }]}>
+          <Text style={[styles.expText, { color: colors.primary }]}>
             {tab === 'challenge'
               ? `${item.challengeWins || 0}W / ${item.challengeLosses || 0}L`
               : tab === 'weekly'
@@ -280,72 +286,74 @@ export default function LeaderboardScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>ARENA LEADERBOARD</Text>
+    <ThemedBackground>
+      <View style={styles.container}>
+        <Text style={[styles.title, { color: colors.text }]}>ARENA LEADERBOARD</Text>
 
-      {/* Tab Switcher */}
-      <View style={styles.tabContainer}>
-        <TouchableOpacity
-          style={[styles.tabButton, tab === 'weekly' && styles.tabButtonActive]}
-          onPress={() => setTab('weekly')}
-        >
-          <Text style={[styles.tabButtonText, tab === 'weekly' && styles.tabButtonTextActive]}>
-            ⚡ WEEKLY
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tabButton, tab === 'total' && styles.tabButtonActive]}
-          onPress={() => setTab('total')}
-        >
-          <Text style={[styles.tabButtonText, tab === 'total' && styles.tabButtonTextActive]}>
-            🏆 TOTAL
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tabButton, tab === 'challenge' && styles.tabButtonActive]}
-          onPress={() => setTab('challenge')}
-        >
-          <Text style={[styles.tabButtonText, tab === 'challenge' && styles.tabButtonTextActive]}>
-            ⚔️ CHALLENGE
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {loading ? (
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={Colors.dark.primary} />
-        </View>
-      ) : (
-        <FlatList
-          data={data}
-          keyExtractor={(item) => item.uid}
-          ListHeaderComponent={renderHeader}
-          renderItem={renderItem}
-          contentContainerStyle={styles.list}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor={Colors.dark.primary}
-            />
-          }
-          ListEmptyComponent={
-            <Text style={styles.empty}>
-              {tab === 'weekly'
-                ? 'No weekly arena points yet this week. Play a game run to claim rank #1!'
-                : 'No arena runners registered yet.'}
+        {/* Tab Switcher */}
+        <View style={[styles.tabContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <TouchableOpacity
+            style={[styles.tabButton, tab === 'weekly' && [styles.tabButtonActive, { backgroundColor: colors.primary }]]}
+            onPress={() => setTab('weekly')}
+          >
+            <Text style={[styles.tabButtonText, { color: colors.textMuted }, tab === 'weekly' && styles.tabButtonTextActive]}>
+              ⚡ WEEKLY
             </Text>
-          }
-        />
-      )}
-    </View>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tabButton, tab === 'total' && [styles.tabButtonActive, { backgroundColor: colors.primary }]]}
+            onPress={() => setTab('total')}
+          >
+            <Text style={[styles.tabButtonText, { color: colors.textMuted }, tab === 'total' && styles.tabButtonTextActive]}>
+              🏆 TOTAL
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tabButton, tab === 'challenge' && [styles.tabButtonActive, { backgroundColor: colors.primary }]]}
+            onPress={() => setTab('challenge')}
+          >
+            <Text style={[styles.tabButtonText, { color: colors.textMuted }, tab === 'challenge' && styles.tabButtonTextActive]}>
+              ⚔️ CHALLENGE
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {loading ? (
+          <View style={styles.centered}>
+            <ActivityIndicator size="large" color={colors.primary} />
+          </View>
+        ) : (
+          <FlatList
+            data={data}
+            keyExtractor={(item) => item.uid}
+            ListHeaderComponent={renderHeader}
+            renderItem={renderItem}
+            contentContainerStyle={styles.list}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={colors.primary}
+              />
+            }
+            ListEmptyComponent={
+              <Text style={[styles.empty, { color: colors.textMuted }]}>
+                {tab === 'weekly'
+                  ? 'No weekly arena points yet this week. Play a game run to claim rank #1!'
+                  : 'No arena runners registered yet.'}
+              </Text>
+            }
+          />
+        )}
+      </View>
+    </ThemedBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.dark.background,
+    backgroundColor: 'transparent',
     paddingTop: 56,
   },
   centered: {

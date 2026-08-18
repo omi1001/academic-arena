@@ -1,6 +1,7 @@
 import { Tabs, Redirect } from 'expo-router';
 import { Text, StyleSheet } from 'react-native';
 import { useAuthStore } from '../../stores/authStore';
+import { useThemeStore } from '../../stores/themeStore';
 import { Colors } from '../../constants/theme';
 
 function TabIcon({ name, focused }: { name: string; focused: boolean }) {
@@ -13,6 +14,8 @@ function TabIcon({ name, focused }: { name: string; focused: boolean }) {
 
 export default function MainLayout() {
   const { isAuthenticated, isLoading } = useAuthStore();
+  const { getColors, mode } = useThemeStore();
+  const colors = getColors();
 
   if (isLoading) return null;
 
@@ -24,9 +27,15 @@ export default function MainLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarStyle: styles.tabBar,
-        tabBarActiveTintColor: Colors.dark.primary,
-        tabBarInactiveTintColor: Colors.dark.textMuted,
+        tabBarStyle: [
+          styles.tabBar,
+          {
+            backgroundColor: colors.cardBg || colors.surface,
+            borderTopColor: colors.border,
+          },
+        ],
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textMuted,
         tabBarLabelStyle: styles.tabLabel,
       }}
     >

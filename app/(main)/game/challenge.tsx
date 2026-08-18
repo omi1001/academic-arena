@@ -15,6 +15,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUserStore } from '../../../stores/userStore';
+import { useThemeStore } from '../../../stores/themeStore';
 import { Colors, Gradients } from '../../../constants/theme';
 import { MAX_HEARTS, LEADERBOARD_TIERS } from '../../../constants/config';
 import { soundManager } from '../../../lib/soundManager';
@@ -461,6 +462,9 @@ export default function ChallengeGameScreen() {
   );
   const botProgressPct = Math.min((botQIndex / TOTAL_CHALLENGE_QUESTIONS) * 100, 100);
 
+  const { getColors, mode } = useThemeStore();
+  const colors = getColors();
+
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
@@ -476,11 +480,11 @@ export default function ChallengeGameScreen() {
           <View style={styles.hudTopRow}>
             {/* Player Side */}
             <View style={styles.playerHudBox}>
-              <View style={styles.avatarCircle}>
+              <View style={[styles.avatarCircle, { borderColor: colors.primary }]}>
                 <Text style={styles.avatarText}>{profile?.avatar || '👤'}</Text>
               </View>
               <View>
-                <Text style={styles.hudName} numberOfLines={1}>
+                <Text style={[styles.hudName, { color: colors.text }]} numberOfLines={1}>
                   {profile?.name || 'You'}
                 </Text>
                 <View style={styles.heartsRow}>
@@ -501,7 +505,7 @@ export default function ChallengeGameScreen() {
             {/* Bot Side */}
             <View style={[styles.playerHudBox, { justifyContent: 'flex-end' }]}>
               <View style={{ alignItems: 'flex-end' }}>
-                <Text style={styles.hudName} numberOfLines={1}>
+                <Text style={[styles.hudName, { color: colors.text }]} numberOfLines={1}>
                   {botName}
                 </Text>
                 <View style={styles.heartsRow}>
@@ -525,7 +529,7 @@ export default function ChallengeGameScreen() {
               <Text style={styles.trackLabel}>YOU ({currentQIndex + 1}/15)</Text>
               <View style={styles.trackBackground}>
                 <LinearGradient
-                  colors={Gradients.primary}
+                  colors={[colors.primary, colors.secondary]}
                   style={[styles.trackFill, { width: `${playerProgressPct}%` }]}
                 />
               </View>
@@ -550,10 +554,10 @@ export default function ChallengeGameScreen() {
           <ScrollView contentContainerStyle={styles.questionContent}>
             {/* Question Header & Timer */}
             <View style={styles.questionHeader}>
-              <Text style={styles.questionNumberText}>
+              <Text style={[styles.questionNumberText, { color: colors.primary }]}>
                 QUESTION {currentQIndex + 1} OF 15
               </Text>
-              <View style={[styles.timerBadge, timeLeft <= 5 && styles.timerBadgeWarning]}>
+              <View style={[styles.timerBadge, { backgroundColor: colors.surface, borderColor: colors.primary }, timeLeft <= 5 && styles.timerBadgeWarning]}>
                 <Text style={styles.timerText}>⏱️ {timeLeft}s</Text>
               </View>
             </View>
@@ -562,42 +566,47 @@ export default function ChallengeGameScreen() {
             <Animated.View
               style={[
                 styles.questionCard,
+                { backgroundColor: colors.cardBg || colors.surface, borderColor: colors.border },
                 { opacity: questionFadeAnim, transform: [{ translateY: questionSlideAnim }] },
               ]}
             >
-              <Text style={styles.questionText}>{currentQ.question}</Text>
+              <Text style={[styles.questionText, { color: colors.text }]}>{currentQ.question}</Text>
             </Animated.View>
 
             {/* Options List */}
             <View style={styles.optionsContainer}>
               {currentQ.options.map((option, idx) => {
-                let optionStyle = styles.optionButton;
-                let optionTextStyle = styles.optionText;
-
-                if (showResult) {
-                  if (idx === currentQ.answer) {
-                    optionStyle = styles.optionCorrect;
-                    optionTextStyle = styles.optionTextCorrect;
-                  } else if (idx === selectedOption) {
-                    optionStyle = styles.optionWrong;
-                    optionTextStyle = styles.optionTextWrong;
-                  }
-                }
+                const isCorrectOption = showResult && idx === currentQ.answer;
+                const isWrongOption = showResult && idx === selectedOption && !isCorrect;
 
                 return (
                   <TouchableOpacity
                     key={idx}
-                    style={optionStyle}
+                    style={[
+                      styles.optionButton,
+                      { backgroundColor: colors.cardBg || colors.surface, borderColor: colors.border },
+                      isCorrectOption && styles.optionCorrect,
+                      isWrongOption && styles.optionWrong,
+                    ]}
                     activeOpacity={0.8}
                     onPress={() => handleSelectOption(idx)}
                     disabled={showResult}
                   >
-                    <View style={styles.optionIndexBadge}>
-                      <Text style={styles.optionIndexText}>
+                    <View style={[styles.optionIndexBadge, { backgroundColor: colors.surfaceHighlight || colors.surface }]}>
+                      <Text style={[styles.optionIndexText, { color: colors.textMuted }]}>
                         {String.fromCharCode(65 + idx)}
                       </Text>
                     </View>
-                    <Text style={optionTextStyle}>{option}</Text>
+                    <Text
+                      style={[
+                        styles.optionText,
+                        { color: colors.text },
+                        isCorrectOption && styles.optionTextCorrect,
+                        isWrongOption && styles.optionTextWrong,
+                      ]}
+                    >
+                      {option}
+                    </Text>
                   </TouchableOpacity>
                 );
               })}
@@ -606,7 +615,7 @@ export default function ChallengeGameScreen() {
             {/* Next Question Button */}
             {showResult && (
               <BouncyButton style={styles.nextBtnWrapper} onPress={handleNextQuestion}>
-                <LinearGradient colors={Gradients.primary} style={styles.nextBtn}>
+                <LinearGradient colors={[colors.primary, colors.secondary]} style={styles.nextBtn}>
                   <Text style={styles.nextBtnText}>NEXT QUESTION ➔</Text>
                 </LinearGradient>
               </BouncyButton>
@@ -617,56 +626,56 @@ export default function ChallengeGameScreen() {
         {/* ─── MATCH RESULT OVERLAY MODAL ─── */}
         {matchEnded && (
           <Animated.View style={[styles.resultOverlay, { opacity: resultFadeAnim }]}>
-            <View style={styles.resultCard}>
+            <View style={[styles.resultCard, { backgroundColor: colors.cardBg || colors.surface, borderColor: colors.border }]}>
               <Text style={styles.resultTitleEmoji}>{isPlayerWinner ? '🏆' : '💀'}</Text>
-              <Text style={styles.resultTitleText}>
+              <Text style={[styles.resultTitleText, { color: colors.text }]}>
                 {isPlayerWinner ? 'VICTORY!' : 'DEFEATED!'}
               </Text>
-              <Text style={styles.resultSubtitle}>
+              <Text style={[styles.resultSubtitle, { color: colors.textMuted }]}>
                 {isPlayerWinner
                   ? `You out-raced ${botName} in the 1v1 Arena!`
                   : `${botName} answered all 15 questions first.`}
               </Text>
 
               {/* Stats Breakdown */}
-              <View style={styles.resultStatsBox}>
+              <View style={[styles.resultStatsBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                 <View style={styles.resultRow}>
-                  <Text style={styles.resultRowLabel}>Your Score:</Text>
-                  <Text style={styles.resultRowValue}>{playerScore} / 15</Text>
+                  <Text style={[styles.resultRowLabel, { color: colors.textMuted }]}>Your Score:</Text>
+                  <Text style={[styles.resultRowValue, { color: colors.text }]}>{playerScore} / 15</Text>
                 </View>
                 <View style={styles.resultRow}>
-                  <Text style={styles.resultRowLabel}>Bot Score:</Text>
-                  <Text style={styles.resultRowValue}>{botScore} / 15</Text>
+                  <Text style={[styles.resultRowLabel, { color: colors.textMuted }]}>Bot Score:</Text>
+                  <Text style={[styles.resultRowValue, { color: colors.text }]}>{botScore} / 15</Text>
                 </View>
                 <View style={styles.resultRow}>
-                  <Text style={styles.resultRowLabel}>Hearts Remaining:</Text>
-                  <Text style={styles.resultRowValue}>
+                  <Text style={[styles.resultRowLabel, { color: colors.textMuted }]}>Hearts Remaining:</Text>
+                  <Text style={[styles.resultRowValue, { color: colors.text }]}>
                     {'❤️'.repeat(playerHearts) || '0'}
                   </Text>
                 </View>
                 <View style={styles.divider} />
                 <View style={styles.resultRow}>
-                  <Text style={styles.resultRowLabel}>Base Victory EXP:</Text>
-                  <Text style={styles.resultRowValue}>+{isPlayerWinner ? 400 : 50} EXP</Text>
+                  <Text style={[styles.resultRowLabel, { color: colors.textMuted }]}>Base Victory EXP:</Text>
+                  <Text style={[styles.resultRowValue, { color: colors.text }]}>+{isPlayerWinner ? 400 : 50} EXP</Text>
                 </View>
                 {heartBonusExp > 0 && (
                   <View style={styles.resultRow}>
-                    <Text style={styles.resultRowLabel}>
+                    <Text style={[styles.resultRowLabel, { color: colors.textMuted }]}>
                       ❤️ Heart Bonus ({playerHearts}/3 remaining):
                     </Text>
-                    <Text style={[styles.resultRowValue, { color: Colors.dark.cyan }]}>
+                    <Text style={[styles.resultRowValue, { color: colors.primary }]}>
                       +{heartBonusExp} EXP
                     </Text>
                   </View>
                 )}
                 <View style={[styles.resultRow, { marginTop: 6 }]}>
-                  <Text style={styles.totalExpLabel}>TOTAL EXP GAINED:</Text>
-                  <Text style={styles.totalExpValue}>+{expEarnedTotal} EXP</Text>
+                  <Text style={[styles.totalExpLabel, { color: colors.primary }]}>TOTAL EXP GAINED:</Text>
+                  <Text style={[styles.totalExpValue, { color: colors.primary }]}>+{expEarnedTotal} EXP</Text>
                 </View>
               </View>
 
               <BouncyButton style={styles.finishBtnWrapper} onPress={() => router.replace('/(main)')}>
-                <LinearGradient colors={Gradients.primary} style={styles.finishBtn}>
+                <LinearGradient colors={[colors.primary, colors.secondary]} style={styles.finishBtn}>
                   <Text style={styles.finishBtnText}>RETURN TO ARENA ⚔️</Text>
                 </LinearGradient>
               </BouncyButton>

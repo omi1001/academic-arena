@@ -5,7 +5,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Gradients } from '../../../constants/theme';
 import { MAX_HEARTS, LEADERBOARD_TIERS } from '../../../constants/config';
 import { BouncyButton } from '../../../components/BouncyButton';
+import { ThemedBackground } from '../../../components/ThemedBackground';
 import { useUserStore } from '../../../stores/userStore';
+import { useThemeStore } from '../../../stores/themeStore';
 import api from '../../../lib/api';
 
 interface PacketInfo {
@@ -16,7 +18,7 @@ interface PacketInfo {
 
 export default function GameSetupScreen() {
   const router = useRouter();
-  const { class: classStr, subject, mode } = useLocalSearchParams<{
+  const { class: classStr, subject, mode: routeMode } = useLocalSearchParams<{
     class: string;
     subject: string;
     mode?: 'solo' | 'challenge';
@@ -30,7 +32,7 @@ export default function GameSetupScreen() {
   const [selectedPacket, setSelectedPacket] = useState<number>(1);
   const [loadingPackets, setLoadingPackets] = useState<boolean>(true);
   const [gameMode, setGameMode] = useState<'solo' | 'challenge'>(
-    mode === 'challenge' && isSilverUnlocked ? 'challenge' : 'solo'
+    routeMode === 'challenge' && isSilverUnlocked ? 'challenge' : 'solo'
   );
 
   // ─── Animations ───
@@ -145,13 +147,16 @@ export default function GameSetupScreen() {
     }
   };
 
+  const { getColors, mode } = useThemeStore();
+  const colors = getColors();
+
   return (
-    <>
+    <ThemedBackground>
       <Stack.Screen
         options={{
           headerShown: true,
-          headerStyle: { backgroundColor: Colors.dark.background },
-          headerTintColor: Colors.dark.text,
+          headerStyle: { backgroundColor: colors.surface },
+          headerTintColor: colors.text,
           title: '',
         }}
       />
@@ -173,6 +178,7 @@ export default function GameSetupScreen() {
           <Animated.View
             style={[
               styles.emojiContainer,
+              { backgroundColor: colors.surface, borderColor: colors.border },
               { transform: [{ translateY: floatAnim }] },
             ]}
           >
@@ -187,29 +193,34 @@ export default function GameSetupScreen() {
             </Text>
           </Animated.View>
 
-          <Text style={styles.subjectName}>{subject}</Text>
-          <View style={styles.classBadge}>
-            <Text style={styles.className}>CLASS {classStr} ARENA</Text>
+          <Text style={[styles.subjectName, { color: colors.text }]}>{subject}</Text>
+          <View style={[styles.classBadge, { backgroundColor: colors.surface, borderColor: colors.primary }]}>
+            <Text style={[styles.className, { color: colors.primary }]}>CLASS {classStr} ARENA</Text>
           </View>
 
           {/* ─── Game Mode Selection ─── */}
-          <Text style={styles.sectionHeader}>SELECT ARENA GAME MODE</Text>
+          <Text style={[styles.sectionHeader, { color: colors.primary }]}>SELECT ARENA GAME MODE</Text>
           <View style={styles.modeGrid}>
             {/* Solo Arena Mode Card */}
             <BouncyButton
-              style={[styles.modeCard, gameMode === 'solo' && styles.modeCardSelected]}
+              style={[
+                styles.modeCard,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+                gameMode === 'solo' && [styles.modeCardSelected, { borderColor: colors.primary, backgroundColor: colors.surfaceHighlight }],
+              ]}
               onPress={() => setGameMode('solo')}
             >
               <Text style={styles.modeEmoji}>⚡</Text>
-              <Text style={styles.modeTitle}>SOLO RUN</Text>
-              <Text style={styles.modeDesc}>Classic endless practice run</Text>
+              <Text style={[styles.modeTitle, { color: colors.text }]}>SOLO RUN</Text>
+              <Text style={[styles.modeDesc, { color: colors.textMuted }]}>Classic endless practice run</Text>
             </BouncyButton>
 
             {/* 1v1 Bot Challenge Mode Card */}
             <BouncyButton
               style={[
                 styles.modeCard,
-                gameMode === 'challenge' && styles.modeCardSelected,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+                gameMode === 'challenge' && [styles.modeCardSelected, { borderColor: colors.primary, backgroundColor: colors.surfaceHighlight }],
                 !isSilverUnlocked && styles.modeCardLocked,
               ]}
               onPress={handleSelectChallengeMode}
@@ -218,8 +229,8 @@ export default function GameSetupScreen() {
                 <Text style={styles.modeEmoji}>⚔️</Text>
                 {!isSilverUnlocked && <Text style={styles.lockBadge}>🔒 LOCKED</Text>}
               </View>
-              <Text style={styles.modeTitle}>1v1 CHALLENGE</Text>
-              <Text style={styles.modeDesc}>
+              <Text style={[styles.modeTitle, { color: colors.text }]}>1v1 CHALLENGE</Text>
+              <Text style={[styles.modeDesc, { color: colors.textMuted }]}>
                 {isSilverUnlocked
                   ? '15 Questions Race vs Adaptive Bot'
                   : 'Unlocks at Silver (5,000 EXP)'}
@@ -229,8 +240,8 @@ export default function GameSetupScreen() {
 
           {/* ─── Question Packet Selector Section ─── */}
           <View style={styles.packetSection}>
-            <Text style={styles.sectionHeader}>SELECT QUESTION PACKET</Text>
-            <Text style={styles.packetSubtext}>
+            <Text style={[styles.sectionHeader, { color: colors.primary }]}>SELECT QUESTION PACKET</Text>
+            <Text style={[styles.packetSubtext, { color: colors.textMuted }]}>
               Questions are grouped into packets so you never see repeated questions!
             </Text>
 
@@ -240,12 +251,16 @@ export default function GameSetupScreen() {
                 return (
                   <BouncyButton
                     key={p.packet}
-                    style={[styles.packetCard, isSelected && styles.packetCardSelected]}
+                    style={[
+                      styles.packetCard,
+                      { backgroundColor: colors.surface, borderColor: colors.border },
+                      isSelected && styles.packetCardSelected,
+                    ]}
                     onPress={() => setSelectedPacket(p.packet)}
                   >
                     {isSelected ? (
                       <LinearGradient
-                        colors={Gradients.primary}
+                        colors={[colors.primary, colors.secondary]}
                         style={styles.packetGradient}
                       >
                         <Text style={styles.packetNumberSelected}>
@@ -256,11 +271,11 @@ export default function GameSetupScreen() {
                         </Text>
                       </LinearGradient>
                     ) : (
-                      <View style={styles.packetInner}>
-                        <Text style={styles.packetNumber}>
+                      <View style={[styles.packetInner, { backgroundColor: colors.surface }]}>
+                        <Text style={[styles.packetNumber, { color: colors.text }]}>
                           📦 PACKET {p.packet}
                         </Text>
-                        <Text style={styles.packetCount}>
+                        <Text style={[styles.packetCount, { color: colors.textMuted }]}>
                           {p.totalQuestions} Questions
                         </Text>
                       </View>
@@ -272,18 +287,21 @@ export default function GameSetupScreen() {
           </View>
 
           {/* Info Card */}
-          <LinearGradient colors={['#161B33', '#0F1224']} style={styles.infoCard}>
+          <LinearGradient
+            colors={mode === 'dark' ? ['#161B33', '#0F1224'] : ['#FFFFFF', '#F1F5F9']}
+            style={[styles.infoCard, { borderColor: colors.border }]}
+          >
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>SELECTED MODE</Text>
-              <Text style={styles.infoValueHighlight}>
+              <Text style={[styles.infoLabel, { color: colors.textMuted }]}>SELECTED MODE</Text>
+              <Text style={[styles.infoValueHighlight, { color: colors.primary }]}>
                 {gameMode === 'challenge' ? '⚔️ 1v1 Bot Challenge (15 Qs)' : '⚡ Solo Arena Run'}
               </Text>
             </View>
 
-            <View style={styles.divider} />
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>RUN LIVES</Text>
+              <Text style={[styles.infoLabel, { color: colors.textMuted }]}>RUN LIVES</Text>
               <View style={styles.heartsPreview}>
                 {Array.from({ length: MAX_HEARTS }).map((_, i) => (
                   <Text key={i} style={styles.heartIcon}>
@@ -293,17 +311,17 @@ export default function GameSetupScreen() {
               </View>
             </View>
 
-            <View style={styles.divider} />
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>BOT DIFFICULTY</Text>
-              <Text style={styles.infoValue}>
+              <Text style={[styles.infoLabel, { color: colors.textMuted }]}>BOT DIFFICULTY</Text>
+              <Text style={[styles.infoValue, { color: colors.text }]}>
                 {gameMode === 'challenge' ? 'Adaptive to your EXP' : 'Standard Scaling'}
               </Text>
             </View>
           </LinearGradient>
 
-          <Text style={styles.rules}>
+          <Text style={[styles.rules, { color: colors.textMuted }]}>
             {gameMode === 'challenge'
               ? '⚔️ Race the bot to answer 15 questions! Keep your hearts for high EXP bonuses.'
               : '🎯 Answer fast to level up difficulty & multiplier. When a packet ends, the next packet begins seamlessly!'}
@@ -311,7 +329,7 @@ export default function GameSetupScreen() {
 
           <BouncyButton style={styles.startBtnWrapper} onPress={handleStart}>
             <LinearGradient
-              colors={Gradients.primary}
+              colors={[colors.primary, colors.secondary]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.startButton}
@@ -325,14 +343,14 @@ export default function GameSetupScreen() {
           </BouncyButton>
         </Animated.View>
       </ScrollView>
-    </>
+    </ThemedBackground>
   );
 }
 
 const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
-    backgroundColor: Colors.dark.background,
+    backgroundColor: 'transparent',
   },
   container: {
     padding: 24,

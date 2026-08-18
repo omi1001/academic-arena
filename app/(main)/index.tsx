@@ -256,21 +256,21 @@ export default function DashboardScreen() {
 
         {/* ─── Stats Grid ─── */}
         <Animated.View style={[styles.statsRow, { transform: [{ scale: statsScaleAnim }] }]}>
-          <View style={styles.statCard}>
+          <View style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={styles.statIcon}>⚡</Text>
-            <Text style={styles.statValue}>{profile?.totalEXP || 0}</Text>
-            <Text style={styles.statLabel}>Total EXP</Text>
+            <Text style={[styles.statValue, { color: colors.text }]}>{profile?.totalEXP || 0}</Text>
+            <Text style={[styles.statLabel, { color: colors.textMuted }]}>Total EXP</Text>
           </View>
 
-          <View style={styles.statCard}>
+          <View style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={styles.statIcon}>🎮</Text>
-            <Text style={styles.statValue}>{profile?.gamesPlayed || 0}</Text>
-            <Text style={styles.statLabel}>Runs Played</Text>
+            <Text style={[styles.statValue, { color: colors.text }]}>{profile?.gamesPlayed || 0}</Text>
+            <Text style={[styles.statLabel, { color: colors.textMuted }]}>Runs Played</Text>
           </View>
 
-          <View style={styles.statCard}>
+          <View style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={styles.statIcon}>🎯</Text>
-            <Text style={styles.statValue}>
+            <Text style={[styles.statValue, { color: colors.text }]}>
               {profile?.totalAnswered
                 ? Math.round(
                     ((profile?.totalCorrect || 0) / profile.totalAnswered) * 100
@@ -278,29 +278,34 @@ export default function DashboardScreen() {
                 : 0}
               %
             </Text>
-            <Text style={styles.statLabel}>Accuracy</Text>
+            <Text style={[styles.statLabel, { color: colors.textMuted }]}>Accuracy</Text>
           </View>
         </Animated.View>
 
         {/* ─── Game Mode Selection ─── */}
-        <Text style={styles.sectionTitle}>SELECT GAME MODE</Text>
+        <Text style={[styles.sectionTitle, { color: colors.primary }]}>SELECT GAME MODE</Text>
         <View style={styles.modeGrid}>
           {/* Solo Arena Mode Card */}
           <BouncyButton
-            style={[styles.modeCard, gameMode === 'solo' && styles.modeCardSelected]}
+            style={[
+              styles.modeCard,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+              gameMode === 'solo' && [styles.modeCardSelected, { borderColor: colors.primary, backgroundColor: colors.surfaceHighlight }],
+            ]}
             onPress={() => setGameMode('solo')}
           >
             <Text style={styles.modeEmoji}>⚡</Text>
-            <Text style={styles.modeTitle}>SOLO RUN</Text>
-            <Text style={styles.modeDesc}>Classic endless practice run</Text>
+            <Text style={[styles.modeTitle, { color: colors.text }]}>SOLO RUN</Text>
+            <Text style={[styles.modeDesc, { color: colors.textMuted }]}>Classic endless practice run</Text>
           </BouncyButton>
 
           {/* 1v1 Bot Challenge Mode Card */}
           <BouncyButton
             style={[
               styles.modeCard,
-              gameMode === 'challenge' && styles.modeCardSelected,
+              { backgroundColor: colors.surface, borderColor: colors.border },
               !isSilverUnlocked && styles.modeCardLocked,
+              gameMode === 'challenge' && [styles.modeCardSelected, { borderColor: colors.primary, backgroundColor: colors.surfaceHighlight }],
             ]}
             onPress={handleSelectChallengeMode}
           >
@@ -308,8 +313,8 @@ export default function DashboardScreen() {
               <Text style={styles.modeEmoji}>⚔️</Text>
               {!isSilverUnlocked && <Text style={styles.lockBadge}>🔒 LOCKED</Text>}
             </View>
-            <Text style={styles.modeTitle}>1v1 CHALLENGE</Text>
-            <Text style={styles.modeDesc}>
+            <Text style={[styles.modeTitle, { color: colors.text }]}>1v1 CHALLENGE</Text>
+            <Text style={[styles.modeDesc, { color: colors.textMuted }]}>
               {isSilverUnlocked
                 ? '15 Qs Race vs Adaptive Bot'
                 : 'Unlocks at Silver (5,000 EXP)'}
@@ -318,25 +323,29 @@ export default function DashboardScreen() {
         </View>
 
         {/* ─── Class Selection ─── */}
-        <Text style={styles.sectionTitle}>SELECT GRADE</Text>
+        <Text style={[styles.sectionTitle, { color: colors.primary }]}>SELECT GRADE</Text>
         <View style={styles.optionRow}>
           {CLASS_OPTIONS.map((cls) => {
             const isSelected = selectedClass === cls;
             return (
               <BouncyButton
                 key={cls}
-                style={[styles.classOption, isSelected && styles.classOptionSelected]}
+                style={[
+                  styles.classOption,
+                  { backgroundColor: colors.surface, borderColor: colors.border },
+                  isSelected && styles.classOptionSelected,
+                ]}
                 onPress={() => setSelectedClass(cls)}
               >
                 {isSelected ? (
                   <LinearGradient
-                    colors={Gradients.primary}
+                    colors={[colors.primary, colors.secondary]}
                     style={styles.classOptionGradient}
                   >
                     <Text style={styles.classOptionTextSelected}>CLASS {cls}</Text>
                   </LinearGradient>
                 ) : (
-                  <Text style={styles.classOptionText}>CLASS {cls}</Text>
+                  <Text style={[styles.classOptionText, { color: colors.textMuted }]}>CLASS {cls}</Text>
                 )}
               </BouncyButton>
             );
@@ -344,14 +353,18 @@ export default function DashboardScreen() {
         </View>
 
         {/* ─── Subject Selection ─── */}
-        <Text style={styles.sectionTitle}>SELECT ARENA SUBJECT</Text>
+        <Text style={[styles.sectionTitle, { color: colors.primary }]}>SELECT ARENA SUBJECT</Text>
         <View style={styles.subjectGrid}>
           {SUBJECTS.map((subject) => {
             const isSelected = selectedSubject === subject;
             return (
               <BouncyButton
                 key={subject}
-                style={[styles.subjectCard, isSelected && styles.subjectCardSelected]}
+                style={[
+                  styles.subjectCard,
+                  { backgroundColor: colors.surface, borderColor: colors.border },
+                  isSelected && [styles.subjectCardSelected, { borderColor: colors.primary, backgroundColor: colors.surfaceHighlight }],
+                ]}
                 onPress={() => setSelectedSubject(subject)}
               >
                 <Text style={styles.subjectEmoji}>
@@ -366,12 +379,13 @@ export default function DashboardScreen() {
                 <Text
                   style={[
                     styles.subjectName,
-                    isSelected && styles.subjectNameSelected,
+                    { color: colors.text },
+                    isSelected && { color: colors.primary, fontWeight: 'bold' },
                   ]}
                 >
                   {subject}
                 </Text>
-                {isSelected && <View style={styles.subjectActiveDot} />}
+                {isSelected && <View style={[styles.subjectActiveDot, { backgroundColor: colors.primary }]} />}
               </BouncyButton>
             );
           })}
@@ -387,8 +401,8 @@ export default function DashboardScreen() {
             <LinearGradient
               colors={
                 selectedClass && selectedSubject
-                  ? Gradients.primary
-                  : ['#283054', '#1E243D']
+                  ? [colors.primary, colors.secondary]
+                  : mode === 'dark' ? ['#283054', '#1E243D'] : ['#CBD5E1', '#94A3B8']
               }
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
@@ -397,7 +411,7 @@ export default function DashboardScreen() {
                 (!selectedClass || !selectedSubject) && styles.startButtonDisabled,
               ]}
             >
-              <Text style={styles.startButtonText}>
+              <Text style={[styles.startButtonText, { color: '#FFF' }]}>
                 {!selectedClass || !selectedSubject
                   ? 'SELECT CLASS & SUBJECT'
                   : gameMode === 'challenge'

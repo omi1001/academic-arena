@@ -15,6 +15,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { useGameStore } from '../../../stores/gameStore';
 import { useUserStore } from '../../../stores/userStore';
+import { useThemeStore } from '../../../stores/themeStore';
 import { Colors, Gradients } from '../../../constants/theme';
 import { getStreakAtmosphere } from '../../../constants/themes';
 import { soundManager } from '../../../lib/soundManager';
@@ -462,6 +463,8 @@ export default function GameRunScreen() {
   };
 
   const currentAtmosphere = getStreakAtmosphere(game.streak);
+  const { getColors, mode } = useThemeStore();
+  const colors = getColors();
 
   return (
     <>
@@ -479,7 +482,7 @@ export default function GameRunScreen() {
         >
           {/* ─── Top HUD Bar ─── */}
           <View style={styles.topBar}>
-            <Animated.View style={[styles.heartsCard, { transform: [{ translateX: heartShakeAnim }] }]}>
+            <Animated.View style={[styles.heartsCard, { backgroundColor: colors.surface, borderColor: colors.border, transform: [{ translateX: heartShakeAnim }] }]}>
               {Array.from({ length: MAX_HEARTS }).map((_, i) => (
                 <Text key={i} style={styles.heart}>
                   {i < game.hearts ? '❤️' : '🖤'}
@@ -487,27 +490,27 @@ export default function GameRunScreen() {
               ))}
             </Animated.View>
 
-            <View style={styles.scoreCard}>
-              <Text style={styles.scoreValue}>{game.score}</Text>
-              <Text style={styles.hudLabel}>SCORE</Text>
+            <View style={[styles.scoreCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Text style={[styles.scoreValue, { color: colors.text }]}>{game.score}</Text>
+              <Text style={[styles.hudLabel, { color: colors.textMuted }]}>SCORE</Text>
             </View>
 
-            <View style={styles.expCard}>
-              <Text style={styles.expValue}>⚡ {game.expEarned}</Text>
-              <Text style={styles.hudLabel}>TOTAL EXP</Text>
+            <View style={[styles.expCard, { backgroundColor: colors.surface, borderColor: colors.primary }]}>
+              <Text style={[styles.expValue, { color: colors.primary }]}>⚡ {game.expEarned}</Text>
+              <Text style={[styles.hudLabel, { color: colors.textMuted }]}>TOTAL EXP</Text>
             </View>
           </View>
 
           {/* ─── Difficulty & Timer Track ─── */}
           <View style={styles.difficultyBar}>
             <View style={styles.difficultyLabelRow}>
-              <View style={styles.difficultyBadge}>
-                <Text style={styles.difficultyText}>
+              <View style={[styles.difficultyBadge, { backgroundColor: colors.surface, borderColor: colors.primary }]}>
+                <Text style={[styles.difficultyText, { color: colors.primary }]}>
                   LVL {game.currentDifficulty}
                 </Text>
               </View>
-              <View style={styles.packetBadge}>
-                <Text style={styles.packetBadgeText}>
+              <View style={[styles.packetBadge, { backgroundColor: colors.surface, borderColor: colors.secondary || '#9B51E0' }]}>
+                <Text style={[styles.packetBadgeText, { color: colors.secondary || '#9B51E0' }]}>
                   📦 PKT {game.currentQuestion?.packet || packet || 1}
                 </Text>
               </View>
@@ -523,17 +526,17 @@ export default function GameRunScreen() {
                   </Text>
                 </Animated.View>
               )}
-              <Text style={styles.timerNumber}>{timeLeft}s</Text>
+              <Text style={[styles.timerNumber, { color: colors.textMuted }]}>{timeLeft}s</Text>
             </View>
 
-          <View style={styles.timerTrack}>
+          <View style={[styles.timerTrack, { backgroundColor: colors.border || 'rgba(255,255,255,0.1)' }]}>
             <LinearGradient
               colors={
                 timeLeft <= 4
                   ? [Colors.dark.danger, '#FF0055']
                   : timeLeft <= 8
                     ? [Colors.dark.warning, '#FF9900']
-                    : Gradients.cyan
+                    : [colors.primary, colors.secondary]
               }
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
@@ -546,7 +549,7 @@ export default function GameRunScreen() {
         <View style={styles.questionArea}>
           {isLoading ? (
             <View style={styles.loadingBox}>
-              <Text style={styles.loadingText}>FETCHING ARENA QUESTION...</Text>
+              <Text style={[styles.loadingText, { color: colors.textMuted }]}>FETCHING ARENA QUESTION...</Text>
             </View>
           ) : game.currentQuestion ? (
             <>
@@ -557,8 +560,11 @@ export default function GameRunScreen() {
                   transform: [{ translateY: questionSlideAnim }],
                 }}
               >
-                <LinearGradient colors={['#161B33', '#0F1224']} style={styles.questionCard}>
-                  <Text style={styles.questionText}>
+                <LinearGradient
+                  colors={mode === 'dark' ? ['#161B33', '#0F1224'] : ['#FFFFFF', '#F1F5F9']}
+                  style={[styles.questionCard, { borderColor: colors.border }]}
+                >
+                  <Text style={[styles.questionText, { color: colors.text }]}>
                     {game.currentQuestion.question}
                   </Text>
                 </LinearGradient>
@@ -586,6 +592,7 @@ export default function GameRunScreen() {
                         <View
                           style={[
                             styles.optionCard,
+                            { backgroundColor: colors.surface, borderColor: colors.border },
                             showResult && isAnswer && styles.optionCardCorrect,
                             showResult && isSelected && !isCorrect && styles.optionCardWrong,
                           ]}
@@ -593,6 +600,7 @@ export default function GameRunScreen() {
                           <View
                             style={[
                               styles.optionBadge,
+                              { backgroundColor: colors.surfaceHighlight || colors.surface },
                               showResult && isAnswer && styles.optionBadgeCorrect,
                               showResult && isSelected && !isCorrect && styles.optionBadgeWrong,
                             ]}
@@ -600,6 +608,7 @@ export default function GameRunScreen() {
                             <Text
                               style={[
                                 styles.optionBadgeText,
+                                { color: colors.textMuted },
                                 showResult && isAnswer && styles.optionBadgeTextActive,
                                 showResult && isSelected && !isCorrect && styles.optionBadgeTextActive,
                               ]}
@@ -608,7 +617,7 @@ export default function GameRunScreen() {
                             </Text>
                           </View>
 
-                          <Text style={styles.optionText}>{option}</Text>
+                          <Text style={[styles.optionText, { color: colors.text }]}>{option}</Text>
                         </View>
                       </BouncyButton>
                     </Animated.View>

@@ -18,6 +18,8 @@ import { auth } from '../../lib/firebase';
 import api from '../../lib/api';
 import { useAuthStore } from '../../stores/authStore';
 import { useUserStore } from '../../stores/userStore';
+import { useThemeStore } from '../../stores/themeStore';
+import { ThemedBackground } from '../../components/ThemedBackground';
 import { Colors, Gradients } from '../../constants/theme';
 import { BouncyButton } from '../../components/BouncyButton';
 
@@ -29,6 +31,9 @@ export default function SignupScreen() {
   const [displayName, setDisplayName] = useState('');
   const [selectedClass, setSelectedClass] = useState<9 | 10 | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const { getColors, mode } = useThemeStore();
+  const colors = getColors();
 
   const handleSignup = async () => {
     if (!email.trim() || !password.trim() || !displayName.trim()) {
@@ -94,112 +99,122 @@ export default function SignupScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView contentContainerStyle={styles.inner}>
-        <View style={styles.logoBadge}>
-          <Text style={styles.logoEmoji}>🚀</Text>
-        </View>
-
-        <Text style={styles.title}>CREATE ACCOUNT</Text>
-        <Text style={styles.subtitle}>Enter the Arena & Level Up</Text>
-
-        <View style={styles.form}>
-          <TextInput
-            style={styles.input}
-            placeholder="Display Name (e.g., Alex)"
-            placeholderTextColor={Colors.dark.textMuted}
-            value={displayName}
-            onChangeText={setDisplayName}
-            autoCapitalize="words"
-          />
-
-          <TextInput
-            style={styles.input}
-            placeholder="Email Address"
-            placeholderTextColor={Colors.dark.textMuted}
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-
-          <View style={styles.classRow}>
-            <BouncyButton
-              style={[styles.classOption, selectedClass === 9 && styles.classSelected]}
-              onPress={() => setSelectedClass(9)}
-            >
-              <Text style={[styles.classText, selectedClass === 9 && styles.classTextSelected]}>
-                CLASS 9
-              </Text>
-            </BouncyButton>
-            <BouncyButton
-              style={[styles.classOption, selectedClass === 10 && styles.classSelected]}
-              onPress={() => setSelectedClass(10)}
-            >
-              <Text style={[styles.classText, selectedClass === 10 && styles.classTextSelected]}>
-                CLASS 10
-              </Text>
-            </BouncyButton>
+    <ThemedBackground>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView contentContainerStyle={styles.inner}>
+          <View style={[styles.logoBadge, { backgroundColor: colors.surface, borderColor: colors.primary }]}>
+            <Text style={styles.logoEmoji}>🚀</Text>
           </View>
 
-          <TextInput
-            style={styles.input}
-            placeholder="Password (min 6 chars)"
-            placeholderTextColor={Colors.dark.textMuted}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
+          <Text style={[styles.title, { color: colors.text }]}>CREATE ACCOUNT</Text>
+          <Text style={[styles.subtitle, { color: colors.textMuted }]}>Enter the Arena & Level Up</Text>
 
-          <TextInput
-            style={styles.input}
-            placeholder="Confirm Password"
-            placeholderTextColor={Colors.dark.textMuted}
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            secureTextEntry
-          />
+          <View style={styles.form}>
+            <TextInput
+              style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+              placeholder="Display Name (e.g., Alex)"
+              placeholderTextColor={colors.textMuted}
+              value={displayName}
+              onChangeText={setDisplayName}
+              autoCapitalize="words"
+            />
 
-          <BouncyButton
-            style={styles.buttonWrapper}
-            onPress={handleSignup}
-            disabled={loading}
-          >
-            <LinearGradient
-              colors={Gradients.primary}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={[styles.button, loading && styles.buttonDisabled]}
+            <TextInput
+              style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+              placeholder="Email Address"
+              placeholderTextColor={colors.textMuted}
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+
+            <View style={styles.classRow}>
+              <BouncyButton
+                style={[
+                  styles.classOption,
+                  { backgroundColor: colors.surface, borderColor: colors.border },
+                  selectedClass === 9 && [styles.classSelected, { borderColor: colors.primary, backgroundColor: colors.surfaceHighlight }],
+                ]}
+                onPress={() => setSelectedClass(9)}
+              >
+                <Text style={[styles.classText, { color: colors.textMuted }, selectedClass === 9 && [styles.classTextSelected, { color: colors.primary }]]}>
+                  CLASS 9
+                </Text>
+              </BouncyButton>
+              <BouncyButton
+                style={[
+                  styles.classOption,
+                  { backgroundColor: colors.surface, borderColor: colors.border },
+                  selectedClass === 10 && [styles.classSelected, { borderColor: colors.primary, backgroundColor: colors.surfaceHighlight }],
+                ]}
+                onPress={() => setSelectedClass(10)}
+              >
+                <Text style={[styles.classText, { color: colors.textMuted }, selectedClass === 10 && [styles.classTextSelected, { color: colors.primary }]]}>
+                  CLASS 10
+                </Text>
+              </BouncyButton>
+            </View>
+
+            <TextInput
+              style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+              placeholder="Password (min 6 chars)"
+              placeholderTextColor={colors.textMuted}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+            />
+
+            <TextInput
+              style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+              placeholder="Confirm Password"
+              placeholderTextColor={colors.textMuted}
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              secureTextEntry
+            />
+
+            <BouncyButton
+              style={styles.buttonWrapper}
+              onPress={handleSignup}
+              disabled={loading}
             >
-              {loading ? (
-                <ActivityIndicator color={Colors.dark.text} />
-              ) : (
-                <Text style={styles.buttonText}>CREATE ACCOUNT ➔</Text>
-              )}
-            </LinearGradient>
-          </BouncyButton>
+              <LinearGradient
+                colors={[colors.primary, colors.secondary]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={[styles.button, loading && styles.buttonDisabled]}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#FFF" />
+                ) : (
+                  <Text style={styles.buttonText}>CREATE ACCOUNT ➔</Text>
+                )}
+              </LinearGradient>
+            </BouncyButton>
 
-          <Link href="/(auth)" asChild>
-            <TouchableOpacity style={styles.linkButton}>
-              <Text style={styles.linkText}>
-                Already have an account? <Text style={styles.linkBold}>Log In</Text>
-              </Text>
-            </TouchableOpacity>
-          </Link>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+            <Link href="/(auth)" asChild>
+              <TouchableOpacity style={styles.linkButton}>
+                <Text style={[styles.linkText, { color: colors.textMuted }]}>
+                  Already have an account? <Text style={[styles.linkBold, { color: colors.primary }]}>Log In</Text>
+                </Text>
+              </TouchableOpacity>
+            </Link>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </ThemedBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.dark.background,
+    backgroundColor: 'transparent',
   },
   inner: {
     flexGrow: 1,
