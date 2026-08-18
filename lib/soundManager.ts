@@ -1,4 +1,4 @@
-import { Audio } from 'expo-av';
+import { createAudioPlayer, AudioPlayer } from 'expo-audio';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const SOUND_ENABLED_KEY = '@app_sound_enabled';
@@ -31,8 +31,8 @@ const SOUND_EFFECTS = {
 class SoundManager {
   private enabled: boolean = true;
   private volume: number = 0.8;
-  private isAudioModeConfigured: boolean = false;
   private isSettingsLoaded: boolean = false;
+  private activePlayers: AudioPlayer[] = [];
 
   private async ensureSettingsLoaded() {
     if (this.isSettingsLoaded) return;
@@ -50,22 +50,6 @@ class SoundManager {
       this.isSettingsLoaded = true;
     } catch (e) {
       this.isSettingsLoaded = true;
-    }
-  }
-
-  private async configureAudioMode() {
-    if (this.isAudioModeConfigured) return;
-    try {
-      if (Audio && Audio.setAudioModeAsync) {
-        await Audio.setAudioModeAsync({
-          playsInSilentModeIOS: true,
-          staysActiveInBackground: false,
-          shouldDuckAndroid: true,
-        });
-      }
-      this.isAudioModeConfigured = true;
-    } catch (e) {
-      console.warn('Audio mode setup skipped:', e);
     }
   }
 
@@ -96,23 +80,26 @@ class SoundManager {
       await this.ensureSettingsLoaded();
       if (!this.enabled) return;
 
-      await this.configureAudioMode();
+      if (!createAudioPlayer) return;
 
-      if (!Audio || !Audio.Sound) return;
+      const player = createAudioPlayer({ uri: url });
+      if (!player) return;
 
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: url },
-        { shouldPlay: true, volume: this.volume }
-      );
+      player.volume = this.volume;
+      player.play();
 
-      sound.setOnPlaybackStatusUpdate((status) => {
-        if (status.isLoaded && status.didJustFinish) {
-          sound.unloadAsync().catch(() => {});
-        }
-      });
+      this.activePlayers.push(player);
+
+      // Clean up player after sound completes or after timeout
+      setTimeout(() => {
+        try {
+          player.release();
+          this.activePlayers = this.activePlayers.filter((p) => p !== player);
+        } catch (releaseErr) {}
+      }, 5000);
     } catch (e) {
-      // Non-blocking warning so audio failure never crashes the game loop
-      console.warn('Audio playback caught error:', e);
+      // Safe, non-blocking catch so audio never interrupts app execution
+      console.warn('Audio playback error:', e);
     }
   }
 
