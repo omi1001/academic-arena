@@ -74,6 +74,8 @@ export default function ChallengeGameScreen() {
   }>();
 
   const { profile, setProfile } = useUserStore();
+  const { getColors, mode } = useThemeStore();
+  const colors = getColors();
   const playerExp = profile?.totalEXP || 0;
 
   // ─── Player State ───
@@ -512,9 +514,6 @@ export default function ChallengeGameScreen() {
     100
   );
   const botProgressPct = Math.min((botQIndex / TOTAL_CHALLENGE_QUESTIONS) * 100, 100);
-
-  const { getColors, mode } = useThemeStore();
-  const colors = getColors();
 
   return (
     <>
