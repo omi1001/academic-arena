@@ -15,6 +15,7 @@ import { signOut } from 'firebase/auth';
 import { LinearGradient } from 'expo-linear-gradient';
 import { auth } from '../../lib/firebase';
 import api from '../../lib/api';
+import { SupabaseService } from '../../lib/supabaseService';
 import { useAuthStore } from '../../stores/authStore';
 import { useUserStore } from '../../stores/userStore';
 import { useThemeStore } from '../../stores/themeStore';
@@ -96,6 +97,15 @@ export default function DashboardScreen() {
   const fetchProfile = async () => {
     if (!firebaseUser) return;
     try {
+      const supProfile = await SupabaseService.getUserProfile(firebaseUser.uid);
+      if (supProfile) {
+        setProfile(supProfile);
+        if (supProfile.class && !selectedClass) {
+          setSelectedClass(supProfile.class);
+        }
+        return;
+      }
+
       const res = await api.get('/auth/profile');
       if (res.data?.user) {
         setProfile(res.data.user as any);
@@ -104,7 +114,7 @@ export default function DashboardScreen() {
         }
       }
     } catch (e) {
-      console.warn('Failed to fetch profile from backend:', e);
+      console.warn('Failed to fetch profile from Supabase/backend:', e);
     }
   };
 

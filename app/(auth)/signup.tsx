@@ -16,6 +16,7 @@ import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { LinearGradient } from 'expo-linear-gradient';
 import { auth } from '../../lib/firebase';
 import api from '../../lib/api';
+import { SupabaseService } from '../../lib/supabaseService';
 import { useAuthStore } from '../../stores/authStore';
 import { useUserStore } from '../../stores/userStore';
 import { useThemeStore } from '../../stores/themeStore';
@@ -66,18 +67,20 @@ export default function SignupScreen() {
 
       await updateProfile(credential.user, { displayName: displayName.trim() });
 
-      // Save to backend MongoDB
+      // Save directly to Supabase
       try {
-        const res = await api.post('/auth/register', {
+        const newProfile = await SupabaseService.upsertUserProfile({
+          firebaseUid: credential.user.uid,
           name: displayName.trim(),
           email: email.trim(),
           class: selectedClass,
+          totalEXP: 0,
         });
-        if (res.data?.user) {
-          useUserStore.getState().setProfile(res.data.user);
+        if (newProfile) {
+          useUserStore.getState().setProfile(newProfile);
         }
       } catch (e) {
-        console.warn('Backend register failed:', e);
+        console.warn('Supabase register profile failed:', e);
       }
 
       useAuthStore.getState().setFirebaseUser(auth.currentUser);

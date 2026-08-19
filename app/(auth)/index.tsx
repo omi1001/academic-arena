@@ -16,6 +16,7 @@ import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/aut
 import { LinearGradient } from 'expo-linear-gradient';
 import { auth } from '../../lib/firebase';
 import api from '../../lib/api';
+import { SupabaseService } from '../../lib/supabaseService';
 import { useUserStore } from '../../stores/userStore';
 import { useThemeStore } from '../../stores/themeStore';
 import { ThemedBackground } from '../../components/ThemedBackground';
@@ -41,16 +42,25 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email.trim(), password);
+      const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
 
-      // Fetch/sync user profile from backend
+      // Instant fetch/sync user profile from Supabase
       try {
-        const res = await api.get('/auth/profile');
-        if (res.data?.user) {
-          useUserStore.getState().setProfile(res.data.user);
+        let profile = await SupabaseService.getUserProfile(cred.user.uid);
+        if (!profile) {
+          profile = await SupabaseService.upsertUserProfile({
+            firebaseUid: cred.user.uid,
+            name: cred.user.displayName || email.split('@')[0],
+            email: cred.user.email || email.trim(),
+            class: 10,
+            totalEXP: 0,
+          });
+        }
+        if (profile) {
+          useUserStore.getState().setProfile(profile);
         }
       } catch (e) {
-        console.warn('Login profile sync failed:', e);
+        console.warn('Supabase login profile sync failed:', e);
       }
 
       router.replace('/(main)');

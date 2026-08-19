@@ -32,6 +32,7 @@ import {
   QUESTIONS_PER_BATCH,
 } from '../../../constants/config';
 import api from '../../../lib/api';
+import { SupabaseService } from '../../../lib/supabaseService';
 import type { Question } from '../../../types';
 import { BouncyButton } from '../../../components/BouncyButton';
 import { SarcasticLoader } from '../../../components/SarcasticLoader';
@@ -198,32 +199,19 @@ export default function GameRunScreen() {
   const fetchQuestions = async () => {
     try {
       setIsLoading(true);
-      let list: Question[] = [];
+      const classNum = parseInt(classStr || `${user.profile?.class || 10}`);
+      const subjectName = subject || game.selectedSubject || 'Mathematics';
 
-      try {
-        const res = await api.get('/questions', {
-          params: {
-            class: classStr,
-            subject,
-            difficulty: game.currentDifficulty,
-            limit: QUESTIONS_PER_BATCH,
-            random: 'true',
-          },
-        });
-        const fetched = Array.isArray(res.data) ? res.data : res.data?.questions;
-        if (Array.isArray(fetched) && fetched.length > 0) {
-          list = fetched;
-        }
-      } catch (err) {
-        console.warn('Difficulty filtered fetch failed, trying generic:', err);
-      }
+      // 1. Direct fetch from Supabase (sub-100ms speed!)
+      let list: Question[] = await SupabaseService.getRandomQuestions(classNum, subjectName, QUESTIONS_PER_BATCH);
 
+      // 2. Fallback to API if Supabase query returned empty
       if (list.length === 0) {
         try {
           const res = await api.get('/questions', {
             params: {
               class: classStr,
-              subject,
+              subject: subjectName,
               limit: 20,
               random: 'true',
             },
@@ -233,7 +221,7 @@ export default function GameRunScreen() {
             list = fetched;
           }
         } catch (err) {
-          console.warn('Generic questions fetch failed:', err);
+          console.warn('API fallback fetch failed:', err);
         }
       }
 
@@ -397,28 +385,59 @@ export default function GameRunScreen() {
       const payloadStartTime = game.startTime && game.startTime > 0 ? game.startTime : Date.now() - 60000;
       const scoreVal = game.score || 0;
       const totalAnsweredVal = Math.max(game.totalQuestionsAnswered || 0, scoreVal);
+      const expVal = game.expEarned || 0;
 
-      await api.post('/runs', {
+      // 1. Save directly to Supabase game_runs
+      await SupabaseService.saveGameRun({
         runId: payloadRunId,
+        userId: user.profile?.uid || 'anonymous',
         class: payloadClass,
         subject: payloadSubject,
+        mode: 'solo',
         score: scoreVal,
-        expEarned: game.expEarned || 0,
-        questionsAnswered: totalAnsweredVal,
         correctAnswers: scoreVal,
+        questionsAnswered: totalAnsweredVal,
+        expEarned: expVal,
         maxStreak: game.maxStreak || 0,
         highestDifficulty: game.currentDifficulty || 1,
         heartsRemaining: game.hearts || 0,
-        startTime: payloadStartTime,
         status,
         answers: answersRecordRef.current,
       });
+
+      // 2. Update user profile EXP in Supabase
+      if (user.profile?.uid) {
+        await SupabaseService.upsertUserProfile({
+          firebaseUid: user.profile.uid,
+          totalEXP: (user.profile.totalEXP || 0) + expVal,
+          gamesPlayed: (user.profile.gamesPlayed || 0) + 1,
+          totalAnswered: (user.profile.totalAnswered || 0) + totalAnsweredVal,
+          totalCorrect: (user.profile.totalCorrect || 0) + scoreVal,
+        });
+      }
+
+      // Also notify legacy API if reachable
+      try {
+        await api.post('/runs', {
+          runId: payloadRunId,
+          class: payloadClass,
+          subject: payloadSubject,
+          score: scoreVal,
+          expEarned: expVal,
+          questionsAnswered: totalAnsweredVal,
+          correctAnswers: scoreVal,
+          maxStreak: game.maxStreak || 0,
+          highestDifficulty: game.currentDifficulty || 1,
+          heartsRemaining: game.hearts || 0,
+          startTime: payloadStartTime,
+          status,
+          answers: answersRecordRef.current,
+        });
+      } catch (ignored) {}
+
       return true;
     } catch (e: any) {
-      console.warn('Failed to save run:', {
-        status: e?.response?.status,
-        error: e?.response?.data || e?.message || e,
-      });
+      console.warn('Failed to save run:', e);
       return false;
     }
   };

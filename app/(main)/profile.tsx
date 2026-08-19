@@ -13,6 +13,7 @@ import { signOut, sendPasswordResetEmail } from 'firebase/auth';
 import { LinearGradient } from 'expo-linear-gradient';
 import { auth } from '../../lib/firebase';
 import api from '../../lib/api';
+import { SupabaseService } from '../../lib/supabaseService';
 import { useAuthStore } from '../../stores/authStore';
 import { useUserStore } from '../../stores/userStore';
 import { useThemeStore } from '../../stores/themeStore';
@@ -39,13 +40,20 @@ export default function ProfileScreen() {
       const fetchProfile = async () => {
         if (!firebaseUser) return;
         try {
+          const supProfile = await SupabaseService.getUserProfile(firebaseUser.uid);
+          if (supProfile) {
+            setProfile(supProfile);
+            setUpiInput(supProfile.upiId || '');
+            return;
+          }
+
           const res = await api.get('/auth/profile');
           if (res.data?.user) {
             setProfile(res.data.user as any);
             setUpiInput(res.data.user.upiId || '');
           }
         } catch (e) {
-          console.warn('Failed to fetch profile from backend:', e);
+          console.warn('Failed to fetch profile from Supabase/backend:', e);
         }
       };
       fetchProfile();
@@ -104,11 +112,17 @@ export default function ProfileScreen() {
 
   const handleUpdateClass = async (newClass: 9 | 10) => {
     try {
-      const res = await api.put('/auth/profile', { class: newClass });
-      if (res.data?.user) {
-        setProfile(res.data.user as any);
-        Alert.alert('Class Updated', `Default class set to Class ${newClass}`);
+      if (firebaseUser?.uid) {
+        const updated = await SupabaseService.upsertUserProfile({
+          firebaseUid: firebaseUser.uid,
+          class: newClass,
+        });
+        if (updated) setProfile(updated);
       }
+      try {
+        await api.put('/auth/profile', { class: newClass });
+      } catch (ignored) {}
+      Alert.alert('Class Updated', `Default class set to Class ${newClass}`);
     } catch (e) {
       Alert.alert('Update Failed', 'Failed to update class. Please try again.');
     }
@@ -116,11 +130,17 @@ export default function ProfileScreen() {
 
   const handleSaveUpi = async () => {
     try {
-      const res = await api.put('/auth/profile', { upiId: upiInput });
-      if (res.data?.user) {
-        setProfile(res.data.user as any);
-        Alert.alert('UPI Saved', 'Your UPI ID has been updated for weekly rewards!');
+      if (firebaseUser?.uid) {
+        const updated = await SupabaseService.upsertUserProfile({
+          firebaseUid: firebaseUser.uid,
+          upiId: upiInput.trim(),
+        });
+        if (updated) setProfile(updated);
       }
+      try {
+        await api.put('/auth/profile', { upiId: upiInput });
+      } catch (ignored) {}
+      Alert.alert('UPI Saved', 'Your UPI ID has been updated for weekly rewards!');
     } catch (e) {
       Alert.alert('Update Failed', 'Failed to save UPI ID.');
     }
@@ -128,11 +148,17 @@ export default function ProfileScreen() {
 
   const handleUpdateAvatar = async (selectedAvatar: string) => {
     try {
-      const res = await api.put('/auth/profile', { avatar: selectedAvatar });
-      if (res.data?.user) {
-        setProfile(res.data.user as any);
-        Alert.alert('Avatar Updated', `Selected avatar: ${selectedAvatar}`);
+      if (firebaseUser?.uid) {
+        const updated = await SupabaseService.upsertUserProfile({
+          firebaseUid: firebaseUser.uid,
+          avatar: selectedAvatar,
+        });
+        if (updated) setProfile(updated);
       }
+      try {
+        await api.put('/auth/profile', { avatar: selectedAvatar });
+      } catch (ignored) {}
+      Alert.alert('Avatar Updated', `Selected avatar: ${selectedAvatar}`);
     } catch (e) {
       Alert.alert('Update Failed', 'Failed to save avatar.');
     }

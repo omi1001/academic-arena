@@ -17,6 +17,7 @@ import { useUserStore } from '../../stores/userStore';
 import { useThemeStore } from '../../stores/themeStore';
 import { ThemedBackground } from '../../components/ThemedBackground';
 import api from '../../lib/api';
+import { SupabaseService } from '../../lib/supabaseService';
 import { GlowingProfileCard } from '../../components/GlowingProfileCard';
 
 type LeaderboardTab = 'weekly' | 'total' | 'challenge';
@@ -50,10 +51,28 @@ export default function LeaderboardScreen() {
 
   const fetchLeaderboard = async () => {
     try {
-      const res = await api.get('/leaderboard', {
-        params: { type: tab },
-      });
-      setData(res.data || []);
+      const typeParam = tab === 'weekly' ? 'weekly' : tab === 'challenge' ? 'challenge' : 'all_time';
+      const list = await SupabaseService.getLeaderboard(typeParam);
+      if (list && list.length > 0) {
+        setData(
+          list.map((item) => ({
+            rank: item.rank,
+            uid: item.firebase_uid,
+            name: item.name,
+            displayName: item.name,
+            totalEXP: item.score,
+            weeklyEXP: item.score,
+            challengeWins: item.score,
+            avatar: item.avatar,
+            gamesPlayed: item.games_played,
+          })) as any
+        );
+      } else {
+        const res = await api.get('/leaderboard', {
+          params: { type: tab },
+        });
+        setData(res.data || []);
+      }
     } catch (e) {
       console.warn('Failed to fetch leaderboard:', e);
     } finally {
