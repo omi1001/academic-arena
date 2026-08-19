@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const sanitize = require('mongo-sanitize');
+const admin = require('../config/firebase');
 const verifyAdmin = require('../middleware/verifyAdmin');
 const User = require('../models/User');
 const Question = require('../models/Question');
@@ -392,6 +393,39 @@ router.post('/users/grant-badge', async (req, res) => {
   } catch (err) {
     console.error('Admin update user error:', err);
     res.status(500).json({ error: 'Failed to update user profile' });
+  }
+});
+
+// POST /api/admin/users/reset-password (Admin overrides user password directly in Firebase Auth)
+router.post('/users/reset-password', async (req, res) => {
+  try {
+    const { uid, newPassword } = req.body;
+
+    if (!uid || !newPassword) {
+      return res.status(400).json({ error: 'User UID and new password are required' });
+    }
+
+    if (String(newPassword).length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+
+    const cleanUid = sanitize(String(uid));
+
+    // Update password in Firebase Auth via Admin SDK
+    await admin.auth().updateUser(cleanUid, {
+      password: String(newPassword),
+    });
+
+    console.log(`[ADMIN] Password successfully reset for user ${cleanUid}`);
+    res.json({
+      success: true,
+      message: `Password successfully updated for user ${cleanUid}`,
+    });
+  } catch (err) {
+    console.error('Admin reset password error:', err);
+    res.status(500).json({
+      error: err.message || 'Failed to update user password in Firebase Auth',
+    });
   }
 });
 

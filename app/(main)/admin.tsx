@@ -13,6 +13,8 @@ import {
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import { sendPasswordResetEmail } from 'firebase/auth';
+import { auth } from '../../lib/firebase';
 import api from '../../lib/api';
 import { Colors, Gradients } from '../../constants/theme';
 import { BouncyButton } from '../../components/BouncyButton';
@@ -110,6 +112,12 @@ export default function AdminScreen() {
   // Users state
   const [users, setUsers] = useState<UserItem[]>([]);
   const [userSearch, setUserSearch] = useState('');
+
+  // Admin Password Management state
+  const [passwordModalVisible, setPasswordModalVisible] = useState(false);
+  const [selectedUserForPassword, setSelectedUserForPassword] = useState<UserItem | null>(null);
+  const [newPasswordInput, setNewPasswordInput] = useState('');
+  const [passwordUpdating, setPasswordUpdating] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -280,6 +288,97 @@ export default function AdminScreen() {
     } catch (e: any) {
       Alert.alert('Error', e.response?.data?.error || 'Failed to update avatar');
     }
+  };
+
+  // ─── Admin Password Override Functions ───
+  const handleOpenPasswordModal = (user: UserItem) => {
+    setSelectedUserForPassword(user);
+    setNewPasswordInput('');
+    setPasswordModalVisible(true);
+  };
+
+  const handleAdminChangePassword = async () => {
+    if (!selectedUserForPassword) return;
+    const targetUid = selectedUserForPassword.uid;
+    const targetName = selectedUserForPassword.name || selectedUserForPassword.email;
+    const newPass = newPasswordInput.trim();
+
+    if (!newPass || newPass.length < 6) {
+      Alert.alert('Invalid Password', 'New password must be at least 6 characters long.');
+      return;
+    }
+
+    setPasswordUpdating(true);
+    try {
+      const res = await api.post('/admin/users/reset-password', {
+        uid: targetUid,
+        newPassword: newPass,
+      });
+
+      setPasswordModalVisible(false);
+      Alert.alert(
+        'Password Changed! 🔑',
+        `The password for "${targetName}" has been successfully updated to:\n\n👉  ${newPass}\n\nThe user can now log in immediately with this new password without needing their old password.`
+      );
+    } catch (e: any) {
+      console.warn('Admin password reset error:', e);
+      const errMsg = e?.response?.data?.error || e?.message || 'Failed to update password on server.';
+      Alert.alert(
+        'Password Update Notice',
+        `${errMsg}\n\nWould you like to send an official Password Reset link to ${selectedUserForPassword.email} instead?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Send Reset Email',
+            onPress: async () => {
+              try {
+                if (selectedUserForPassword.email) {
+                  await sendPasswordResetEmail(auth, selectedUserForPassword.email);
+                  setPasswordModalVisible(false);
+                  Alert.alert(
+                    'Email Sent! 📩',
+                    `A password reset link has been dispatched to ${selectedUserForPassword.email}.`
+                  );
+                }
+              } catch (err: any) {
+                Alert.alert('Error', err.message || 'Failed to send reset email.');
+              }
+            },
+          },
+        ]
+      );
+    } finally {
+      setPasswordUpdating(false);
+    }
+  };
+
+  const handleSendResetEmailDirect = async (user: UserItem) => {
+    if (!user.email) {
+      Alert.alert('Error', 'No email address found for this user.');
+      return;
+    }
+
+    Alert.alert(
+      'Send Password Reset Link',
+      `Send an official password reset email to ${user.email}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Send Email',
+          onPress: async () => {
+            try {
+              await sendPasswordResetEmail(auth, user.email);
+              Alert.alert(
+                'Reset Email Dispatched! 📩',
+                `A password reset link has been sent to ${user.email}.`
+              );
+            } catch (e: any) {
+              Alert.alert('Error', e.message || 'Failed to send password reset email.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -603,6 +702,26 @@ export default function AdminScreen() {
                         </TouchableOpacity>
                       ))}
                     </View>
+
+                    {/* Account Security & Password Management */}
+                    <Text style={styles.grantTitle}>ACCOUNT SECURITY & PASSWORD:</Text>
+                    <View style={styles.securityBtnRow}>
+                      <TouchableOpacity
+                        style={styles.passwordOverrideBtn}
+                        onPress={() => handleOpenPasswordModal(u)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.passwordOverrideBtnText}>🔑 Override Password</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.sendResetEmailBtn}
+                        onPress={() => handleSendResetEmailDirect(u)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.sendResetEmailBtnText}>📩 Send Reset Link</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 ))
               ) : (
@@ -733,6 +852,66 @@ export default function AdminScreen() {
                 </TouchableOpacity>
               </View>
             </ScrollView>
+          </View>
+        </Modal>
+
+        {/* ─── Admin Password Override Modal ─── */}
+        <Modal visible={passwordModalVisible} transparent animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalBox}>
+              <View style={styles.passwordModalHeader}>
+                <Text style={styles.passwordModalIcon}>🔑</Text>
+                <Text style={styles.modalTitle}>Override User Password</Text>
+              </View>
+
+              <Text style={styles.passwordModalDesc}>
+                Set a new password directly for this user. No old password required.
+              </Text>
+
+              <View style={styles.userTargetInfoBox}>
+                <Text style={styles.userTargetName}>
+                  👤 {selectedUserForPassword?.name || 'User'}
+                </Text>
+                <Text style={styles.userTargetEmail}>
+                  📧 {selectedUserForPassword?.email || selectedUserForPassword?.uid}
+                </Text>
+              </View>
+
+              <Text style={styles.fieldLabel}>NEW PASSWORD (MIN 6 CHARACTERS):</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="Enter new password (e.g. Student@2026)"
+                placeholderTextColor="#666"
+                value={newPasswordInput}
+                onChangeText={setNewPasswordInput}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+
+              <View style={styles.modalBtnRow}>
+                <TouchableOpacity
+                  onPress={() => setPasswordModalVisible(false)}
+                  style={[styles.modalBtn, { backgroundColor: '#333' }]}
+                  disabled={passwordUpdating}
+                >
+                  <Text style={styles.modalBtnText}>Cancel</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={handleAdminChangePassword}
+                  style={[styles.modalBtn, { backgroundColor: Colors.dark.gold || '#FFD700' }]}
+                  disabled={passwordUpdating}
+                >
+                  {passwordUpdating ? (
+                    <ActivityIndicator size="small" color="#000" />
+                  ) : (
+                    <Text style={[styles.modalBtnText, { color: '#000', fontWeight: 'bold' }]}>
+                      ⚡ Update Password
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
         </Modal>
       </View>
@@ -1047,4 +1226,78 @@ const styles = StyleSheet.create({
   modalBtnRow: { flexDirection: 'row', gap: 12, marginTop: 16 },
   modalBtn: { flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center' },
   modalBtnText: { color: '#FFF', fontWeight: 'bold' },
+  // ─── Security & Password Styles ───
+  securityBtnRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  passwordOverrideBtn: {
+    flex: 1,
+    backgroundColor: '#FFD700',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#FFD700',
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  passwordOverrideBtnText: {
+    color: '#000',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  sendResetEmailBtn: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: Colors.dark.cyan,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sendResetEmailBtnText: {
+    color: Colors.dark.cyan,
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  passwordModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  passwordModalIcon: {
+    fontSize: 22,
+  },
+  passwordModalDesc: {
+    color: Colors.dark.textMuted,
+    fontSize: 12,
+    marginBottom: 12,
+    lineHeight: 16,
+  },
+  userTargetInfoBox: {
+    backgroundColor: '#0B0E1B',
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 215, 0, 0.3)',
+    marginBottom: 12,
+  },
+  userTargetName: {
+    color: '#FFF',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  userTargetEmail: {
+    color: Colors.dark.textMuted,
+    fontSize: 12,
+    marginTop: 2,
+  },
 });
