@@ -22,6 +22,7 @@ import { soundManager } from '../../../lib/soundManager';
 import api from '../../../lib/api';
 import type { Question } from '../../../types';
 import { BouncyButton } from '../../../components/BouncyButton';
+import { SarcasticLoader } from '../../../components/SarcasticLoader';
 
 const TOTAL_CHALLENGE_QUESTIONS = 15;
 const SEEN_QUESTIONS_KEY = '@seen_challenge_questions';
@@ -64,7 +65,7 @@ const BOT_AVATARS = ['🤖', '🥷', '⚡', '🦅', '🦁', '🔥', '👑', '�
 
 export default function ChallengeGameScreen() {
   const router = useRouter();
-  const { runId, class: classStr, subject, packet } = useLocalSearchParams<{
+  const { runId, class: classStr, subject } = useLocalSearchParams<{
     runId: string;
     class: string;
     subject: string;
@@ -138,52 +139,77 @@ export default function ChallengeGameScreen() {
     ]).start();
   }, []);
 
-  // Fetch Questions (Exactly 15 questions with auto packet progression & variety)
+  // Fetch Questions across ALL packets with automatic fallback
   const fetchQuestions = async () => {
     try {
       setIsLoading(true);
-      const wins = profile?.challengeWins || 0;
-      const basePacket = packet ? parseInt(packet) : 1;
-      // Cycle effective packet across wins with random offset for fresh variety
-      const randomOffset = Math.floor(Math.random() * 10);
-      const effectivePacket = ((basePacket - 1 + wins + randomOffset) % 10) + 1;
-      const targetDiff = Math.min(10, Math.floor(wins / 2) + 1);
 
-      // Load recently seen question IDs to prevent duplicate questions across challenges
-      const seenIds = await getSeenQuestionIds();
+      // Attempt 1: Fetch randomized questions across all packets for this class & subject
+      let fetchedList: Question[] = [];
+      try {
+        const res = await api.get('/questions', {
+          params: {
+            class: classStr,
+            subject,
+            limit: 30,
+            random: 'true',
+          },
+        });
+        const list = Array.isArray(res.data) ? res.data : res.data?.questions;
+        if (Array.isArray(list) && list.length > 0) {
+          fetchedList = list;
+        }
+      } catch (err) {
+        console.warn('First fetch attempt failed, trying fallback:', err);
+      }
 
-      const res = await api.get('/questions', {
-        params: {
-          class: classStr,
-          subject,
-          limit: TOTAL_CHALLENGE_QUESTIONS,
-          packet: effectivePacket,
-          difficulty: targetDiff,
-          random: 'true',
-          mode: 'challenge',
-          exclude: seenIds.join(','),
-        },
-      });
-      const qList = Array.isArray(res.data) ? res.data : res.data?.questions;
-      if (qList && qList.length > 0) {
-        // Shuffle questions on client side for guaranteed variety
-        const shuffled = [...qList].sort(() => Math.random() - 0.5);
-        const selected = shuffled.slice(0, TOTAL_CHALLENGE_QUESTIONS);
-        setQuestions(selected);
+      // Attempt 2: If empty, fetch without limit
+      if (fetchedList.length === 0) {
+        try {
+          const res = await api.get('/questions', {
+            params: {
+              class: classStr,
+              subject,
+            },
+          });
+          const list = Array.isArray(res.data) ? res.data : res.data?.questions;
+          if (Array.isArray(list) && list.length > 0) {
+            fetchedList = list;
+          }
+        } catch (err) {
+          console.warn('Second fetch attempt failed:', err);
+        }
+      }
 
-        // Save these question IDs into persistent history (up to 150 questions / ~10 matches)
-        const fetchedIds = selected.map((q: Question) => q._id || (q as any).id).filter(Boolean);
+      if (fetchedList.length > 0) {
+        // Shuffle questions for fresh variety
+        const shuffled = [...fetchedList].sort(() => Math.random() - 0.5);
+        // Take up to 15 questions, or repeat if less to guarantee full 15 questions
+        let final15 = shuffled.slice(0, TOTAL_CHALLENGE_QUESTIONS);
+        while (final15.length < TOTAL_CHALLENGE_QUESTIONS && shuffled.length > 0) {
+          final15 = [...final15, ...shuffled].slice(0, TOTAL_CHALLENGE_QUESTIONS);
+        }
+
+        setQuestions(final15);
+
+        const fetchedIds = final15.map((q: Question) => q._id || (q as any).id).filter(Boolean);
         if (fetchedIds.length > 0) {
           await saveSeenQuestionIds(fetchedIds);
         }
       } else {
-        Alert.alert('Error', 'No questions available for this subject packet.');
-        router.back();
+        Alert.alert(
+          'Connecting to Arena',
+          'Could not retrieve questions from server. Returning to home.',
+          [{ text: 'OK', onPress: () => router.replace('/(main)') }]
+        );
       }
     } catch (e) {
-      console.warn('Failed to fetch questions:', e);
-      Alert.alert('Error', 'Failed to load challenge questions.');
-      router.back();
+      console.warn('Failed to fetch challenge questions:', e);
+      Alert.alert(
+        'Arena Error',
+        'Could not load challenge questions. Please check connection.',
+        [{ text: 'OK', onPress: () => router.replace('/(main)') }]
+      );
     } finally {
       setIsLoading(false);
     }
@@ -407,7 +433,7 @@ export default function ChallengeGameScreen() {
         runId: payloadRunId,
         class: parseInt(classStr!),
         subject,
-        packet: parseInt(packet || '1'),
+        packet: 1,
         score: playerScore,
         correctAnswers: playerScore,
         questionsAnswered: currentQIndex + 1,
@@ -447,11 +473,12 @@ export default function ChallengeGameScreen() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || !questions || questions.length === 0) {
     return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>⚔️ PREPARING 1v1 BOT CHALLENGE...</Text>
-      </View>
+      <SarcasticLoader
+        title="SUMMONING 1v1 OPPONENT"
+        subtitle="Matching your brainpower against an AI bot..."
+      />
     );
   }
 

@@ -28,9 +28,6 @@ export default function GameSetupScreen() {
   const playerExp = profile?.totalEXP || 0;
   const isSilverUnlocked = playerExp >= LEADERBOARD_TIERS.SILVER.minEXP;
 
-  const [packets, setPackets] = useState<PacketInfo[]>([]);
-  const [selectedPacket, setSelectedPacket] = useState<number>(1);
-  const [loadingPackets, setLoadingPackets] = useState<boolean>(true);
   const [gameMode, setGameMode] = useState<'solo' | 'challenge'>(
     routeMode === 'challenge' && isSilverUnlocked ? 'challenge' : 'solo'
   );
@@ -76,40 +73,6 @@ export default function GameSetupScreen() {
     return () => floatLoop.stop();
   }, []);
 
-  useEffect(() => {
-    fetchPackets();
-  }, [classStr, subject]);
-
-  const fetchPackets = async () => {
-    try {
-      setLoadingPackets(true);
-      const res = await api.get('/questions/packets', {
-        params: { class: classStr, subject },
-      });
-      if (res.data && res.data.length > 0) {
-        setPackets(res.data);
-        setSelectedPacket(res.data[0].packet);
-      } else {
-        const fallback = Array.from({ length: 5 }, (_, i) => ({
-          packet: i + 1,
-          totalQuestions: 10,
-          chapters: [],
-        }));
-        setPackets(fallback);
-      }
-    } catch (e) {
-      console.warn('Failed to fetch packets:', e);
-      const fallback = Array.from({ length: 5 }, (_, i) => ({
-        packet: i + 1,
-        totalQuestions: 10,
-        chapters: [],
-      }));
-      setPackets(fallback);
-    } finally {
-      setLoadingPackets(false);
-    }
-  };
-
   const handleSelectChallengeMode = () => {
     if (!isSilverUnlocked) {
       const remaining = LEADERBOARD_TIERS.SILVER.minEXP - playerExp;
@@ -131,7 +94,6 @@ export default function GameSetupScreen() {
           runId,
           class: classStr,
           subject,
-          packet: selectedPacket.toString(),
         },
       });
     } else {
@@ -141,7 +103,6 @@ export default function GameSetupScreen() {
           runId,
           class: classStr,
           subject,
-          packet: selectedPacket.toString(),
         },
       });
     }
@@ -212,7 +173,7 @@ export default function GameSetupScreen() {
             >
               <Text style={styles.modeEmoji}>⚡</Text>
               <Text style={[styles.modeTitle, { color: colors.text }]}>SOLO RUN</Text>
-              <Text style={[styles.modeDesc, { color: colors.textMuted }]}>Classic endless practice run</Text>
+              <Text style={[styles.modeDesc, { color: colors.textMuted }]}>Endless continuous practice</Text>
             </BouncyButton>
 
             {/* 1v1 Bot Challenge Mode Card */}
@@ -238,54 +199,6 @@ export default function GameSetupScreen() {
             </BouncyButton>
           </View>
 
-          {/* ─── Question Packet Selector Section ─── */}
-          <View style={styles.packetSection}>
-            <Text style={[styles.sectionHeader, { color: colors.primary }]}>SELECT QUESTION PACKET</Text>
-            <Text style={[styles.packetSubtext, { color: colors.textMuted }]}>
-              Questions are grouped into packets so you never see repeated questions!
-            </Text>
-
-            <View style={styles.packetGrid}>
-              {packets.map((p) => {
-                const isSelected = selectedPacket === p.packet;
-                return (
-                  <BouncyButton
-                    key={p.packet}
-                    style={[
-                      styles.packetCard,
-                      { backgroundColor: colors.surface, borderColor: colors.border },
-                      isSelected && styles.packetCardSelected,
-                    ]}
-                    onPress={() => setSelectedPacket(p.packet)}
-                  >
-                    {isSelected ? (
-                      <LinearGradient
-                        colors={[colors.primary, colors.secondary]}
-                        style={styles.packetGradient}
-                      >
-                        <Text style={styles.packetNumberSelected}>
-                          📦 PACKET {p.packet}
-                        </Text>
-                        <Text style={styles.packetCountSelected}>
-                          {p.totalQuestions} Questions
-                        </Text>
-                      </LinearGradient>
-                    ) : (
-                      <View style={[styles.packetInner, { backgroundColor: colors.surface }]}>
-                        <Text style={[styles.packetNumber, { color: colors.text }]}>
-                          📦 PACKET {p.packet}
-                        </Text>
-                        <Text style={[styles.packetCount, { color: colors.textMuted }]}>
-                          {p.totalQuestions} Questions
-                        </Text>
-                      </View>
-                    )}
-                  </BouncyButton>
-                );
-              })}
-            </View>
-          </View>
-
           {/* Info Card */}
           <LinearGradient
             colors={mode === 'dark' ? ['#161B33', '#0F1224'] : ['#FFFFFF', '#F1F5F9']}
@@ -294,7 +207,7 @@ export default function GameSetupScreen() {
             <View style={styles.infoRow}>
               <Text style={[styles.infoLabel, { color: colors.textMuted }]}>SELECTED MODE</Text>
               <Text style={[styles.infoValueHighlight, { color: colors.primary }]}>
-                {gameMode === 'challenge' ? '⚔️ 1v1 Bot Challenge (15 Qs)' : '⚡ Solo Arena Run'}
+                {gameMode === 'challenge' ? '⚔️ 1v1 Bot Challenge (15 Qs)' : '⚡ Endless Solo Arena'}
               </Text>
             </View>
 
@@ -314,6 +227,15 @@ export default function GameSetupScreen() {
             <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
             <View style={styles.infoRow}>
+              <Text style={[styles.infoLabel, { color: colors.textMuted }]}>QUESTION POOL</Text>
+              <Text style={[styles.infoValue, { color: colors.text }]}>
+                🎲 All Chapters (Auto-Shuffled)
+              </Text>
+            </View>
+
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+            <View style={styles.infoRow}>
               <Text style={[styles.infoLabel, { color: colors.textMuted }]}>BOT DIFFICULTY</Text>
               <Text style={[styles.infoValue, { color: colors.text }]}>
                 {gameMode === 'challenge' ? 'Adaptive to your EXP' : 'Standard Scaling'}
@@ -323,8 +245,8 @@ export default function GameSetupScreen() {
 
           <Text style={[styles.rules, { color: colors.textMuted }]}>
             {gameMode === 'challenge'
-              ? '⚔️ Race the bot to answer 15 questions! Keep your hearts for high EXP bonuses.'
-              : '🎯 Answer fast to level up difficulty & multiplier. When a packet ends, the next packet begins seamlessly!'}
+              ? '⚔️ Race the bot to answer 15 random questions! Keep your hearts for high EXP bonuses.'
+              : '🎯 Answer fast to level up difficulty & multiplier. Questions cycle seamlessly across all chapters!'}
           </Text>
 
           <BouncyButton style={styles.startBtnWrapper} onPress={handleStart}>
@@ -336,8 +258,8 @@ export default function GameSetupScreen() {
             >
               <Text style={styles.startButtonText}>
                 {gameMode === 'challenge'
-                  ? `⚔️ START 1v1 BOT RACE (PACKET ${selectedPacket})`
-                  : `⚡ LAUNCH PACKET ${selectedPacket} ⚡`}
+                  ? `⚔️ ENTER 1v1 BOT BATTLE ⚔️`
+                  : `⚡ START SOLO ARENA RUN ⚡`}
               </Text>
             </LinearGradient>
           </BouncyButton>

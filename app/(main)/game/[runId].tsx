@@ -34,6 +34,7 @@ import {
 import api from '../../../lib/api';
 import type { Question } from '../../../types';
 import { BouncyButton } from '../../../components/BouncyButton';
+import { SarcasticLoader } from '../../../components/SarcasticLoader';
 
 export default function GameRunScreen() {
   const router = useRouter();
@@ -103,33 +104,32 @@ export default function GameRunScreen() {
         useNativeDriver: true,
         easing: Easing.out(Easing.back(1.2)),
       }),
-    ]).start();
-
-    // Options staggered entrance
-    const optionAnimations = optionFadeAnim.map((_, index) =>
-      Animated.parallel([
-        Animated.timing(optionFadeAnim[index], {
+      ...optionFadeAnim.map((anim, i) =>
+        Animated.timing(anim, {
           toValue: 1,
           duration: 250,
+          delay: 100 + i * 60,
           useNativeDriver: true,
-        }),
-        Animated.spring(optionSlideAnim[index], {
+          easing: Easing.out(Easing.quad),
+        })
+      ),
+      ...optionSlideAnim.map((anim, i) =>
+        Animated.timing(anim, {
           toValue: 0,
-          friction: 6,
-          tension: 80,
+          duration: 250,
+          delay: 100 + i * 60,
           useNativeDriver: true,
-        }),
-      ])
-    );
-
-    Animated.stagger(60, optionAnimations).start();
-  }, []);
+          easing: Easing.out(Easing.quad),
+        })
+      ),
+    ]).start();
+  }, [optionFadeAnim, optionSlideAnim, questionFadeAnim, questionSlideAnim]);
 
   // Initialize game run
   useEffect(() => {
     const initialPacket = packet ? parseInt(packet) : 1;
     game.startRun(runId!, parseInt(classStr!), subject!, initialPacket);
-    fetchQuestions(initialPacket);
+    fetchQuestions();
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
       if (passiveRef.current) clearInterval(passiveRef.current);
@@ -195,31 +195,60 @@ export default function GameRunScreen() {
     };
   }, [game.currentQuestion, showResult, isLoading]);
 
-  const fetchQuestions = async (pktOverride?: number) => {
+  const fetchQuestions = async () => {
     try {
       setIsLoading(true);
-      const reqPacket = pktOverride || game.selectedPacket || (packet ? parseInt(packet) : 1);
-      const res = await api.get('/questions', {
-        params: {
-          class: classStr,
-          subject,
-          difficulty: game.currentDifficulty,
-          packet: reqPacket,
-          exclude: game.answeredQuestionIds.join(','),
-          limit: QUESTIONS_PER_BATCH,
-        },
-      });
+      let list: Question[] = [];
 
-      if (res.data && res.data.length > 0) {
-        questionBatchRef.current = res.data;
-        game.setQuestions(res.data);
+      try {
+        const res = await api.get('/questions', {
+          params: {
+            class: classStr,
+            subject,
+            difficulty: game.currentDifficulty,
+            limit: QUESTIONS_PER_BATCH,
+            random: 'true',
+          },
+        });
+        const fetched = Array.isArray(res.data) ? res.data : res.data?.questions;
+        if (Array.isArray(fetched) && fetched.length > 0) {
+          list = fetched;
+        }
+      } catch (err) {
+        console.warn('Difficulty filtered fetch failed, trying generic:', err);
+      }
+
+      if (list.length === 0) {
+        try {
+          const res = await api.get('/questions', {
+            params: {
+              class: classStr,
+              subject,
+              limit: 20,
+              random: 'true',
+            },
+          });
+          const fetched = Array.isArray(res.data) ? res.data : res.data?.questions;
+          if (Array.isArray(fetched) && fetched.length > 0) {
+            list = fetched;
+          }
+        } catch (err) {
+          console.warn('Generic questions fetch failed:', err);
+        }
+      }
+
+      if (list.length > 0) {
+        const shuffled = [...list].sort(() => Math.random() - 0.5);
+        questionBatchRef.current = shuffled;
+        game.setQuestions(shuffled);
         game.resetQuestionIndex();
-        game.setQuestion(res.data[0]);
+        game.setQuestion(shuffled[0]);
       } else {
         endGame('completed');
       }
     } catch (e) {
       console.warn('Failed to fetch questions:', e);
+      endGame('completed');
     } finally {
       setIsLoading(false);
     }
@@ -511,7 +540,7 @@ export default function GameRunScreen() {
               </View>
               <View style={[styles.packetBadge, { backgroundColor: colors.surface, borderColor: colors.secondary || '#9B51E0' }]}>
                 <Text style={[styles.packetBadgeText, { color: colors.secondary || '#9B51E0' }]}>
-                  📦 PKT {game.currentQuestion?.packet || packet || 1}
+                  🎯 Q #{game.totalQuestionsAnswered + 1}
                 </Text>
               </View>
               {game.streak > 0 && (
@@ -548,9 +577,11 @@ export default function GameRunScreen() {
         {/* ─── Question Card & Choices ─── */}
         <View style={styles.questionArea}>
           {isLoading ? (
-            <View style={styles.loadingBox}>
-              <Text style={[styles.loadingText, { color: colors.textMuted }]}>FETCHING ARENA QUESTION...</Text>
-            </View>
+            <SarcasticLoader
+              fullScreen={false}
+              title="FETCHING ARENA QUESTION"
+              subtitle="Shuffling through all subject chapters..."
+            />
           ) : game.currentQuestion ? (
             <>
               {/* Animated Question Text Box */}
