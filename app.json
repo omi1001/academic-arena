@@ -9,7 +9,8 @@
     "userInterfaceStyle": "dark",
     "plugins": [
       "expo-router",
-      "expo-audio"
+      "expo-audio",
+      "expo-asset"
     ],
     "android": {
       "adaptiveIcon": {
