@@ -396,8 +396,8 @@ router.post('/users/grant-badge', async (req, res) => {
   }
 });
 
-// POST /api/admin/users/reset-password (Admin overrides user password directly in Firebase Auth)
-router.post('/users/reset-password', async (req, res) => {
+// POST /api/admin/users/reset-password & /api/admin/reset-password
+const handleResetPasswordEndpoint = async (req, res) => {
   try {
     const { uid, newPassword } = req.body;
 
@@ -427,6 +427,9 @@ router.post('/users/reset-password', async (req, res) => {
       error: err.message || 'Failed to update user password in Firebase Auth',
     });
   }
-});
+};
+
+router.post('/users/reset-password', handleResetPasswordEndpoint);
+router.post('/reset-password', handleResetPasswordEndpoint);
 
 module.exports = router;
