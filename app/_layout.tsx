@@ -19,11 +19,18 @@ export default function RootLayout() {
     loadStoredTheme().catch(() => {});
     NotificationService.initialize().catch(() => {});
 
-    // Listen for notification taps
-    const responseListener = Notifications.addNotificationResponseReceivedListener((response) => {
-      console.log('[NOTIFICATIONS] User tapped notification:', response.notification.request.content.title);
-      router.push('/(main)');
-    });
+    // Listen for notification taps safely
+    let responseListener: { remove: () => void } | null = null;
+    try {
+      if (Notifications && typeof Notifications.addNotificationResponseReceivedListener === 'function') {
+        responseListener = Notifications.addNotificationResponseReceivedListener((response) => {
+          console.log('[NOTIFICATIONS] User tapped notification:', response.notification.request.content.title);
+          router.push('/(main)');
+        });
+      }
+    } catch (e) {
+      console.warn('[NOTIFICATIONS] Response listener setup skipped:', e);
+    }
 
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setFirebaseUser(user);
@@ -32,7 +39,9 @@ export default function RootLayout() {
 
     return () => {
       unsubscribe();
-      responseListener.remove();
+      if (responseListener) {
+        responseListener.remove();
+      }
     };
   }, []);
 

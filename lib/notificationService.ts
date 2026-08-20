@@ -2,16 +2,22 @@ import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Configure foreground notification behavior
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+// Configure foreground notification behavior safely
+try {
+  if (Notifications && typeof Notifications.setNotificationHandler === 'function') {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      }),
+    });
+  }
+} catch (e) {
+  console.warn('[NOTIFICATIONS] Handler init skipped:', e);
+}
 
 export interface SarcasticNotificationPrompt {
   title: string;
@@ -81,7 +87,12 @@ export class NotificationService {
     if (this.isInitialized) return true;
 
     try {
-      if (Platform.OS === 'android') {
+      if (!Notifications || typeof Notifications.getPermissionsAsync !== 'function') {
+        console.log('[NOTIFICATIONS] Native module not linked in current binary, skipping.');
+        return false;
+      }
+
+      if (Platform.OS === 'android' && typeof Notifications.setNotificationChannelAsync === 'function') {
         await Notifications.setNotificationChannelAsync('academic-arena-reminders', {
           name: 'Arena Brain Quests',
           description: 'Sarcastic & motivating quiz reminders every 3-4 hours',
@@ -97,7 +108,7 @@ export class NotificationService {
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
 
-      if (existingStatus !== 'granted') {
+      if (existingStatus !== 'granted' && typeof Notifications.requestPermissionsAsync === 'function') {
         const { status } = await Notifications.requestPermissionsAsync();
         finalStatus = status;
       }
@@ -121,8 +132,14 @@ export class NotificationService {
    */
   static async scheduleRollingSarcasticReminders(): Promise<void> {
     try {
+      if (!Notifications || typeof Notifications.scheduleNotificationAsync !== 'function') {
+        return;
+      }
+
       // Cancel previous scheduled notifications to avoid duplicates
-      await Notifications.cancelAllScheduledNotificationsAsync();
+      if (typeof Notifications.cancelAllScheduledNotificationsAsync === 'function') {
+        await Notifications.cancelAllScheduledNotificationsAsync();
+      }
 
       // Intervals in seconds: 3.5 hours, 7 hours, 10.5 hours, 14 hours, 18 hours, 22 hours, 26 hours
       const intervalsHours = [3.5, 7, 10.5, 14, 18, 22, 26, 30];
@@ -164,6 +181,11 @@ export class NotificationService {
    */
   static async sendTestNotification(): Promise<void> {
     try {
+      if (!Notifications || typeof Notifications.scheduleNotificationAsync !== 'function') {
+        console.warn('[NOTIFICATIONS] Native module unavailable');
+        return;
+      }
+
       const quote = SARCASTIC_NOTIFICATION_VAULT[Math.floor(Math.random() * SARCASTIC_NOTIFICATION_VAULT.length)];
       await Notifications.scheduleNotificationAsync({
         content: {
