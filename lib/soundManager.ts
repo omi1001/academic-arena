@@ -4,28 +4,27 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const SOUND_ENABLED_KEY = '@app_sound_enabled';
 const SFX_VOLUME_KEY = '@app_sfx_volume';
 
-// Kid-friendly meme and game audio effects
-const SOUND_EFFECTS = {
-  correct: [
-    'https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3',
-    'https://assets.mixkit.co/active_storage/sfx/1435/1435-preview.mp3',
-    'https://assets.mixkit.co/active_storage/sfx/2018/2018-preview.mp3',
-  ],
-  wrong: [
-    'https://assets.mixkit.co/active_storage/sfx/2955/2955-preview.mp3',
-    'https://assets.mixkit.co/active_storage/sfx/2574/2574-preview.mp3',
-    'https://assets.mixkit.co/active_storage/sfx/2953/2953-preview.mp3',
-  ],
-  mudaMuda: [
-    'https://assets.mixkit.co/active_storage/sfx/2744/2744-preview.mp3',
-    'https://assets.mixkit.co/active_storage/sfx/2766/2766-preview.mp3',
-  ],
-  victory: [
-    'https://assets.mixkit.co/active_storage/sfx/1433/1433-preview.mp3',
-  ],
-  defeat: [
-    'https://assets.mixkit.co/active_storage/sfx/2954/2954-preview.mp3',
-  ],
+// Complete suite of 12 bundled offline sound assets for 0ms zero-latency playback
+const LOCAL_SOUNDS = {
+  // Wrong answers (Meme + Arcade)
+  wrongFart: require('../assets/sounds/wrong_fart.wav'),
+  wrongFaah: require('../assets/sounds/wrong_faah.wav'),
+  wrongBuzzer: require('../assets/sounds/wrong_buzzer.wav'),
+  wrongWomp: require('../assets/sounds/wrong_womp.wav'),
+
+  // Correct answers (Meme + Bell + Chimes + Sparkles)
+  correctBhangra: require('../assets/sounds/correct_bhangra.wav'),
+  correctBell: require('../assets/sounds/correct_bell.wav'),
+  correctChime: require('../assets/sounds/correct_chime.wav'),
+  correctSparkle: require('../assets/sounds/correct_sparkle.wav'),
+
+  // Battle surges & match results
+  animeMuda: require('../assets/sounds/anime_muda.wav'),
+  victoryFanfare: require('../assets/sounds/victory_fanfare.wav'),
+  defeatGameover: require('../assets/sounds/defeat_gameover.wav'),
+
+  // Continuous background music
+  bgm: require('../assets/sounds/bgm_arena.wav'),
 };
 
 class SoundManager {
@@ -33,6 +32,8 @@ class SoundManager {
   private volume: number = 0.8;
   private isSettingsLoaded: boolean = false;
   private activePlayers: AudioPlayer[] = [];
+  private bgmPlayer: AudioPlayer | null = null;
+  private isBgmPlaying: boolean = false;
 
   private async ensureSettingsLoaded() {
     if (this.isSettingsLoaded) return;
@@ -55,6 +56,9 @@ class SoundManager {
 
   public async setSoundEnabled(enabled: boolean) {
     this.enabled = enabled;
+    if (!enabled) {
+      this.stopBgm();
+    }
     try {
       await AsyncStorage.setItem(SOUND_ENABLED_KEY, String(enabled));
     } catch (e) {}
@@ -66,6 +70,11 @@ class SoundManager {
 
   public async setVolume(volume: number) {
     this.volume = Math.max(0, Math.min(1, volume));
+    if (this.bgmPlayer) {
+      try {
+        this.bgmPlayer.volume = this.volume * 0.45;
+      } catch (e) {}
+    }
     try {
       await AsyncStorage.setItem(SFX_VOLUME_KEY, String(this.volume));
     } catch (e) {}
@@ -75,22 +84,21 @@ class SoundManager {
     return this.volume;
   }
 
-  private async playSoundFromUrl(url: string) {
+  private async playLocalAsset(source: any, customVolumeMultiplier = 1.0) {
     try {
       await this.ensureSettingsLoaded();
       if (!this.enabled) return;
-
       if (!createAudioPlayer) return;
 
-      const player = createAudioPlayer({ uri: url });
+      const player = createAudioPlayer(source);
       if (!player) return;
 
-      player.volume = this.volume;
+      player.volume = Math.min(1.0, this.volume * customVolumeMultiplier);
       player.play();
 
       this.activePlayers.push(player);
 
-      // Clean up player after sound completes or after timeout
+      // Clean up player after sound finishes
       setTimeout(() => {
         try {
           player.release();
@@ -98,35 +106,113 @@ class SoundManager {
         } catch (releaseErr) {}
       }, 5000);
     } catch (e) {
-      // Safe, non-blocking catch so audio never interrupts app execution
       console.warn('Audio playback error:', e);
     }
   }
 
+  // ─── BACKGROUND MUSIC ───
+  public async startBgm() {
+    try {
+      await this.ensureSettingsLoaded();
+      if (!this.enabled) return;
+      if (this.isBgmPlaying && this.bgmPlayer) return;
+
+      if (!createAudioPlayer) return;
+
+      this.bgmPlayer = createAudioPlayer(LOCAL_SOUNDS.bgm);
+      if (!this.bgmPlayer) return;
+
+      this.bgmPlayer.loop = true;
+      this.bgmPlayer.volume = Math.min(1.0, this.volume * 0.4);
+      this.bgmPlayer.play();
+      this.isBgmPlaying = true;
+    } catch (e) {
+      console.warn('BGM start error:', e);
+    }
+  }
+
+  public stopBgm() {
+    try {
+      if (this.bgmPlayer) {
+        this.bgmPlayer.pause();
+        this.bgmPlayer.release();
+        this.bgmPlayer = null;
+      }
+      this.isBgmPlaying = false;
+    } catch (e) {
+      console.warn('BGM stop error:', e);
+    }
+  }
+
+  // ─── CORRECT ANSWER SOUNDS ───
+  // Cycles through Bhangra Beat, Soothing Bell, Classic Arcade Chime, Sparkle Ding
   public async playCorrect() {
-    const list = SOUND_EFFECTS.correct;
-    const url = list[Math.floor(Math.random() * list.length)];
-    await this.playSoundFromUrl(url);
+    const list = [
+      LOCAL_SOUNDS.correctBhangra,
+      LOCAL_SOUNDS.correctBell,
+      LOCAL_SOUNDS.correctChime,
+      LOCAL_SOUNDS.correctSparkle,
+    ];
+    const pick = list[Math.floor(Math.random() * list.length)];
+    await this.playLocalAsset(pick, 1.0);
   }
 
+  public async playBhangraTune() {
+    await this.playLocalAsset(LOCAL_SOUNDS.correctBhangra, 1.0);
+  }
+
+  public async playSoothingBell() {
+    await this.playLocalAsset(LOCAL_SOUNDS.correctBell, 0.95);
+  }
+
+  public async playChime() {
+    await this.playLocalAsset(LOCAL_SOUNDS.correctChime, 1.0);
+  }
+
+  public async playSparkle() {
+    await this.playLocalAsset(LOCAL_SOUNDS.correctSparkle, 1.0);
+  }
+
+  // ─── WRONG ANSWER SOUNDS ───
+  // Cycles through Funny Fart, "Faah!" Vocal, Classic Buzzer, "Womp Womp"
   public async playWrong() {
-    const list = SOUND_EFFECTS.wrong;
-    const url = list[Math.floor(Math.random() * list.length)];
-    await this.playSoundFromUrl(url);
+    const list = [
+      LOCAL_SOUNDS.wrongFart,
+      LOCAL_SOUNDS.wrongFaah,
+      LOCAL_SOUNDS.wrongBuzzer,
+      LOCAL_SOUNDS.wrongWomp,
+    ];
+    const pick = list[Math.floor(Math.random() * list.length)];
+    await this.playLocalAsset(pick, 1.0);
   }
 
+  public async playFart() {
+    await this.playLocalAsset(LOCAL_SOUNDS.wrongFart, 1.0);
+  }
+
+  public async playFaah() {
+    await this.playLocalAsset(LOCAL_SOUNDS.wrongFaah, 1.0);
+  }
+
+  public async playBuzzer() {
+    await this.playLocalAsset(LOCAL_SOUNDS.wrongBuzzer, 1.0);
+  }
+
+  public async playWomp() {
+    await this.playLocalAsset(LOCAL_SOUNDS.wrongWomp, 1.0);
+  }
+
+  // ─── SPECIAL SURGES & FINISHES ───
   public async playMudaMuda() {
-    const list = SOUND_EFFECTS.mudaMuda;
-    const url = list[Math.floor(Math.random() * list.length)];
-    await this.playSoundFromUrl(url);
+    await this.playLocalAsset(LOCAL_SOUNDS.animeMuda, 1.0);
   }
 
   public async playVictory() {
-    await this.playSoundFromUrl(SOUND_EFFECTS.victory[0]);
+    await this.playLocalAsset(LOCAL_SOUNDS.victoryFanfare, 1.0);
   }
 
   public async playDefeat() {
-    await this.playSoundFromUrl(SOUND_EFFECTS.defeat[0]);
+    await this.playLocalAsset(LOCAL_SOUNDS.defeatGameover, 1.0);
   }
 }
 

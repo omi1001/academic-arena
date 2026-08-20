@@ -1,0 +1,858 @@
+import os
+import subprocess
+
+html_content = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Academic Arena - Full Technical & Workflow Documentation</title>
+<style>
+  @page {
+    size: A4;
+    margin: 18mm 15mm 18mm 15mm;
+    @bottom-right {
+      content: counter(page);
+    }
+  }
+  body {
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+    color: #1a1f36;
+    background-color: #ffffff;
+    line-height: 1.5;
+    font-size: 11pt;
+    margin: 0;
+    padding: 0;
+  }
+  h1, h2, h3, h4 {
+    color: #0f172a;
+    font-weight: 700;
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+    page-break-after: avoid;
+  }
+  h1 {
+    font-size: 24pt;
+    border-bottom: 3px solid #6366f1;
+    padding-bottom: 8px;
+    color: #4f46e5;
+    margin-top: 0;
+  }
+  h2 {
+    font-size: 16pt;
+    border-bottom: 1px solid #cbd5e1;
+    padding-bottom: 4px;
+    color: #1e1b4b;
+  }
+  h3 {
+    font-size: 13pt;
+    color: #4338ca;
+  }
+  h4 {
+    font-size: 11pt;
+    color: #334155;
+  }
+  p {
+    margin-top: 0;
+    margin-bottom: 1em;
+  }
+  .cover-header {
+    background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%);
+    color: #ffffff;
+    padding: 30px;
+    border-radius: 12px;
+    margin-bottom: 30px;
+  }
+  .cover-header h1 {
+    color: #ffffff;
+    border-bottom: 2px solid #818cf8;
+    font-size: 26pt;
+  }
+  .cover-header p {
+    color: #e0e7ff;
+    font-size: 12pt;
+    margin-bottom: 0;
+  }
+  .badge {
+    display: inline-block;
+    padding: 3px 8px;
+    font-size: 9pt;
+    font-weight: 600;
+    border-radius: 4px;
+    background-color: #e0e7ff;
+    color: #3730a3;
+    margin-right: 4px;
+  }
+  .badge-backend { background-color: #dcfce7; color: #166534; }
+  .badge-store { background-color: #fef3c7; color: #92400e; }
+  .badge-screen { background-color: #e0f2fe; color: #075985; }
+  
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1.5em;
+    font-size: 10pt;
+    page-break-inside: avoid;
+  }
+  th, td {
+    padding: 8px 10px;
+    border: 1px solid #cbd5e1;
+    text-align: left;
+    vertical-align: top;
+  }
+  th {
+    background-color: #f1f5f9;
+    font-weight: 600;
+    color: #334155;
+  }
+  tr:nth-child(even) td {
+    background-color: #f8fafc;
+  }
+  code {
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 9.5pt;
+    background-color: #f1f5f9;
+    color: #0f172a;
+    padding: 2px 5px;
+    border-radius: 4px;
+    border: 1px solid #e2e8f0;
+  }
+  pre {
+    background-color: #0f172a;
+    color: #f8fafc;
+    padding: 12px;
+    border-radius: 8px;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 9pt;
+    line-height: 1.4;
+    overflow-x: auto;
+    page-break-inside: avoid;
+    margin-bottom: 1.5em;
+  }
+  pre code {
+    background-color: transparent;
+    color: inherit;
+    padding: 0;
+    border: none;
+  }
+  .flow-box {
+    border: 1px solid #818cf8;
+    background-color: #f5f3ff;
+    border-left: 5px solid #6366f1;
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin-bottom: 1.5em;
+  }
+  .flow-box h4 {
+    margin-top: 0;
+    color: #3730a3;
+  }
+  .file-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 12px;
+    background-color: #ffffff;
+    page-break-inside: avoid;
+  }
+  .file-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #f1f5f9;
+    padding-bottom: 6px;
+    margin-bottom: 8px;
+  }
+  .file-path {
+    font-family: monospace;
+    font-weight: bold;
+    color: #2563eb;
+    font-size: 10pt;
+  }
+  .page-break {
+    page-break-before: always;
+  }
+</style>
+</head>
+<body>
+
+<div class="cover-header">
+  <h1>Academic Arena</h1>
+  <p><strong>Complete End-to-End System Workflow & Technical Architecture Documentation</strong></p>
+  <p style="margin-top: 10px; font-size: 10pt;">Comprehensive File-by-File Blueprint • Data Flow Specifications • Firebase & Express Infrastructure</p>
+</div>
+
+<h2>1. Executive Summary & System Overview</h2>
+<p>
+  <strong>Academic Arena</strong> is a gamified educational mobile and web platform built with React Native (Expo SDK 52, Expo Router v4), TypeScript, Node.js, Express, Firebase Auth, and Firebase Firestore database. The application enables students (Classes 6–12) to take single-player quiz runs, battle AI bots in 1v1 challenge matches, track real-time level progression, customize user profile aesthetics (avatar borders, title badges), compete on global/weekly leaderboards, earn UPI rewards, and manage content through a secure Admin Control Center.
+</p>
+
+<h3>Core Technology Stack</h3>
+<table>
+  <tr>
+    <th>Layer</th>
+    <th>Technologies Used</th>
+    <th>Key Responsibilities</th>
+  </tr>
+  <tr>
+    <td><strong>Frontend UI</strong></td>
+    <td>React Native, Expo SDK 52, Expo Router v4, TypeScript, React Native Reanimated</td>
+    <td>Cross-platform UI components, screen routing, smooth animations, sound/haptic feedback.</td>
+  </tr>
+  <tr>
+    <td><strong>State Management</strong></td>
+    <td>Zustand, AsyncStorage</td>
+    <td>Client-side global state for authentication (<code>authStore</code>), user profile (<code>userStore</code>), and gameplay (<code>gameStore</code>).</td>
+  </tr>
+  <tr>
+    <td><strong>API Layer</strong></td>
+    <td>Axios with JWT Bearer Interceptors</td>
+    <td>Communicates with Express backend, attaches Firebase ID tokens automatically to headers.</td>
+  </tr>
+  <tr>
+    <td><strong>Backend API</strong></td>
+    <td>Node.js, Express.js, Firebase Admin SDK</td>
+    <td>RESTful endpoints, request logging, token authentication middleware, admin guards, game balance calculations.</td>
+  </tr>
+  <tr>
+    <td><strong>Authentication & DB</strong></td>
+    <td>Firebase Auth, Cloud Firestore</td>
+    <td>User identity management, real-time Firestore database persistence (users, runs, questions, rewards).</td>
+  </tr>
+</table>
+
+<div class="page-break"></div>
+
+<h2>2. End-to-End Workflow & Data Flow Architecture</h2>
+
+<div class="flow-box">
+  <h4>Flow 1: User Registration, Authentication & Token Synchronization</h4>
+  <p>How user auth starts at login/signup, acquires Firebase JWT, syncs with backend, and initializes store.</p>
+</div>
+<pre><code>[User Interface] (app/(auth)/index.tsx or signup.tsx)
+       │
+       ▼ (User enters credentials or taps Google Auth)
+[Firebase Client SDK] (lib/firebase.ts -> signInWithEmailAndPassword / createUserWithEmailAndPassword)
+       │
+       ▼ (Validates credentials & returns Firebase User Credential + ID Token)
+[Auth Store] (stores/authStore.ts -> setToken, setUser)
+       │
+       ▼ (Triggers token sync request: POST /api/auth/sync with Bearer Header)
+[Axios API Client] (lib/api.ts -> attach Bearer token)
+       │
+       ▼
+[Express Server] (backend/src/index.js)
+       │
+       ▼
+[verifyToken Middleware] (backend/src/middleware/verifyToken.js)
+       │ (Verifies ID Token via Firebase Admin SDK backend/src/config/firebase.js)
+       ▼
+[Auth Route Handler] (backend/src/routes/auth.js -> /sync)
+       │ (Searches or creates user in Firestore via backend/src/models/User.js)
+       ▼
+[Firestore Database] ('users' collection)
+       │
+       ▼ (Returns synced user profile object: totalEXP, role, borders, badges, UPI ID)
+[User Store] (stores/userStore.ts -> setProfile)
+       │
+       ▼
+[Root Router] (app/_layout.tsx redirects from (auth) to (main)/index.tsx)</code></pre>
+
+<div class="flow-box">
+  <h4>Flow 2: Solo Arena Game Run Session Lifecycle</h4>
+  <p>From class/subject selection, fetching question packets, live question timers, heart deductions, to run submission & EXP updates.</p>
+</div>
+<pre><code>[Game Setup Screen] (app/(main)/game/index.tsx)
+       │ (Select Class 6-12, Subject, Packet 1-10)
+       ▼ (Navigates to /game/[runId].tsx with URL params)
+[Solo Game Screen] (app/(main)/game/[runId].tsx)
+       │
+       ▼ (Calls GET /api/questions?class=10&subject=Mathematics&packet=1&difficulty=1)
+[Questions Route] (backend/src/routes/questions.js)
+       │ (Filters questions from backend/data/questions.js dataset / Firestore)
+       ▼
+[Game Store / State] (stores/gameStore.ts -> initialize 15 questions, hearts=3, score=0, timer=15s)
+       │
+       ├─────▶ (User selects option -> Check correct/wrong)
+       │       ├── Correct: Add base XP + streak multiplier + sound/haptics
+       │       └── Wrong: Lose 1 heart. If hearts == 0 -> Trigger Game Over modal
+       │
+       ▼ (Run Complete: User completes 15 questions or runs out of hearts)
+[Axios API Client] (POST /api/runs)
+       │
+       ▼
+[Runs Router] (backend/src/routes/runs.js)
+       │ 1. Calculates total EXP (score * base + heart bonus + streak bonus)
+       │ 2. Updates user stats in Firestore ('users' collection: totalEXP, totalAnswered, gamesPlayed)
+       │ 3. Creates new 'runs' document in Firestore
+       ▼
+[Client Response] Returns run summary -> Updates userStore totalEXP -> Displays Run Result Modal</code></pre>
+
+<div class="flow-box">
+  <h4>Flow 3: 1v1 Bot Challenge Arena Lifecycle</h4>
+  <p>Real-time dual-simulated competition scaling bot accuracy & speed against player totalEXP.</p>
+</div>
+<pre><code>[Challenge Screen] (app/(main)/game/challenge.tsx)
+       │
+       ├──▶ 1. Computes Bot Difficulty (Level 1 to 10 based on player EXP)
+       │       - Bot Accuracy: Math.min(0.70 + (playerExp/50000)*0.22, 0.92) [70% - 92%]
+       │       - Bot Response Speed: 3000ms to 9000ms
+       │       - Auto-advances question packet based on challengeWins
+       │
+       ├──▶ 2. Parallel Gameplay Loop:
+       │       - Player Timer: 15 seconds per question
+       │       - Bot Simulation Timeout: Bot answers randomly within botSpeed range using botAccuracyRef
+       │
+       ▼ (Match Finish: Player or Bot reaches 0 hearts / finishes 15 questions)
+[Runs API Endpoint] (POST /api/runs with mode='challenge', challengeDifficulty, isChallengeWin)
+       │
+       ▼
+[Runs Router & Firestore]
+       │ Updates user profile: challengeWins, challengeLosses, highestChallengeDifficulty
+       ▼
+[UI Result Screen] Displays Victory / Defeat card + Earned EXP & Heart Bonus EXP</code></pre>
+
+<div class="flow-box">
+  <h4>Flow 4: Leaderboard & Rewards Workflow</h4>
+  <p>Fetching weekly/total rankings, checking reward eligibility, and submitting UPI ID for payout claims.</p>
+</div>
+<pre><code>[Leaderboard Screen] (app/(main)/leaderboard.tsx)
+       │
+       ▼ (Calls GET /api/leaderboard?tab=weekly | total | challenge)
+[Leaderboard Router] (backend/src/routes/leaderboard.js)
+       │
+       ├── weekly: Query Firestore 'users' order by weeklyEXP desc limit 50
+       ├── total: Query Firestore 'users' order by totalEXP desc limit 50
+       └── challenge: Query Firestore 'users' order by highestChallengeDifficulty desc, challengeWins desc
+       │
+       ▼ (Returns sorted array of leaderboard entries + active rank)
+[Leaderboard UI] Displays Podium (1st, 2nd, 3rd with Glowing Profile Cards) & Ranked List
+       │
+       ▼ (If Top 1 on Weekly Leaderboard -> Tap "Claim ₹10 UPI Reward")
+[Claim Reward Modal] (Calls POST /api/leaderboard/claim-reward with upiId)
+       │
+       ▼
+[Backend Validation] Checks user rank #1, validates UPI syntax -> Creates 'rewards' doc in Firestore
+       ▼
+[Firestore Database] ('rewards' collection: status='pending', upiId, userUid, amount=10)</code></pre>
+
+<div class="page-break"></div>
+
+<h2>3. Complete File-by-File Technical Blueprint (All 53 Files)</h2>
+<p>Below is the detailed reference of every single file in the Academic Arena repository, covering its exact location, purpose, imports/exports, state mutations, and data flows.</p>
+
+<h3>Section A: Root & Configuration Files (7 Files)</h3>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">package.json</span>
+    <span class="badge">Root Config</span>
+  </div>
+  <p><strong>Purpose:</strong> Primary Node.js manifest for the Expo frontend app. Defines dependencies (Expo, React Native, Axios, Zustand, Firebase Client SDK, Expo Router, Reanimated, Lucide Icons) and NPM scripts (<code>start</code>, <code>android</code>, <code>ios</code>, <code>web</code>).</p>
+</div>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">app.json</span>
+    <span class="badge">Expo Config</span>
+  </div>
+  <p><strong>Purpose:</strong> Expo application manifest. Configures app name ("Academic Arena"), slug, version, scheme (<code>academic-arena</code>), splash screen, icons, dark mode configuration, and Android/iOS build settings.</p>
+</div>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">eas.json</span>
+    <span class="badge">EAS Build</span>
+  </div>
+  <p><strong>Purpose:</strong> Expo Application Services (EAS) build configuration for producing Android APKs/AABs and iOS builds under development, preview, and production profiles.</p>
+</div>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">tsconfig.json</span>
+    <span class="badge">TypeScript</span>
+  </div>
+  <p><strong>Purpose:</strong> TypeScript compiler options extending <code>expo/tsconfig.base</code>. Sets strict type checking, module resolution, and path aliases (<code>@/*</code>).</p>
+</div>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">.env</span>
+    <span class="badge">Env Vars</span>
+  </div>
+  <p><strong>Purpose:</strong> Stores environment variables for the frontend application, including backend API URL (<code>EXPO_PUBLIC_API_URL</code>) and Firebase web config credentials.</p>
+</div>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">AGENTS.md / CLAUDE.md</span>
+    <span class="badge">Docs & Rules</span>
+  </div>
+  <p><strong>Purpose:</strong> AI developer guidelines and project documentation rules (e.g. strict Expo v57+ versioned documentation rules).</p>
+</div>
+
+<h3>Section B: Frontend Application & Routing (`app/`) (15 Files)</h3>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">app/index.tsx</span>
+    <span class="badge badge-screen">Root Entry</span>
+  </div>
+  <p><strong>Purpose:</strong> Root entry route. Performs an immediate redirect (<code>&lt;Redirect href="/(auth)" /&gt;</code>) or to <code>/(main)</code> depending on auth state.</p>
+</div>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">app/_layout.tsx</span>
+    <span class="badge badge-screen">Root Navigation</span>
+  </div>
+  <p><strong>Purpose:</strong> Root Expo Router layout component. Initializes custom fonts, sets up Firebase Auth listener (`onAuthStateChanged`), synchronizes state with `authStore` and `userStore`, manages splash screen hiding, and wraps app with Dark Theme Provider.</p>
+</div>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">app/(auth)/_layout.tsx</span>
+    <span class="badge badge-screen">Auth Layout</span>
+  </div>
+  <p><strong>Purpose:</strong> Layout stack for authentication screens (`index.tsx` and `signup.tsx`) with hidden navigation headers.</p>
+</div>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">app/(auth)/index.tsx</span>
+    <span class="badge badge-screen">Login Screen</span>
+  </div>
+  <p><strong>Purpose:</strong> Login UI screen. Handles email/password authentication via Firebase Client SDK, triggers token sync with backend `/api/auth/sync`, updates `authStore` & `userStore`, and handles error messages.</p>
+</div>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">app/(auth)/signup.tsx</span>
+    <span class="badge badge-screen">Signup Screen</span>
+  </div>
+  <p><strong>Purpose:</strong> Registration UI screen. Collects full name, email, password, class selection (6-12), creates Firebase Auth account, calls backend registration API, and initializes default user profile.</p>
+</div>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">app/(main)/_layout.tsx</span>
+    <span class="badge badge-screen">Main Tab Layout</span>
+  </div>
+  <p><strong>Purpose:</strong> Bottom tab bar navigation for main application (Dashboard, Game Arena, Leaderboard, Profile, Admin). Renders custom headers with live user EXP, level badge, and coin count.</p>
+</div>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">app/(main)/index.tsx</span>
+    <span class="badge badge-screen">Dashboard Screen</span>
+  </div>
+  <p><strong>Purpose:</strong> Main player home dashboard. Displays level progression bar, daily streak indicator, quick action play buttons (Solo Arena, 1v1 Bot Challenge), recent match summary, and announcements.</p>
+</div>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">app/(main)/leaderboard.tsx</span>
+    <span class="badge badge-screen">Leaderboard Screen</span>
+  </div>
+  <p><strong>Purpose:</strong> Displays competitive rankings across 3 tabs: Weekly Arena, All-Time EXP, and 1v1 Challenge Masters. Features top 3 glowing podium cards, rank list, and ₹10 UPI reward claim modal.</p>
+</div>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">app/(main)/profile.tsx</span>
+    <span class="badge badge-screen">Profile Screen</span>
+  </div>
+  <p><strong>Purpose:</strong> User customization center. Allows switching avatar borders (Default, Neon Cyan, Gold Crown, Fire Flame, Cyber Shield), title badges, updating UPI ID, viewing lifetime stats, and logging out.</p>
+</div>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">app/(main)/admin.tsx</span>
+    <span class="badge badge-screen">Admin Control Center</span>
+  </div>
+  <p><strong>Purpose:</strong> Admin-only control panel. Protected by `verifyAdmin`. Features system stats cards, question bank manager (Add/Edit/Delete questions), user role manager (Grant Admin, Grant EXP), and pending reward claim approvals.</p>
+</div>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">app/(main)/help.tsx</span>
+    <span class="badge badge-screen">Help & Rules</span>
+  </div>
+  <p><strong>Purpose:</strong> Comprehensive help manual explaining scoring rules, streak multipliers, heart bonuses, bot difficulty levels, and weekly UPI rewards.</p>
+</div>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">app/(main)/game/_layout.tsx</span>
+    <span class="badge badge-screen">Game Layout</span>
+  </div>
+  <p><strong>Purpose:</strong> Stack layout wrapper for game sub-routes (`index`, `[runId]`, `challenge`).</p>
+</div>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">app/(main)/game/index.tsx</span>
+    <span class="badge badge-screen">Game Setup</span>
+  </div>
+  <p><strong>Purpose:</strong> Match creation screen. User selects Class (6 to 12), Subject (Mathematics, Science, English, Social Science), Packet (1 to 10), and launches Solo Arena or Challenge Mode.</p>
+</div>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">app/(main)/game/[runId].tsx</span>
+    <span class="badge badge-screen">Solo Arena Game</span>
+  </div>
+  <p><strong>Purpose:</strong> Core single-player gameplay engine. Fetches 15 questions from backend, manages 15s per-question timer, 3 hearts, streak multipliers, sound effects, question transitions, and submits run results to `/api/runs`.</p>
+</div>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">app/(main)/game/challenge.tsx</span>
+    <span class="badge badge-screen">1v1 Bot Challenge Game</span>
+  </div>
+  <p><strong>Purpose:</strong> 1v1 Bot Challenge game engine. Dynamically scales bot difficulty (Level 1-10), bot accuracy (70%-92%), and bot speed (3s-9s). Simulates live bot opponent, tracks dual scores, auto-advances question packets, and saves match results.</p>
+</div>
+
+<div class="page-break"></div>
+
+<h3>Section C: UI Components (`components/`) (2 Files)</h3>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">components/BouncyButton.tsx</span>
+    <span class="badge">Component</span>
+  </div>
+  <p><strong>Purpose:</strong> Reusable tactile button component using `React Native Reanimated`. Provides spring bounce animation on press, sound triggers, loading spinner state, and custom styling.</p>
+</div>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">components/GlowingProfileCard.tsx</span>
+    <span class="badge">Component</span>
+  </div>
+  <p><strong>Purpose:</strong> Animated profile badge component with glowing neon borders, customizable avatar frames (Neon, Gold, Fire, Cyber), rank badge tags, and level indicators used in Leaderboards and User Profile screens.</p>
+</div>
+
+<h3>Section D: Libraries, Stores & Helpers (`lib/`, `stores/`, `constants/`, `types/`) (9 Files)</h3>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">lib/api.ts</span>
+    <span class="badge">Axios HTTP</span>
+  </div>
+  <p><strong>Purpose:</strong> Configured Axios instance pointing to `EXPO_PUBLIC_API_URL`. Includes an request interceptor that fetches the current Firebase auth token (`auth().currentUser.getIdToken()`) and attaches it as `Authorization: Bearer <token>`.</p>
+</div>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">lib/firebase.ts</span>
+    <span class="badge">Firebase Client</span>
+  </div>
+  <p><strong>Purpose:</strong> Initializes client-side Firebase App and exports Firebase Auth instance (`getAuth()`). Configures persistence using AsyncStorage for React Native.</p>
+</div>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">stores/authStore.ts</span>
+    <span class="badge badge-store">Zustand Store</span>
+  </div>
+  <p><strong>Purpose:</strong> Global auth state store holding `user` object, `token` string, `isAuthenticated` boolean, and actions (`setAuth`, `clearAuth`, `setToken`).</p>
+</div>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">stores/userStore.ts</span>
+    <span class="badge badge-store">Zustand Store</span>
+  </div>
+  <p><strong>Purpose:</strong> Player profile store holding `profile` data (EXP, level, streak, stats, unlocked items, UPI ID) and actions (`setProfile`, `updateStats`, `clearProfile`).</p>
+</div>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">stores/gameStore.ts</span>
+    <span class="badge badge-store">Zustand Store</span>
+  </div>
+  <p><strong>Purpose:</strong> Active gameplay state manager holding current questions array, question index, hearts remaining, active score, current streak, timer countdown, and reset actions.</p>
+</div>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">constants/config.ts</span>
+    <span class="badge">Config</span>
+  </div>
+  <p><strong>Purpose:</strong> Global application constants including default API fallback URLs, packet question limits (15 questions/run), and timing constants.</p>
+</div>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">constants/theme.ts</span>
+    <span class="badge">Theme</span>
+  </div>
+  <p><strong>Purpose:</strong> Centralized design system color palette (Dark theme backgrounds, Cyan neon accents, Gold rank colors, Card surfaces) and typography styles.</p>
+</div>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">types/index.ts</span>
+    <span class="badge">TypeScript Types</span>
+  </div>
+  <p><strong>Purpose:</strong> Core TypeScript interface definitions: `UserProfile`, `Question`, `GameRun`, `LeaderboardEntry`, `RewardClaim`, `ApiResponse`.</p>
+</div>
+
+<div class="page-break"></div>
+
+<h3>Section E: Backend Server Architecture (`backend/`) (20 Files)</h3>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">backend/package.json</span>
+    <span class="badge badge-backend">Backend Config</span>
+  </div>
+  <p><strong>Purpose:</strong> Express server dependencies: `express`, `cors`, `dotenv`, `firebase-admin`, `express-validator`. Defines server startup scripts (`npm start`, `npm run dev`).</p>
+</div>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">backend/.env</span>
+    <span class="badge badge-backend">Backend Env</span>
+  </div>
+  <p><strong>Purpose:</strong> Server environment variables including `PORT` (5000), `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`.</p>
+</div>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">backend/src/index.js</span>
+    <span class="badge badge-backend">Express Entry</span>
+  </div>
+  <p><strong>Purpose:</strong> Express app initialization. Attaches `cors()`, `express.json()`, custom logger middleware, mounts sub-routers (`/api/auth`, `/api/questions`, `/api/runs`, `/api/leaderboard`, `/api/admin`), and attaches global error handler.</p>
+</div>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">backend/src/config/db.js</span>
+    <span class="badge badge-backend">DB Config</span>
+  </div>
+  <p><strong>Purpose:</strong> Database connection placeholder / status verification export for database integration.</p>
+</div>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">backend/src/config/firebase.js</span>
+    <span class="badge badge-backend">Firebase Admin</span>
+  </div>
+  <p><strong>Purpose:</strong> Initializes Firebase Admin SDK using service account credentials from `.env`. Exports Admin Auth (`admin.auth()`) and Firestore Instance (`admin.firestore()`).</p>
+</div>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">backend/src/config/game.js</span>
+    <span class="badge badge-backend">Game Balance</span>
+  </div>
+  <p><strong>Purpose:</strong> Master game scoring parameters: Base XP per question (100), Streak multiplier step (0.1x), Heart bonus XP (50 XP/heart), XP per Level formula (5000 XP/level).</p>
+</div>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">backend/src/middleware/logger.js</span>
+    <span class="badge badge-backend">Middleware</span>
+  </div>
+  <p><strong>Purpose:</strong> HTTP request logging middleware. Logs method, URL route, status code, and response time in milliseconds for every API request.</p>
+</div>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">backend/src/middleware/errorHandler.js</span>
+    <span class="badge badge-backend">Middleware</span>
+  </div>
+  <p><strong>Purpose:</strong> Global Express error handling middleware. Catches unhandled errors, formats JSON error response with status code and error messages.</p>
+</div>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">backend/src/middleware/verifyToken.js</span>
+    <span class="badge badge-backend">Middleware</span>
+  </div>
+  <p><strong>Purpose:</strong> Authentication guard. Extracts Bearer token from `Authorization` header, verifies it via `admin.auth().verifyIdToken(token)`, and attaches decoded user token (`req.user`) to request object.</p>
+</div>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">backend/src/middleware/verifyAdmin.js</span>
+    <span class="badge badge-backend">Middleware</span>
+  </div>
+  <p><strong>Purpose:</strong> Authorization guard for admin routes. Runs after `verifyToken`, fetches user document from Firestore (`users` collection), checks if `role === 'admin'`, and returns 403 Forbidden if unauthorized.</p>
+</div>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">backend/src/models/User.js</span>
+    <span class="badge badge-backend">Model</span>
+  </div>
+  <p><strong>Purpose:</strong> User data model helper for Firestore. Encapsulates profile formatting, totalEXP to Level conversion, level calculation, and default field initialization (badges, activeBorder, challengeWins).</p>
+</div>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">backend/src/models/Run.js</span>
+    <span class="badge badge-backend">Model</span>
+  </div>
+  <p><strong>Purpose:</strong> Run data model helper. Formats and validates game run records before persisting into Firestore `runs` collection.</p>
+</div>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">backend/src/models/Question.js</span>
+    <span class="badge badge-backend">Model</span>
+  </div>
+  <p><strong>Purpose:</strong> Question data model helper. Formats question schema (id, class, subject, packet, difficulty, text, options, correctIndex, explanation).</p>
+</div>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">backend/src/models/Reward.js</span>
+    <span class="badge badge-backend">Model</span>
+  </div>
+  <p><strong>Purpose:</strong> Reward claim model helper. Structure for UPI reward claims in Firestore `rewards` collection (id, uid, userName, upiId, amount, status: 'pending'|'approved').</p>
+</div>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">backend/src/routes/auth.js</span>
+    <span class="badge badge-backend">Auth API</span>
+  </div>
+  <p><strong>Purpose:</strong> Auth REST router. Endpoints: `POST /sync` (Verifies token & returns/creates Firestore user profile), `PUT /profile` (Updates avatar, border frame, title badge, UPI ID).</p>
+</div>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">backend/src/routes/questions.js</span>
+    <span class="badge badge-backend">Questions API</span>
+  </div>
+  <p><strong>Purpose:</strong> Question delivery endpoint (`GET /api/questions`). Filters static question database (`backend/data/questions.js`) and Firestore question store by class, subject, packet number, and difficulty, returning 15 randomized questions.</p>
+</div>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">backend/src/routes/runs.js</span>
+    <span class="badge badge-backend">Runs API</span>
+  </div>
+  <p><strong>Purpose:</strong> Game submission endpoint (`POST /api/runs`). Validates score, computes EXP earned with heart/streak bonuses, updates user document in Firestore (`totalEXP`, `gamesPlayed`, `challengeWins`), and stores run record in `runs` collection.</p>
+</div>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">backend/src/routes/leaderboard.js</span>
+    <span class="badge badge-backend">Leaderboard API</span>
+  </div>
+  <p><strong>Purpose:</strong> Leaderboard endpoints (`GET /api/leaderboard?tab=...`, `POST /claim-reward`). Queries Firestore users collection sorted by EXP or challenge wins, and processes UPI reward claim requests for rank #1.</p>
+</div>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">backend/src/routes/admin.js</span>
+    <span class="badge badge-backend">Admin API</span>
+  </div>
+  <p><strong>Purpose:</strong> Protected admin endpoints (`/api/admin/*`). Handlers for fetching dashboard statistics, adding/editing/deleting questions, granting user EXP, granting admin privileges, and approving UPI reward payouts.</p>
+</div>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">backend/data/questions.js</span>
+    <span class="badge badge-backend">Question Dataset</span>
+  </div>
+  <p><strong>Purpose:</strong> Extensive pre-built offline static question database containing over 6,000 curriculum questions categorized by Class (6 to 12), Subject, Packet Number, and Difficulty Rating (1 to 10).</p>
+</div>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">backend/scripts/seed.js</span>
+    <span class="badge badge-backend">CLI Script</span>
+  </div>
+  <p><strong>Purpose:</strong> Database populator script. Uploads static questions from `questions.js` into Cloud Firestore `questions` collection in bulk batches.</p>
+</div>
+
+<div class="file-card">
+  <div class="file-card-header">
+    <span class="file-path">backend/scripts/makeAdmin.js</span>
+    <span class="badge badge-backend">CLI Script</span>
+  </div>
+  <p><strong>Purpose:</strong> CLI utility script to grant administrative privileges (`role: 'admin'`) to any specified user UID in Firestore.</p>
+</div>
+
+<div class="page-break"></div>
+
+<h2>4. Cloud Firestore Database Schemas</h2>
+
+<h3>User Collection Schema (`users/{uid}`)</h3>
+<pre><code>{
+  "uid": "String (Firebase Auth UID)",
+  "email": "String",
+  "name": "String",
+  "class": "Number (6 - 12)",
+  "role": "String ('user' | 'admin')",
+  "totalEXP": "Number",
+  "weeklyEXP": "Number",
+  "gamesPlayed": "Number",
+  "totalAnswered": "Number",
+  "totalCorrect": "Number",
+  "challengeWins": "Number",
+  "challengeLosses": "Number",
+  "challengeGamesPlayed": "Number",
+  "highestChallengeDifficulty": "Number (1 - 10)",
+  "activeBorder": "String ('default' | 'neon' | 'gold' | 'fire' | 'cyber')",
+  "badges": "Array&lt;String&gt;",
+  "upiId": "String",
+  "createdAt": "Timestamp",
+  "updatedAt": "Timestamp"
+}</code></pre>
+
+<h3>Game Run Collection Schema (`runs/{runId}`)</h3>
+<pre><code>{
+  "runId": "String",
+  "userId": "String (UID)",
+  "class": "Number",
+  "subject": "String",
+  "packet": "Number",
+  "score": "Number",
+  "correctAnswers": "Number",
+  "questionsAnswered": "Number",
+  "expEarned": "Number",
+  "heartsRemaining": "Number",
+  "mode": "String ('solo' | 'challenge')",
+  "challengeDifficulty": "Number",
+  "isChallengeWin": "Boolean",
+  "timestamp": "Timestamp"
+}</code></pre>
+
+<h3>Reward Claim Schema (`rewards/{rewardId}`)</h3>
+<pre><code>{
+  "id": "String",
+  "userId": "String (UID)",
+  "userName": "String",
+  "upiId": "String",
+  "amount": "Number (10)",
+  "status": "String ('pending' | 'approved' | 'rejected')",
+  "claimedAt": "Timestamp"
+}</code></pre>
+
+<div class="page-break"></div>
+
+<h2>5. Security, Validation & Error Handling Pipeline</h2>
+<ul>
+  <li><strong>Authentication Guard:</strong> All protected API requests pass through `verifyToken.js` which cryptographically validates the Firebase ID token via `admin.auth().verifyIdToken()`.</li>
+  <li><strong>Role Authorization Guard:</strong> Sensitive routes (`/api/admin/*`) execute `verifyAdmin.js` to ensure the requester possesses `role === 'admin'` in Firestore.</li>
+  <li><strong>Input Sanitization:</strong> User profile updates (UPI ID, name, class) are sanitized to prevent injection attacks and invalid data types.</li>
+  <li><strong>Centralized Logging & Error Diagnostics:</strong> The custom `logger.js` records request metrics, while `errorHandler.js` intercepts unhandled exceptions to return standard JSON error structures without leaking sensitive stack traces in production.</li>
+</ul>
+
+<div style="margin-top: 40px; padding: 15px; background-color: #f1f5f9; border-radius: 8px; font-size: 9pt; text-align: center; color: #475569;">
+  Generated automatically for <strong>Academic Arena</strong> • Full End-to-End System Documentation Artifact
+</div>
+
+</body>
+</html>
+"""
+
+with open("Academic_Arena_Documentation.html", "w", encoding="utf-8") as f:
+    f.write(html_content)
+
+print("HTML Documentation created successfully.")

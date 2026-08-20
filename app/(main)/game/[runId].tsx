@@ -15,10 +15,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { useGameStore } from '../../../stores/gameStore';
 import { useUserStore } from '../../../stores/userStore';
+import { useAuthStore } from '../../../stores/authStore';
 import { useThemeStore } from '../../../stores/themeStore';
 import { Colors, Gradients } from '../../../constants/theme';
 import { getStreakAtmosphere } from '../../../constants/themes';
 import { soundManager } from '../../../lib/soundManager';
+import { auth } from '../../../lib/firebase';
 import {
   MAX_HEARTS,
   SPEED_THRESHOLDS,
@@ -48,6 +50,7 @@ export default function GameRunScreen() {
 
   const game = useGameStore();
   const user = useUserStore();
+  const { firebaseUser } = useAuthStore();
 
   const [timeLeft, setTimeLeft] = useState(15);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
@@ -63,6 +66,7 @@ export default function GameRunScreen() {
   const questionBatchRef = useRef<Question[]>([]);
   const questionStartTimeRef = useRef<number>(Date.now());
   const answersRecordRef = useRef<Array<{ questionId: string; selectedOption: number; timeTakenMs: number }>>([]);
+  const isEndingRef = useRef(false);
 
   // ─── Animation Drivers ───
   const questionFadeAnim = useRef(new Animated.Value(0)).current;
@@ -126,12 +130,15 @@ export default function GameRunScreen() {
     ]).start();
   }, [optionFadeAnim, optionSlideAnim, questionFadeAnim, questionSlideAnim]);
 
-  // Initialize game run
+  // Initialize game run & Continuous Background Music
   useEffect(() => {
     const initialPacket = packet ? parseInt(packet) : 1;
     game.startRun(runId!, parseInt(classStr!), subject!, initialPacket);
     fetchQuestions();
+    soundManager.startBgm();
+
     return () => {
+      soundManager.stopBgm();
       if (timerRef.current) clearInterval(timerRef.current);
       if (passiveRef.current) clearInterval(passiveRef.current);
       if (inactivityRef.current) clearInterval(inactivityRef.current);
@@ -145,14 +152,30 @@ export default function GameRunScreen() {
     }
   }, [game.currentQuestion, animateQuestionEntrance]);
 
-  // AppState anti-cheat
+  // AppState anti-cheat with safe 10-second background debounce
   useEffect(() => {
+    let backgroundTimer: ReturnType<typeof setTimeout> | null = null;
+
     const sub = AppState.addEventListener('change', (state) => {
-      if (state !== 'active' && game.isGameActive) {
-        endGame('cheat_detected');
+      if (state === 'background' && game.isGameActive) {
+        // Debounce to prevent false-positives on quick notifications or audio focus changes
+        backgroundTimer = setTimeout(() => {
+          if (game.isGameActive) {
+            endGame('cheat_detected');
+          }
+        }, 10000);
+      } else if (state === 'active') {
+        if (backgroundTimer) {
+          clearTimeout(backgroundTimer);
+          backgroundTimer = null;
+        }
       }
     });
-    return () => sub.remove();
+
+    return () => {
+      if (backgroundTimer) clearTimeout(backgroundTimer);
+      sub.remove();
+    };
   }, [game.isGameActive]);
 
   // Passive EXP accumulation
@@ -375,8 +398,6 @@ export default function GameRunScreen() {
     }
   };
 
-  const isEndingRef = useRef(false);
-
   const saveRunToServer = async (status: 'completed' | 'cheat_detected' | 'timeout'): Promise<boolean> => {
     try {
       const payloadClass = classStr ? parseInt(classStr) : (user.profile?.class || 10);
@@ -386,12 +407,13 @@ export default function GameRunScreen() {
       const scoreVal = game.score || 0;
       const totalAnsweredVal = Math.max(game.totalQuestionsAnswered || 0, scoreVal);
       const expVal = game.expEarned || 0;
+      const currentUid = firebaseUser?.uid || user.profile?.uid || auth.currentUser?.uid || 'anonymous';
 
-      // 1. Save directly to Supabase game_runs
-      await SupabaseService.saveGameRun({
+      // 1. Record completed run and atomically update user EXP in Supabase
+      await SupabaseService.recordCompletedRun({
+        firebaseUid: currentUid,
         runId: payloadRunId,
-        userId: user.profile?.uid || 'anonymous',
-        class: payloadClass,
+        classNum: payloadClass,
         subject: payloadSubject,
         mode: 'solo',
         score: scoreVal,
@@ -405,10 +427,10 @@ export default function GameRunScreen() {
         answers: answersRecordRef.current,
       });
 
-      // 2. Update user profile EXP in Supabase
-      if (user.profile?.uid) {
-        await SupabaseService.upsertUserProfile({
-          firebaseUid: user.profile.uid,
+      // 2. Immediately update local Zustand user profile
+      if (user.profile) {
+        user.setProfile({
+          ...user.profile,
           totalEXP: (user.profile.totalEXP || 0) + expVal,
           gamesPlayed: (user.profile.gamesPlayed || 0) + 1,
           totalAnswered: (user.profile.totalAnswered || 0) + totalAnsweredVal,
@@ -416,7 +438,7 @@ export default function GameRunScreen() {
         });
       }
 
-      // Also notify legacy API if reachable
+      // Legacy API fallback
       try {
         await api.post('/runs', {
           runId: payloadRunId,
@@ -446,6 +468,7 @@ export default function GameRunScreen() {
     if (isEndingRef.current) return;
     isEndingRef.current = true;
 
+    soundManager.stopBgm();
     game.endRun();
     if (timerRef.current) clearInterval(timerRef.current);
     if (passiveRef.current) clearInterval(passiveRef.current);

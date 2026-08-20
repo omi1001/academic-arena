@@ -60,6 +60,7 @@ export default function LeaderboardScreen() {
             uid: item.firebase_uid,
             name: item.name,
             displayName: item.name,
+            exp: item.score,
             totalEXP: item.score,
             weeklyEXP: item.score,
             challengeWins: item.score,

@@ -15,10 +15,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUserStore } from '../../../stores/userStore';
+import { useAuthStore } from '../../../stores/authStore';
 import { useThemeStore } from '../../../stores/themeStore';
 import { Colors, Gradients } from '../../../constants/theme';
 import { MAX_HEARTS, LEADERBOARD_TIERS } from '../../../constants/config';
 import { soundManager } from '../../../lib/soundManager';
+import { auth } from '../../../lib/firebase';
 import api from '../../../lib/api';
 import { SupabaseService } from '../../../lib/supabaseService';
 import type { Question } from '../../../types';
@@ -74,6 +76,7 @@ export default function ChallengeGameScreen() {
   }>();
 
   const { profile, setProfile } = useUserStore();
+  const { firebaseUser } = useAuthStore();
   const { getColors, mode } = useThemeStore();
   const colors = getColors();
   const playerExp = profile?.totalEXP || 0;
@@ -207,7 +210,9 @@ export default function ChallengeGameScreen() {
 
   useEffect(() => {
     fetchQuestions();
+    soundManager.startBgm();
     return () => {
+      soundManager.stopBgm();
       if (timerRef.current) clearInterval(timerRef.current);
       if (botTimeoutRef.current) clearTimeout(botTimeoutRef.current);
     };
@@ -379,6 +384,7 @@ export default function ChallengeGameScreen() {
 
     if (timerRef.current) clearInterval(timerRef.current);
     if (botTimeoutRef.current) clearTimeout(botTimeoutRef.current);
+    soundManager.stopBgm();
 
     if (playerWon) {
       soundManager.playVictory();
@@ -420,12 +426,13 @@ export default function ChallengeGameScreen() {
       const botDifficultyLevel = Math.min(10, Math.max(1, Math.floor(playerExp / 5000) + 1));
       const classNum = parseInt(classStr || `${profile?.class || 10}`);
       const subjectName = subject || 'Mathematics';
+      const currentUid = firebaseUser?.uid || profile?.uid || auth.currentUser?.uid || 'anonymous';
 
-      // 1. Save directly to Supabase game_runs
-      await SupabaseService.saveGameRun({
+      // 1. Record completed run and atomically update user EXP in Supabase
+      await SupabaseService.recordCompletedRun({
+        firebaseUid: currentUid,
         runId: payloadRunId,
-        userId: profile?.uid || 'anonymous',
-        class: classNum,
+        classNum,
         subject: subjectName,
         mode: 'challenge',
         score: playerScore,
@@ -435,36 +442,24 @@ export default function ChallengeGameScreen() {
         maxStreak: 0,
         highestDifficulty: botDifficultyLevel,
         heartsRemaining: playerHearts,
-        status,
+        status: status as any,
         isChallengeWin: playerWon,
         answers: answersRecordRef.current,
       });
 
-      // 2. Update user profile EXP & challenge stats in Supabase
-      if (profile?.uid) {
+      // 2. Immediately update local Zustand user profile
+      if (profile) {
         const newWins = (profile.challengeWins || 0) + (playerWon ? 1 : 0);
         const newLosses = (profile.challengeLosses || 0) + (playerWon ? 0 : 1);
         const newGames = (profile.challengeGamesPlayed || 0) + 1;
         const newPeakDiff = Math.max(profile.highestChallengeDifficulty || 1, botDifficultyLevel);
 
-        await SupabaseService.upsertUserProfile({
-          firebaseUid: profile.uid,
+        setProfile({
+          ...profile,
           totalEXP: (profile.totalEXP || 0) + expEarned,
           gamesPlayed: (profile.gamesPlayed || 0) + 1,
           totalAnswered: (profile.totalAnswered || 0) + (currentQIndex + 1),
           totalCorrect: (profile.totalCorrect || 0) + playerScore,
-          challengeWins: newWins,
-          challengeLosses: newLosses,
-          challengeGamesPlayed: newGames,
-          highestChallengeDifficulty: newPeakDiff,
-        });
-
-        setProfile({
-          ...profile,
-          totalEXP: profile.totalEXP + expEarned,
-          gamesPlayed: profile.gamesPlayed + 1,
-          totalAnswered: profile.totalAnswered + (currentQIndex + 1),
-          totalCorrect: profile.totalCorrect + playerScore,
           challengeWins: newWins,
           challengeLosses: newLosses,
           challengeGamesPlayed: newGames,
