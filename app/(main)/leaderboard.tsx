@@ -116,17 +116,17 @@ export default function LeaderboardScreen() {
         <View style={[styles.bannerContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={[styles.bannerTitle, { color: colors.primary }]}>
             {tab === 'weekly'
-              ? '⚡ FRESH WEEKLY ARENA'
+              ? '⚡ FRESH WEEKLY ₹10 UPI ARENA'
               : tab === 'total'
-                ? '🏆 ALL-TIME ARENA LEGENDS'
-                : '⚔️ 1v1 CHALLENGE MASTERS'}
+                ? '🏆 ALL-TIME HALL OF FAME'
+                : '⚔️ 1v1 BOT SLAYERS'}
           </Text>
           <Text style={[styles.bannerSubtitle, { color: colors.textMuted }]}>
             {tab === 'weekly'
-              ? 'Calculated freshly every week! Resets every Monday. Top 1 gets ₹10 UPI reward!'
+              ? 'Resets every Sunday midnight! Rank #1 grinder gets ₹10 real cash via UPI. No excuses, start cooking!'
               : tab === 'total'
-                ? 'Lifetime total EXP accumulated since user registration.'
-                : 'Ranked by highest bot difficulty level defeated and total 1v1 challenge wins.'}
+                ? 'The ultimate try-hards who forgot what sleep is and farmed maximum lifetime EXP.'
+                : 'Ranked by total adaptive AI bots demolished and highest difficulty levels cleared!'}
           </Text>
         </View>
 
@@ -317,7 +317,7 @@ export default function LeaderboardScreen() {
             onPress={() => setTab('weekly')}
           >
             <Text style={[styles.tabButtonText, { color: colors.textMuted }, tab === 'weekly' && styles.tabButtonTextActive]}>
-              ⚡ WEEKLY
+              ⚡ WEEKLY ₹10
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -325,7 +325,7 @@ export default function LeaderboardScreen() {
             onPress={() => setTab('total')}
           >
             <Text style={[styles.tabButtonText, { color: colors.textMuted }, tab === 'total' && styles.tabButtonTextActive]}>
-              🏆 TOTAL
+              🏆 ALL-TIME
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -333,7 +333,7 @@ export default function LeaderboardScreen() {
             onPress={() => setTab('challenge')}
           >
             <Text style={[styles.tabButtonText, { color: colors.textMuted }, tab === 'challenge' && styles.tabButtonTextActive]}>
-              ⚔️ CHALLENGE
+              ⚔️ 1v1 BOT DUELS
             </Text>
           </TouchableOpacity>
         </View>

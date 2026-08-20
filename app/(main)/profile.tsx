@@ -18,6 +18,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { useUserStore } from '../../stores/userStore';
 import { useThemeStore } from '../../stores/themeStore';
 import { soundManager } from '../../lib/soundManager';
+import { NotificationService } from '../../lib/notificationService';
 import { ThemedBackground } from '../../components/ThemedBackground';
 import { ThemeSelectorModal } from '../../components/ThemeSelectorModal';
 import { Colors, Gradients } from '../../constants/theme';
@@ -215,7 +216,7 @@ export default function ProfileScreen() {
         </LinearGradient>
 
         {/* ─── Select Avatar ─── */}
-        <Text style={[styles.sectionHeader, { color: colors.primary }]}>CHOOSE YOUR AVATAR</Text>
+        <Text style={[styles.sectionHeader, { color: colors.primary }]}>CHOOSE YOUR BATTLE AVATAR 🎭</Text>
         <View style={styles.avatarGrid}>
           {AVATAR_LIST.map((av) => (
             <TouchableOpacity
@@ -244,21 +245,21 @@ export default function ProfileScreen() {
               end={{ x: 1, y: 0 }}
               style={styles.adminPortalGradient}
             >
-              <Text style={styles.adminPortalText}>⚡ OPEN ADMIN CONTROL PANEL</Text>
+              <Text style={styles.adminPortalText}>⚡ OPEN OVERLORD MASTER CONSOLE 🕹️</Text>
             </LinearGradient>
           </BouncyButton>
         )}
 
         {/* ─── UPI Details for Weekly ₹10 Reward ─── */}
-        <Text style={[styles.sectionHeader, { color: colors.primary }]}>🎁 WEEKLY UPI REWARD SETTINGS</Text>
+        <Text style={[styles.sectionHeader, { color: colors.primary }]}>💸 WEEKLY ₹10 UPI BOUNTY ADDRESS</Text>
         <View style={[styles.upiContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={[styles.upiSubtext, { color: colors.textMuted }]}>
-            Top player each week receives ₹10 directly in their UPI account!
+            Top grinder each week receives ₹10 cold hard cash directly in their UPI account! Enter a valid GPay/PhonePe/Paytm ID.
           </Text>
           <View style={styles.upiRow}>
             <TextInput
               style={[styles.upiInput, { color: colors.text, borderColor: colors.border, backgroundColor: mode === 'dark' ? '#0B0D1B' : '#FFFFFF' }]}
-              placeholder="Enter UPI ID (e.g. name@upi)"
+              placeholder="Enter UPI ID (e.g. name@okhdfcbank)"
               placeholderTextColor={colors.textMuted}
               value={upiInput}
               onChangeText={setUpiInput}
@@ -270,7 +271,7 @@ export default function ProfileScreen() {
         </View>
 
         {/* ─── Academic Class Selector ─── */}
-        <Text style={[styles.sectionHeader, { color: colors.primary }]}>ACADEMIC CLASS</Text>
+        <Text style={[styles.sectionHeader, { color: colors.primary }]}>ACADEMIC GRADE</Text>
         <View style={styles.classRow}>
           <BouncyButton
             style={[
@@ -281,7 +282,7 @@ export default function ProfileScreen() {
             onPress={() => handleUpdateClass(9)}
           >
             <Text style={[styles.classChipText, { color: colors.textMuted }, profile?.class === 9 && [styles.classChipTextSelected, { color: colors.primary }]]}>
-              CLASS 9
+              CLASS 9 (FOUNDATION)
             </Text>
           </BouncyButton>
           <BouncyButton
@@ -293,25 +294,25 @@ export default function ProfileScreen() {
             onPress={() => handleUpdateClass(10)}
           >
             <Text style={[styles.classChipText, { color: colors.textMuted }, profile?.class === 10 && [styles.classChipTextSelected, { color: colors.primary }]]}>
-              CLASS 10
+              CLASS 10 👑 (BOARDS)
             </Text>
           </BouncyButton>
         </View>
 
         {/* ─── 1v1 Bot Challenge Stats ─── */}
-        <Text style={[styles.sectionHeader, { color: colors.primary }]}>⚔️ 1v1 BOT CHALLENGE STATS</Text>
+        <Text style={[styles.sectionHeader, { color: colors.primary }]}>⚔️ 1v1 BOT SLAYER TELEMETRY</Text>
         <View style={styles.statsGrid}>
           <View style={[styles.statBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={styles.statIcon}>⚔️</Text>
             <Text style={[styles.statValue, { color: colors.text }]}>{profile?.challengeGamesPlayed || 0}</Text>
-            <Text style={[styles.statLabel, { color: colors.textMuted }]}>Challenges</Text>
+            <Text style={[styles.statLabel, { color: colors.textMuted }]}>Duels Fought</Text>
           </View>
           <View style={[styles.statBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={styles.statIcon}>🏆</Text>
             <Text style={[styles.statValue, { color: colors.text }]}>
               {profile?.challengeWins || 0}W / {profile?.challengeLosses || 0}L
             </Text>
-            <Text style={[styles.statLabel, { color: colors.textMuted }]}>Record</Text>
+            <Text style={[styles.statLabel, { color: colors.textMuted }]}>Duel Record</Text>
           </View>
           <View style={[styles.statBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={styles.statIcon}>📈</Text>
@@ -325,27 +326,27 @@ export default function ProfileScreen() {
           <View style={[styles.statBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={styles.statIcon}>🤖</Text>
             <Text style={[styles.statValue, { color: colors.text }]}>Lv.{profile?.highestChallengeDifficulty || 1}</Text>
-            <Text style={[styles.statLabel, { color: colors.textMuted }]}>Peak Bot</Text>
+            <Text style={[styles.statLabel, { color: colors.textMuted }]}>Peak Bot Level</Text>
           </View>
         </View>
 
         {/* ─── Lifetime Stats Grid ─── */}
-        <Text style={[styles.sectionHeader, { color: colors.primary }]}>LIFETIME STATS</Text>
+        <Text style={[styles.sectionHeader, { color: colors.primary }]}>📊 LIFETIME GRIND TELEMETRY</Text>
         <View style={styles.statsGrid}>
           <View style={[styles.statBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={styles.statIcon}>⚡</Text>
-            <Text style={[styles.statValue, { color: colors.text }]}>{profile?.totalEXP || 0}</Text>
-            <Text style={[styles.statLabel, { color: colors.textMuted }]}>Total EXP</Text>
+            <Text style={[styles.statValue, { color: colors.text }]}>{(profile?.totalEXP || 0).toLocaleString()}</Text>
+            <Text style={[styles.statLabel, { color: colors.textMuted }]}>Brain Battery</Text>
           </View>
           <View style={[styles.statBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={styles.statIcon}>🎮</Text>
+            <Text style={styles.statIcon}>🔥</Text>
             <Text style={[styles.statValue, { color: colors.text }]}>{profile?.gamesPlayed || 0}</Text>
-            <Text style={[styles.statLabel, { color: colors.textMuted }]}>Runs Played</Text>
+            <Text style={[styles.statLabel, { color: colors.textMuted }]}>Study Grinds</Text>
           </View>
           <View style={[styles.statBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={styles.statIcon}>❓</Text>
             <Text style={[styles.statValue, { color: colors.text }]}>{profile?.totalAnswered || 0}</Text>
-            <Text style={[styles.statLabel, { color: colors.textMuted }]}>Questions</Text>
+            <Text style={[styles.statLabel, { color: colors.textMuted }]}>Q's Solved</Text>
           </View>
           <View style={[styles.statBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={styles.statIcon}>🎯</Text>

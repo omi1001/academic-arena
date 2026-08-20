@@ -722,8 +722,8 @@ export default function GameRunScreen() {
             >
               <Text style={styles.resultText}>
                 {isCorrect
-                  ? `⚡ PERFECT! +${earnedExpToast || 100} EXP`
-                  : '💥 INCORRECT! -1 HEART'}
+                  ? `⚡ 200 IQ MOVE! +${earnedExpToast || 100} EXP`
+                  : '💨 BRO THOUGHT HE COOKED! -1 ❤️'}
               </Text>
             </LinearGradient>
           </Animated.View>

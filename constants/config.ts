@@ -38,10 +38,11 @@ export const SUBJECT_ICONS: Record<Subject, string> = {
 };
 
 export const LEADERBOARD_TIERS = {
-  BRONZE: { name: 'Bronze', minEXP: 0, color: '#CD7F32' },
-  SILVER: { name: 'Silver', minEXP: 5000, color: '#C0C0C0' },
-  GOLD: { name: 'Gold', minEXP: 20000, color: '#FFD700' },
-  DIAMOND: { name: 'Diamond', minEXP: 50000, color: '#B9F2FF' },
+  BRONZE: { id: 'BRONZE', name: 'Bronze (Textbook Opener)', minEXP: 0, color: '#CD7F32', tag: '📖 Searching for page 1' },
+  SILVER: { id: 'SILVER', name: 'Silver (Homework Survivor)', minEXP: 5000, color: '#C0C0C0', tag: '⚡ 1 min before deadline' },
+  GOLD: { id: 'GOLD', name: 'Gold (95% Aspirant)', minEXP: 20000, color: '#FFD700', tag: '🏆 Sharma ji is sweating' },
+  DIAMOND: { id: 'DIAMOND', name: 'Diamond (Academic Demon)', minEXP: 50000, color: '#B9F2FF', tag: '👑 200 IQ NCERT Connoisseur' },
 } as const;
 
 export const QUESTIONS_PER_BATCH = 10;
+

@@ -52,16 +52,16 @@ const saveSeenQuestionIds = async (newIds: string[]) => {
 };
 
 const BOT_NAMES = [
-  'CyberNinja',
-  'QuantumRacer',
-  'Titan_Class10',
-  'ApexScholar',
-  'Vortex_Pro',
-  'HyperSonic',
-  'ShadowStrike',
-  'BlazeRunner',
-  'AuraMaster',
-  'NovaRider',
+  'SharmaJi_Ka_Beta',
+  'Backbencher_99',
+  'NCERT_Connoisseur',
+  'CalculusDemon',
+  'Rohan_Speedrunner',
+  'Topper_Ananya',
+  'MitochondriaMaster',
+  'LateNightGrinder',
+  'ZeroSocialLife',
+  'SamosaAddict',
 ];
 
 const BOT_AVATARS = ['🤖', '🥷', '⚡', '🦅', '🦁', '🔥', '👑', '👾'];
@@ -674,12 +674,12 @@ export default function ChallengeGameScreen() {
             <View style={[styles.resultCard, { backgroundColor: colors.cardBg || colors.surface, borderColor: colors.border }]}>
               <Text style={styles.resultTitleEmoji}>{isPlayerWinner ? '🏆' : '💀'}</Text>
               <Text style={[styles.resultTitleText, { color: colors.text }]}>
-                {isPlayerWinner ? 'VICTORY!' : 'DEFEATED!'}
+                {isPlayerWinner ? 'BOT HUMBLED & COOKED!' : 'DEFEATED BY AN AI NERD!'}
               </Text>
               <Text style={[styles.resultSubtitle, { color: colors.textMuted }]}>
                 {isPlayerWinner
-                  ? `You out-raced ${botName} in the 1v1 Arena!`
-                  : `${botName} answered all 15 questions first.`}
+                  ? `You destroyed ${botName} in the 1v1 duel! Your brain cells > silicon chips.`
+                  : `${botName} solved questions faster! Go revise NCERT and come back stronger.`}
               </Text>
 
               {/* Stats Breakdown */}

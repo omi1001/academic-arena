@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { auth } from './firebase';
 import type { User, Question } from '../types';
 
 export interface LeaderboardEntry {
@@ -57,7 +58,6 @@ export const SupabaseService = {
   async upsertUserProfile(profile: Partial<User> & { firebaseUid: string }): Promise<User | null> {
     try {
       const payload: Record<string, any> = {
-        firebase_uid: profile.firebaseUid,
         updated_at: new Date().toISOString(),
       };
 
@@ -75,36 +75,83 @@ export const SupabaseService = {
       if (profile.challengeGamesPlayed !== undefined) payload.challenge_games_played = profile.challengeGamesPlayed;
       if (profile.highestChallengeDifficulty !== undefined) payload.highest_challenge_difficulty = profile.highestChallengeDifficulty;
 
-      const { data, error } = await supabase
+      const { data: existingUser } = await supabase
         .from('users')
-        .upsert(payload, { onConflict: 'firebase_uid' })
-        .select()
-        .single();
+        .select('*')
+        .eq('firebase_uid', profile.firebaseUid)
+        .maybeSingle();
 
-      if (error) {
-        console.warn('Supabase upsertUserProfile error:', error);
-        return null;
+      let resultData: any = null;
+
+      if (existingUser) {
+        const { data, error } = await supabase
+          .from('users')
+          .update(payload)
+          .eq('firebase_uid', profile.firebaseUid)
+          .select()
+          .single();
+
+        if (error) {
+          console.warn('Supabase update user profile error:', error);
+          return null;
+        }
+        resultData = data;
+      } else {
+        const insertPayload = {
+          firebase_uid: profile.firebaseUid,
+          name: profile.name || auth.currentUser?.displayName || 'Player',
+          email: profile.email || auth.currentUser?.email || '',
+          class: profile.class || 10,
+          total_exp: profile.totalEXP || 0,
+          weekly_exp: profile.totalEXP || 0,
+          hearts: 3,
+          avatar: profile.avatar || '👤',
+          games_played: profile.gamesPlayed || 0,
+          total_answered: profile.totalAnswered || 0,
+          total_correct: profile.totalCorrect || 0,
+          challenge_wins: profile.challengeWins || 0,
+          challenge_losses: profile.challengeLosses || 0,
+          challenge_games_played: profile.challengeGamesPlayed || 0,
+          highest_challenge_difficulty: profile.highestChallengeDifficulty || 1,
+          theme_preset: 'cosmic_lofi',
+          theme_mode: 'dark',
+          ...payload,
+        };
+
+        const { data, error } = await supabase
+          .from('users')
+          .insert(insertPayload)
+          .select()
+          .single();
+
+        if (error) {
+          console.warn('Supabase insert user profile error:', error);
+          return null;
+        }
+        resultData = data;
       }
 
+      if (!resultData) return null;
+
       return {
-        uid: data.firebase_uid,
-        name: data.name,
-        email: data.email,
-        class: data.class,
-        totalEXP: data.total_exp || 0,
-        gamesPlayed: data.games_played || 0,
-        totalAnswered: data.total_answered || 0,
-        totalCorrect: data.total_correct || 0,
+        uid: resultData.firebase_uid,
+        name: resultData.name,
+        email: resultData.email,
+        class: resultData.class,
+        totalEXP: resultData.total_exp || 0,
+        gamesPlayed: resultData.games_played || 0,
+        totalAnswered: resultData.total_answered || 0,
+        totalCorrect: resultData.total_correct || 0,
         highestStreak: 0,
         highestDifficulty: 1,
-        challengeWins: data.challenge_wins || 0,
-        challengeLosses: data.challenge_losses || 0,
-        challengeGamesPlayed: data.challenge_games_played || 0,
-        highestChallengeDifficulty: data.highest_challenge_difficulty || 1,
-        avatar: data.avatar || '👤',
-        upiId: data.upi_id || '',
-        createdAt: data.created_at,
-        updatedAt: data.updated_at,
+        challengeWins: resultData.challenge_wins || 0,
+        challengeLosses: resultData.challenge_losses || 0,
+        challengeGamesPlayed: resultData.challenge_games_played || 0,
+        highestChallengeDifficulty: resultData.highest_challenge_difficulty || 1,
+        avatar: resultData.avatar || '👤',
+        upiId: resultData.upi_id || '',
+        createdAt: resultData.created_at,
+        updatedAt: resultData.updated_at,
       };
     } catch (e) {
       console.warn('Supabase upsertUserProfile failed:', e);
@@ -273,7 +320,6 @@ export const SupabaseService = {
         const currentCorrect = userRow?.total_correct || 0;
 
         const updates: Record<string, any> = {
-          firebase_uid: firebaseUid,
           total_exp: currentTotalExp + expEarned,
           weekly_exp: currentWeeklyExp + expEarned,
           games_played: currentGames + 1,
@@ -295,14 +341,39 @@ export const SupabaseService = {
           );
         }
 
-        const { error: userError } = await supabase
-          .from('users')
-          .upsert(updates, { onConflict: 'firebase_uid' });
+        if (userRow) {
+          const { error: updateError } = await supabase
+            .from('users')
+            .update(updates)
+            .eq('firebase_uid', firebaseUid);
 
-        if (userError) {
-          console.warn('Supabase update user EXP error:', userError);
+          if (updateError) {
+            console.warn('Supabase update user EXP error:', updateError);
+          } else {
+            console.log(`[SUPABASE] Successfully updated ${firebaseUid} with +${expEarned} EXP!`);
+          }
         } else {
-          console.log(`[SUPABASE] Successfully updated ${firebaseUid} with +${expEarned} EXP!`);
+          const insertPayload = {
+            firebase_uid: firebaseUid,
+            name: auth.currentUser?.displayName || 'Player',
+            email: auth.currentUser?.email || '',
+            class: classNum || 10,
+            hearts: 3,
+            avatar: '👤',
+            theme_preset: 'cosmic_lofi',
+            theme_mode: 'dark',
+            ...updates,
+          };
+
+          const { error: insertError } = await supabase
+            .from('users')
+            .insert(insertPayload);
+
+          if (insertError) {
+            console.warn('Supabase insert user EXP error:', insertError);
+          } else {
+            console.log(`[SUPABASE] Successfully inserted user ${firebaseUid} with +${expEarned} EXP!`);
+          }
         }
       }
 
