@@ -18,7 +18,6 @@ import { useAuthStore } from '../../stores/authStore';
 import { useUserStore } from '../../stores/userStore';
 import { useThemeStore } from '../../stores/themeStore';
 import { soundManager } from '../../lib/soundManager';
-import { NotificationService } from '../../lib/notificationService';
 import { ThemedBackground } from '../../components/ThemedBackground';
 import { ThemeSelectorModal } from '../../components/ThemeSelectorModal';
 import { Colors, Gradients } from '../../constants/theme';

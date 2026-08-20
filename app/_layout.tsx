@@ -1,48 +1,24 @@
 import { useEffect } from 'react';
-import { Stack, useRouter } from 'expo-router';
+import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
-import * as Notifications from 'expo-notifications';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 import { useAuthStore } from '../stores/authStore';
 import { useThemeStore } from '../stores/themeStore';
-import { NotificationService } from '../lib/notificationService';
 import { Colors } from '../constants/theme';
 
 export default function RootLayout() {
-  const router = useRouter();
   const { setFirebaseUser, setLoading, isLoading } = useAuthStore();
   const { loadStoredTheme, mode } = useThemeStore();
 
   useEffect(() => {
     loadStoredTheme().catch(() => {});
-    NotificationService.initialize().catch(() => {});
-
-    // Listen for notification taps safely
-    let responseListener: { remove: () => void } | null = null;
-    try {
-      if (Notifications && typeof Notifications.addNotificationResponseReceivedListener === 'function') {
-        responseListener = Notifications.addNotificationResponseReceivedListener((response) => {
-          console.log('[NOTIFICATIONS] User tapped notification:', response.notification.request.content.title);
-          router.push('/(main)');
-        });
-      }
-    } catch (e) {
-      console.warn('[NOTIFICATIONS] Response listener setup skipped:', e);
-    }
-
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setFirebaseUser(user);
       setLoading(false);
     });
-
-    return () => {
-      unsubscribe();
-      if (responseListener) {
-        responseListener.remove();
-      }
-    };
+    return unsubscribe;
   }, []);
 
   if (isLoading) {

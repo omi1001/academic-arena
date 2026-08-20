@@ -18,7 +18,6 @@ import { sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
 import api from '../../lib/api';
 import { BouncyButton } from '../../components/BouncyButton';
-import { NotificationService } from '../../lib/notificationService';
 
 type Tab = 'STATS' | 'REWARDS' | 'QUESTIONS' | 'USERS';
 
@@ -489,19 +488,6 @@ export default function AdminScreen() {
                   <Text style={[styles.statNumber, { color: '#FFD700' }]}>{stats?.pendingRewards || 0}</Text>
                   <Text style={styles.statLabel}>Unclaimed Loot</Text>
                 </View>
-              </View>
-
-              {/* Instant Notification Broadcast Tester */}
-              <View style={{ marginBottom: 14 }}>
-                <BouncyButton
-                  style={styles.cannonFireBtn}
-                  onPress={async () => {
-                    await NotificationService.sendTestNotification();
-                    Alert.alert('📡 Broadcast Triggered!', 'A random sarcastic reminder will pop up on your device in 2 seconds.');
-                  }}
-                >
-                  <Text style={styles.cannonFireBtnText}>🔔 TEST SARCASTIC NOTIFICATION (IN 2s)</Text>
-                </BouncyButton>
               </View>
 
               {/* Weekly Champions Section */}
