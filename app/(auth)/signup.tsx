@@ -30,6 +30,7 @@ export default function SignupScreen() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [customUsername, setCustomUsername] = useState('');
   const [selectedClass, setSelectedClass] = useState<9 | 10 | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -38,7 +39,7 @@ export default function SignupScreen() {
 
   const handleSignup = async () => {
     if (!email.trim() || !password.trim() || !displayName.trim()) {
-      Alert.alert('Error', 'Please fill in all fields');
+      Alert.alert('Error', 'Please fill in all required fields');
       return;
     }
 
@@ -57,6 +58,18 @@ export default function SignupScreen() {
       return;
     }
 
+    let finalUsername = customUsername.trim().toLowerCase();
+    if (finalUsername) {
+      if (!finalUsername.startsWith('@')) {
+        finalUsername = `@${finalUsername}`;
+      }
+      const isAvailable = await SupabaseService.checkUsernameAvailable(finalUsername);
+      if (!isAvailable) {
+        Alert.alert('Username Taken', `${finalUsername} is already claimed by another aspirant. Please pick another username!`);
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       const credential = await createUserWithEmailAndPassword(
@@ -72,6 +85,7 @@ export default function SignupScreen() {
         const newProfile = await SupabaseService.upsertUserProfile({
           firebaseUid: credential.user.uid,
           name: displayName.trim(),
+          username: finalUsername || undefined,
           email: email.trim(),
           class: selectedClass,
           totalEXP: 0,
@@ -118,11 +132,21 @@ export default function SignupScreen() {
           <View style={styles.form}>
             <TextInput
               style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
-              placeholder="Display Name (e.g., Alex)"
+              placeholder="Display Name (e.g., Aarav Sharma)"
               placeholderTextColor={colors.textMuted}
               value={displayName}
               onChangeText={setDisplayName}
               autoCapitalize="words"
+            />
+
+            <TextInput
+              style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+              placeholder="Unique Handle (e.g., @aarav99 - optional)"
+              placeholderTextColor={colors.textMuted}
+              value={customUsername}
+              onChangeText={setCustomUsername}
+              autoCapitalize="none"
+              autoCorrect={false}
             />
 
             <TextInput

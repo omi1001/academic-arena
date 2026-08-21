@@ -32,9 +32,11 @@ import {
   PASSIVE_EXP_AMOUNT,
   INACTIVITY_TIMEOUT,
   QUESTIONS_PER_BATCH,
+  DIFFICULTY_CONFIG,
 } from '../../../constants/config';
 import api from '../../../lib/api';
 import { SupabaseService } from '../../../lib/supabaseService';
+import { QuestionService } from '../../../lib/questionService';
 import type { Question } from '../../../types';
 import { BouncyButton } from '../../../components/BouncyButton';
 import { SarcasticLoader } from '../../../components/SarcasticLoader';
@@ -58,6 +60,14 @@ export default function GameRunScreen() {
   const [isCorrect, setIsCorrect] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [earnedExpToast, setEarnedExpToast] = useState<number | null>(null);
+  const [isGameOver, setIsGameOver] = useState(false);
+  const [finalSummary, setFinalSummary] = useState<{
+    score: number;
+    expEarned: number;
+    maxStreak: number;
+    totalAnswered: number;
+    accuracy: number;
+  } | null>(null);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const passiveRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -87,6 +97,7 @@ export default function GameRunScreen() {
   const streakScaleAnim = useRef(new Animated.Value(1)).current;
   const resultFadeAnim = useRef(new Animated.Value(0)).current;
   const resultSlideAnim = useRef(new Animated.Value(40)).current;
+  const gameOverFadeAnim = useRef(new Animated.Value(0)).current;
 
   // Trigger question entrance animation whenever question changes
   const animateQuestionEntrance = useCallback(() => {
@@ -130,15 +141,15 @@ export default function GameRunScreen() {
     ]).start();
   }, [optionFadeAnim, optionSlideAnim, questionFadeAnim, questionSlideAnim]);
 
-  // Initialize game run & Continuous Background Music
+  // Initialize game run & Pause Menu Background Music for match
   useEffect(() => {
     const initialPacket = packet ? parseInt(packet) : 1;
     game.startRun(runId!, parseInt(classStr!), subject!, initialPacket);
     fetchQuestions();
-    soundManager.startBgm();
+    soundManager.pauseBgm();
 
     return () => {
-      soundManager.stopBgm();
+      soundManager.resumeBgm();
       if (timerRef.current) clearInterval(timerRef.current);
       if (passiveRef.current) clearInterval(passiveRef.current);
       if (inactivityRef.current) clearInterval(inactivityRef.current);
@@ -225,35 +236,20 @@ export default function GameRunScreen() {
       const classNum = parseInt(classStr || `${user.profile?.class || 10}`);
       const subjectName = subject || game.selectedSubject || 'Mathematics';
 
-      // 1. Direct fetch from Supabase (sub-100ms speed!)
-      let list: Question[] = await SupabaseService.getRandomQuestions(classNum, subjectName, QUESTIONS_PER_BATCH);
+      // Unified 3-layer progressive fetch stacked by player EXP/League
+      const playerExp = user.profile?.totalEXP || 0;
+      const list: Question[] = await QuestionService.getProgressiveQuestionBatch(
+        classNum,
+        subjectName,
+        playerExp,
+        QUESTIONS_PER_BATCH
+      );
 
-      // 2. Fallback to API if Supabase query returned empty
-      if (list.length === 0) {
-        try {
-          const res = await api.get('/questions', {
-            params: {
-              class: classStr,
-              subject: subjectName,
-              limit: 20,
-              random: 'true',
-            },
-          });
-          const fetched = Array.isArray(res.data) ? res.data : res.data?.questions;
-          if (Array.isArray(fetched) && fetched.length > 0) {
-            list = fetched;
-          }
-        } catch (err) {
-          console.warn('API fallback fetch failed:', err);
-        }
-      }
-
-      if (list.length > 0) {
-        const shuffled = [...list].sort(() => Math.random() - 0.5);
-        questionBatchRef.current = shuffled;
-        game.setQuestions(shuffled);
+      if (list && list.length > 0) {
+        questionBatchRef.current = list;
+        game.setQuestions(list);
         game.resetQuestionIndex();
-        game.setQuestion(shuffled[0]);
+        game.setQuestion(list[0]);
       } else {
         endGame('completed');
       }
@@ -409,8 +405,19 @@ export default function GameRunScreen() {
       const expVal = game.expEarned || 0;
       const currentUid = firebaseUser?.uid || user.profile?.uid || auth.currentUser?.uid || 'anonymous';
 
-      // 1. Record completed run and atomically update user EXP in Supabase
-      await SupabaseService.recordCompletedRun({
+      // 1. Immediately update local Zustand user profile for instant UI response
+      if (user.profile) {
+        user.setProfile({
+          ...user.profile,
+          totalEXP: (user.profile.totalEXP || 0) + expVal,
+          gamesPlayed: (user.profile.gamesPlayed || 0) + 1,
+          totalAnswered: (user.profile.totalAnswered || 0) + totalAnsweredVal,
+          totalCorrect: (user.profile.totalCorrect || 0) + scoreVal,
+        });
+      }
+
+      // 2. Record run with automatic offline fallback queue
+      await QuestionService.recordRun({
         firebaseUid: currentUid,
         runId: payloadRunId,
         classNum: payloadClass,
@@ -427,44 +434,31 @@ export default function GameRunScreen() {
         answers: answersRecordRef.current,
       });
 
-      // 2. Immediately update local Zustand user profile
-      if (user.profile) {
-        user.setProfile({
-          ...user.profile,
-          totalEXP: (user.profile.totalEXP || 0) + expVal,
-          gamesPlayed: (user.profile.gamesPlayed || 0) + 1,
-          totalAnswered: (user.profile.totalAnswered || 0) + totalAnsweredVal,
-          totalCorrect: (user.profile.totalCorrect || 0) + scoreVal,
-        });
-      }
-
-      // Legacy API fallback
-      try {
-        await api.post('/runs', {
-          runId: payloadRunId,
-          class: payloadClass,
-          subject: payloadSubject,
-          score: scoreVal,
-          expEarned: expVal,
-          questionsAnswered: totalAnsweredVal,
-          correctAnswers: scoreVal,
-          maxStreak: game.maxStreak || 0,
-          highestDifficulty: game.currentDifficulty || 1,
-          heartsRemaining: game.hearts || 0,
-          startTime: payloadStartTime,
-          status,
-          answers: answersRecordRef.current,
-        });
-      } catch (ignored) {}
+      // 3. Non-blocking legacy API fallback
+      api.post('/runs', {
+        runId: payloadRunId,
+        class: payloadClass,
+        subject: payloadSubject,
+        score: scoreVal,
+        expEarned: expVal,
+        questionsAnswered: totalAnsweredVal,
+        correctAnswers: scoreVal,
+        maxStreak: game.maxStreak || 0,
+        highestDifficulty: game.currentDifficulty || 1,
+        heartsRemaining: game.hearts || 0,
+        startTime: payloadStartTime,
+        status,
+        answers: answersRecordRef.current,
+      }, { timeout: 3000 }).catch(() => {});
 
       return true;
     } catch (e: any) {
-      console.warn('Failed to save run:', e);
+      console.warn('Failed to save run to Supabase:', e);
       return false;
     }
   };
 
-  const endGame = async (status: 'completed' | 'cheat_detected' | 'timeout') => {
+  const endGame = (status: 'completed' | 'cheat_detected' | 'timeout') => {
     if (isEndingRef.current) return;
     isEndingRef.current = true;
 
@@ -482,18 +476,19 @@ export default function GameRunScreen() {
 
     user.incrementGamesPlayed();
 
-    let runSaved = await saveRunToServer(status);
+    const scoreVal = game.score || 0;
+    const totalAns = Math.max(game.totalQuestionsAnswered || 0, scoreVal);
+    const expVal = game.expEarned || 0;
+    const streakVal = game.maxStreak || 0;
+    const accuracyVal = totalAns > 0 ? Math.round((scoreVal / totalAns) * 100) : 0;
 
-    if (runSaved) {
-      try {
-        const res = await api.get('/auth/profile');
-        if (res.data?.user) {
-          user.setProfile(res.data.user as any);
-        }
-      } catch (e) {
-        console.warn('Failed to refresh profile:', e);
-      }
-    }
+    setFinalSummary({
+      score: scoreVal,
+      expEarned: expVal,
+      maxStreak: streakVal,
+      totalAnswered: totalAns,
+      accuracy: accuracyVal,
+    });
 
     if (status === 'cheat_detected') {
       Alert.alert(
@@ -501,36 +496,30 @@ export default function GameRunScreen() {
         'You left the app during a run. Your score has been recorded.',
         [{ text: 'OK', onPress: () => router.replace('/(main)') }]
       );
-    } else if (!runSaved) {
-      Alert.alert(
-        'Score Not Saved',
-        'Your score could not be saved to the server. Your local stats are still updated.',
-        [
-          {
-            text: 'Retry',
-            onPress: async () => {
-              const retried = await saveRunToServer(status);
-              if (retried) {
-                try {
-                  const res = await api.get('/auth/profile');
-                  if (res.data?.user) user.setProfile(res.data.user as any);
-                } catch (e) {}
-                router.replace('/(main)');
-              } else {
-                Alert.alert(
-                  'Still Failed',
-                  'Could not reach server. Returning to home.',
-                  [{ text: 'OK', onPress: () => router.replace('/(main)') }]
-                );
-              }
-            },
-          },
-          { text: 'Skip', onPress: () => router.replace('/(main)') },
-        ]
-      );
-    } else {
-      router.replace('/(main)');
+      saveRunToServer(status);
+      return;
     }
+
+    // Immediately show results overlay with 0ms freeze
+    setIsGameOver(true);
+    Animated.timing(gameOverFadeAnim, {
+      toValue: 1,
+      duration: 350,
+      useNativeDriver: true,
+    }).start();
+
+    // Trigger save asynchronously in background
+    saveRunToServer(status);
+  };
+
+  const handleRestartRun = () => {
+    setIsGameOver(false);
+    isEndingRef.current = false;
+    gameOverFadeAnim.setValue(0);
+    const newRunId = `run_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    game.startRun(newRunId, classStr ? parseInt(classStr) : 10, subject || 'Mathematics', 1);
+    fetchQuestions();
+    soundManager.startBgm();
   };
 
   const currentAtmosphere = getStreakAtmosphere(game.streak);
@@ -637,6 +626,31 @@ export default function GameRunScreen() {
                   colors={mode === 'dark' ? ['#161B33', '#0F1224'] : ['#FFFFFF', '#F1F5F9']}
                   style={[styles.questionCard, { borderColor: colors.border }]}
                 >
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                    {(() => {
+                      const diffLevel = game.currentQuestion.difficulty || 1;
+                      const diffInfo = DIFFICULTY_CONFIG[diffLevel] || DIFFICULTY_CONFIG[1];
+                      return (
+                        <View
+                          style={{
+                            backgroundColor: diffInfo.glowColor,
+                            paddingHorizontal: 10,
+                            paddingVertical: 4,
+                            borderRadius: 8,
+                            borderWidth: 1,
+                            borderColor: diffInfo.color,
+                          }}
+                        >
+                          <Text style={{ color: diffInfo.color, fontSize: 11, fontWeight: '900', letterSpacing: 0.5 }}>
+                            {diffInfo.badge} • {Math.round(diffInfo.expMultiplier * 100)} EXP
+                          </Text>
+                        </View>
+                      );
+                    })()}
+                    <Text style={{ color: colors.textMuted, fontSize: 11, fontWeight: 'bold' }}>
+                      LEVEL {game.currentDifficulty || 1}
+                    </Text>
+                  </View>
                   <Text style={[styles.questionText, { color: colors.text }]}>
                     {game.currentQuestion.question}
                   </Text>
@@ -726,6 +740,59 @@ export default function GameRunScreen() {
                   : '💨 BRO THOUGHT HE COOKED! -1 ❤️'}
               </Text>
             </LinearGradient>
+          </Animated.View>
+        )}
+
+        {/* ─── SOLO RUN GAME OVER / RESULTS MODAL ─── */}
+        {isGameOver && finalSummary && (
+          <Animated.View style={[styles.gameOverOverlay, { opacity: gameOverFadeAnim }]}>
+            <View style={[styles.resultCard, { backgroundColor: colors.cardBg || colors.surface, borderColor: colors.border }]}>
+              <Text style={styles.resultTitleEmoji}>{finalSummary.score > 0 ? '🏆' : '💀'}</Text>
+              <Text style={[styles.resultTitleText, { color: colors.text }]}>
+                {finalSummary.score > 0 ? 'RUN COMPLETED!' : 'OUT OF HEARTS!'}
+              </Text>
+              <Text style={[styles.resultSubtitle, { color: colors.textMuted }]}>
+                {finalSummary.score > 0
+                  ? `You cooked ${finalSummary.score} questions in Solo Speedrun mode!`
+                  : 'Zero hearts remaining! Time to revise NCERT formulas.'}
+              </Text>
+
+              {/* Stats Breakdown */}
+              <View style={[styles.resultStatsBox, { backgroundColor: mode === 'dark' ? '#0F1224' : '#F1F5F9', borderColor: colors.border }]}>
+                <View style={styles.resultRow}>
+                  <Text style={[styles.resultRowLabel, { color: colors.textMuted }]}>Questions Correct:</Text>
+                  <Text style={[styles.resultRowValue, { color: colors.text }]}>{finalSummary.score} / {finalSummary.totalAnswered}</Text>
+                </View>
+                <View style={styles.resultRow}>
+                  <Text style={[styles.resultRowLabel, { color: colors.textMuted }]}>Max Streak:</Text>
+                  <Text style={[styles.resultRowValue, { color: '#FF7B00' }]}>🔥 x{finalSummary.maxStreak}</Text>
+                </View>
+                <View style={styles.resultRow}>
+                  <Text style={[styles.resultRowLabel, { color: colors.textMuted }]}>Accuracy Aim:</Text>
+                  <Text style={[styles.resultRowValue, { color: colors.text }]}>{finalSummary.accuracy}%</Text>
+                </View>
+                <View style={styles.divider} />
+                <View style={[styles.resultRow, { marginTop: 4 }]}>
+                  <Text style={[styles.totalExpLabel, { color: colors.primary }]}>TOTAL EXP EARNED:</Text>
+                  <Text style={[styles.totalExpValue, { color: colors.primary }]}>⚡ +{finalSummary.expEarned} EXP</Text>
+                </View>
+              </View>
+
+              {/* Action Buttons */}
+              <View style={{ width: '100%', gap: 10 }}>
+                <BouncyButton style={styles.finishBtnWrapper} onPress={handleRestartRun}>
+                  <LinearGradient colors={[colors.primary, colors.secondary]} style={styles.finishBtn}>
+                    <Text style={styles.finishBtnText}>🔄 RUN IT BACK (PLAY AGAIN)</Text>
+                  </LinearGradient>
+                </BouncyButton>
+
+                <BouncyButton style={styles.finishBtnWrapper} onPress={() => router.replace('/(main)')}>
+                  <View style={[styles.finishBtnSecondary, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                    <Text style={[styles.finishBtnSecondaryText, { color: colors.text }]}>🏠 RETURN TO ARENA</Text>
+                  </View>
+                </BouncyButton>
+              </View>
+            </View>
           </Animated.View>
         )}
         </TouchableOpacity>
@@ -965,6 +1032,109 @@ const styles = StyleSheet.create({
   resultText: {
     color: '#FFF',
     fontSize: 16,
+    fontWeight: 'bold',
+    letterSpacing: 0.5,
+  },
+  gameOverOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.88)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    zIndex: 999,
+  },
+  resultCard: {
+    width: '100%',
+    backgroundColor: Colors.dark.surface,
+    borderRadius: 24,
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: Colors.dark.border,
+  },
+  resultTitleEmoji: {
+    fontSize: 52,
+    marginBottom: 8,
+  },
+  resultTitleText: {
+    fontSize: 26,
+    fontWeight: 'bold',
+    color: Colors.dark.text,
+    letterSpacing: 1.2,
+  },
+  resultSubtitle: {
+    color: Colors.dark.textMuted,
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 4,
+    marginBottom: 20,
+  },
+  resultStatsBox: {
+    width: '100%',
+    backgroundColor: '#0F1224',
+    borderRadius: 16,
+    padding: 16,
+    gap: 8,
+    marginBottom: 20,
+    borderWidth: 1,
+  },
+  resultRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  resultRowLabel: {
+    color: Colors.dark.textMuted,
+    fontSize: 13,
+  },
+  resultRowValue: {
+    color: Colors.dark.text,
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: Colors.dark.border,
+    marginVertical: 4,
+  },
+  totalExpLabel: {
+    color: Colors.dark.primary,
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  totalExpValue: {
+    color: Colors.dark.primary,
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  finishBtnWrapper: {
+    width: '100%',
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  finishBtn: {
+    paddingVertical: 16,
+    alignItems: 'center',
+    borderRadius: 14,
+  },
+  finishBtnText: {
+    color: '#FFF',
+    fontSize: 15,
+    fontWeight: 'bold',
+    letterSpacing: 1,
+  },
+  finishBtnSecondary: {
+    paddingVertical: 15,
+    alignItems: 'center',
+    borderRadius: 14,
+    borderWidth: 1.5,
+  },
+  finishBtnSecondaryText: {
+    fontSize: 14,
     fontWeight: 'bold',
     letterSpacing: 0.5,
   },

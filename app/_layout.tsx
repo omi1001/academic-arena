@@ -6,6 +6,8 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 import { useAuthStore } from '../stores/authStore';
 import { useThemeStore } from '../stores/themeStore';
+import { OfflineQueueService } from '../lib/offlineQueueService';
+import { QuestionService } from '../lib/questionService';
 import { Colors } from '../constants/theme';
 
 export default function RootLayout() {
@@ -14,9 +16,15 @@ export default function RootLayout() {
 
   useEffect(() => {
     loadStoredTheme().catch(() => {});
+    OfflineQueueService.flushOfflineQueue().catch(() => {});
+    QuestionService.syncFromCdn().catch(() => {});
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setFirebaseUser(user);
       setLoading(false);
+      if (user) {
+        OfflineQueueService.flushOfflineQueue().catch(() => {});
+      }
     });
     return unsubscribe;
   }, []);

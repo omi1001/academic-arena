@@ -7,10 +7,15 @@ import {
   Alert,
   TextInput,
   TouchableOpacity,
+  Share,
+  Modal,
+  Linking,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { signOut, sendPasswordResetEmail } from 'firebase/auth';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
 import { auth } from '../../lib/firebase';
 import api from '../../lib/api';
 import { SupabaseService } from '../../lib/supabaseService';
@@ -164,6 +169,96 @@ export default function ProfileScreen() {
     }
   };
 
+  const [editUsernameModalVisible, setEditUsernameModalVisible] = useState(false);
+  const [newUsernameInput, setNewUsernameInput] = useState('');
+  const [usernameUpdating, setUsernameUpdating] = useState(false);
+
+  const handleCopyTag = async () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      const tag = profile?.arenaTag || '#AA-8492';
+      Alert.alert(
+        'Player Tag Copied! 📋',
+        `Your unique Arena Player Tag is:\n\n${tag}\n\nShare this ID with classmates to 1v1 duel in academic battles!`
+      );
+    } catch (e) {}
+  };
+
+  const handleShareToWhatsApp = async () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      const name = profile?.name || firebaseUser?.displayName || 'Player';
+      const tag = profile?.arenaTag || '#AA-8492';
+      const handle = profile?.username || '@player';
+      const classNum = profile?.class || 10;
+      const exp = (profile?.totalEXP || 0).toLocaleString();
+
+      const inviteMsg = `⚔️ *ACADEMIC ARENA DUEL CHALLENGE!* ⚔️\n\nHey! Add me on Academic Arena to 1v1 duel me in CBSE Class ${classNum}!\n\n🏷️ *My Player Tag:* ${tag}\n👤 *Handle:* ${handle}\n🏆 *Total EXP:* ${exp} EXP\n\nDownload the app & let's see who tops the leaderboard! 🚀`;
+
+      const whatsappUrl = `whatsapp://send?text=${encodeURIComponent(inviteMsg)}`;
+      const canOpen = await Linking.canOpenURL(whatsappUrl).catch(() => false);
+
+      if (canOpen) {
+        await Linking.openURL(whatsappUrl);
+      } else {
+        await Share.share({
+          message: inviteMsg,
+          title: 'Academic Arena Duel Invite',
+        });
+      }
+    } catch (e) {
+      console.warn('Share error:', e);
+    }
+  };
+
+  const handleSaveUsername = async () => {
+    let clean = newUsernameInput.trim().toLowerCase();
+    if (!clean) {
+      Alert.alert('Empty Username', 'Please enter a valid handle.');
+      return;
+    }
+    if (!clean.startsWith('@')) {
+      clean = `@${clean}`;
+    }
+
+    if (clean.length < 4 || clean.length > 20) {
+      Alert.alert('Invalid Length', 'Username must be between 3 and 20 characters.');
+      return;
+    }
+
+    if (!/^@[a-z0-9_]+$/.test(clean)) {
+      Alert.alert('Invalid Format', 'Username can only contain letters, numbers, and underscores.');
+      return;
+    }
+
+    if (!firebaseUser) return;
+
+    try {
+      setUsernameUpdating(true);
+      const isAvailable = await SupabaseService.checkUsernameAvailable(clean, firebaseUser.uid);
+      if (!isAvailable) {
+        Alert.alert('Already Taken', `${clean} is already claimed by another student. Try adding numbers!`);
+        setUsernameUpdating(false);
+        return;
+      }
+
+      const updated = await SupabaseService.upsertUserProfile({
+        firebaseUid: firebaseUser.uid,
+        username: clean,
+      });
+
+      if (updated) {
+        setProfile(updated);
+      }
+      setEditUsernameModalVisible(false);
+      Alert.alert('Identity Claimed ✨', `Your unique Arena handle is now ${clean}!`);
+    } catch (e) {
+      Alert.alert('Update Failed', 'Failed to update username.');
+    } finally {
+      setUsernameUpdating(false);
+    }
+  };
+
   const AVATAR_LIST = ['🎓', '⚡', '🥷', '🧙‍♂️', '🚀', '👑', '🦁', '🔥', '🤖', '🐯', '🦅', '👾'];
 
   const tier = profile ? getTier(profile.totalEXP) : LEADERBOARD_TIERS.BRONZE;
@@ -204,6 +299,32 @@ export default function ProfileScreen() {
             size="lg"
           />
           <Text style={[styles.name, { color: colors.text, marginTop: 14 }]}>{userName}</Text>
+          
+          {/* Unique Handle & Arena Tag Bar */}
+          <View style={styles.identityRow}>
+            <TouchableOpacity
+              style={[styles.handlePill, { backgroundColor: mode === 'dark' ? '#1B243B' : '#E2E8F0', borderColor: colors.border }]}
+              onPress={() => {
+                setNewUsernameInput(profile?.username?.replace('@', '') || '');
+                setEditUsernameModalVisible(true);
+              }}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.handleText, { color: colors.primary }]}>
+                {profile?.username || '@player'} ✏️
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.arenaTagPill, { backgroundColor: 'rgba(0, 240, 255, 0.12)', borderColor: '#00F0FF' }]}
+              onPress={handleCopyTag}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.arenaTagText}>{profile?.arenaTag || '#AA-8492'}</Text>
+              <Text style={{ fontSize: 11, marginLeft: 4 }}>📋</Text>
+            </TouchableOpacity>
+          </View>
+
           <Text style={[styles.email, { color: colors.textMuted }]}>{firebaseUser?.email}</Text>
 
           <View style={[styles.tierBadge, { backgroundColor: mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)' }]}>
@@ -213,6 +334,21 @@ export default function ProfileScreen() {
             </Text>
           </View>
         </LinearGradient>
+
+        {/* ─── 📲 1-Tap Share Arena Tag on WhatsApp Button ─── */}
+        <BouncyButton
+          style={styles.shareWhatsAppBtn}
+          onPress={handleShareToWhatsApp}
+        >
+          <LinearGradient
+            colors={['#25D366', '#128C7E']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.shareWhatsAppGradient}
+          >
+            <Text style={styles.shareWhatsAppText}>📲 SHARE ARENA TAG ON WHATSAPP</Text>
+          </LinearGradient>
+        </BouncyButton>
 
         {/* ─── Select Avatar ─── */}
         <Text style={[styles.sectionHeader, { color: colors.primary }]}>CHOOSE YOUR BATTLE AVATAR 🎭</Text>
@@ -373,10 +509,57 @@ export default function ProfileScreen() {
         <Text style={styles.logoutButtonText}>🚪 Logout Account</Text>
       </BouncyButton>
     </ScrollView>
+
     <ThemeSelectorModal
       visible={isThemeModalOpen}
       onClose={() => setIsThemeModalOpen(false)}
     />
+
+    {/* ─── EDIT ARENA USERNAME MODAL ─── */}
+    <Modal visible={editUsernameModalVisible} transparent animationType="fade">
+      <View style={styles.modalOverlay}>
+        <View style={[styles.modalBox, { backgroundColor: mode === 'dark' ? '#0F1224' : '#FFFFFF', borderColor: colors.border }]}>
+          <Text style={[styles.modalTitle, { color: colors.text }]}>⚔️ CUSTOMIZE ARENA HANDLE</Text>
+          <Text style={[styles.modalDesc, { color: colors.textMuted }]}>
+            Pick a unique username handle (e.g., @aarav_topper). Friends can use this to search and duel you!
+          </Text>
+
+          <TextInput
+            style={[styles.modalInput, { color: colors.text, borderColor: colors.border, backgroundColor: mode === 'dark' ? '#1B243B' : '#F1F5F9' }]}
+            placeholder="e.g. topper_alex"
+            placeholderTextColor={colors.textMuted}
+            value={newUsernameInput}
+            onChangeText={setNewUsernameInput}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+
+          <View style={styles.modalBtnRow}>
+            <TouchableOpacity
+              onPress={() => setEditUsernameModalVisible(false)}
+              style={[styles.modalBtn, { backgroundColor: 'rgba(255, 255, 255, 0.08)' }]}
+              disabled={usernameUpdating}
+            >
+              <Text style={[styles.modalBtnText, { color: colors.text }]}>Cancel</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={handleSaveUsername}
+              style={[styles.modalBtn, { backgroundColor: colors.primary }]}
+              disabled={usernameUpdating}
+            >
+              {usernameUpdating ? (
+                <ActivityIndicator size="small" color="#FFF" />
+              ) : (
+                <Text style={[styles.modalBtnText, { color: '#FFF', fontWeight: 'bold' }]}>
+                  Save Handle
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
   </ThemedBackground>
   );
 }
@@ -385,6 +568,109 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: 'transparent',
+  },
+  identityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  handlePill: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  handleText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  arenaTagPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  arenaTagText: {
+    color: '#00F0FF',
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  shareWhatsAppBtn: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginBottom: 20,
+    elevation: 4,
+    shadowColor: '#25D366',
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  shareWhatsAppGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  shareWhatsAppText: {
+    color: '#FFF',
+    fontWeight: '900',
+    fontSize: 13,
+    letterSpacing: 0.5,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalBox: {
+    width: '100%',
+    maxWidth: 400,
+    borderRadius: 20,
+    padding: 22,
+    borderWidth: 1,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  modalDesc: {
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 18,
+  },
+  modalBtnRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalBtnText: {
+    fontSize: 14,
   },
   themeSettingsBtn: {
     padding: 16,

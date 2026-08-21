@@ -143,7 +143,9 @@ export default function DashboardScreen() {
     return LEADERBOARD_TIERS.BRONZE;
   };
 
-  const isSilverUnlocked = (profile?.totalEXP || 0) >= LEADERBOARD_TIERS.SILVER.minEXP;
+  const isAdmin = profile?.role === 'admin';
+  const isSilverUnlocked = isAdmin || (profile?.totalEXP || 0) >= LEADERBOARD_TIERS.SILVER.minEXP;
+  const isCrosswordUnlocked = isAdmin || (profile?.totalEXP || 0) >= 15000;
 
   const handleSelectChallengeMode = () => {
     if (!isSilverUnlocked) {
@@ -155,6 +157,18 @@ export default function DashboardScreen() {
       return;
     }
     setGameMode('challenge');
+  };
+
+  const handleSelectCrossword = () => {
+    if (!isCrosswordUnlocked) {
+      const remaining = 15000 - (profile?.totalEXP || 0);
+      Alert.alert(
+        '🔒 Words of Wonders Locked',
+        `Unlock the Academic Crossword puzzle at 15,000 Total EXP (Gold League)!\n\nYou need ${remaining.toLocaleString()} more EXP to unlock.`
+      );
+      return;
+    }
+    router.push('/(main)/game/crossword');
   };
 
   const handleStartGame = () => {
@@ -295,40 +309,69 @@ export default function DashboardScreen() {
         {/* ─── Game Mode Selection ─── */}
         <Text style={[styles.sectionTitle, { color: colors.primary }]}>CHOOSE YOUR BATTLEGROUND</Text>
         <View style={styles.modeGrid}>
-          {/* Solo Arena Mode Card */}
-          <BouncyButton
-            style={[
-              styles.modeCard,
-              { backgroundColor: colors.surface, borderColor: colors.border },
-              gameMode === 'solo' && [styles.modeCardSelected, { borderColor: colors.primary, backgroundColor: colors.surfaceHighlight }],
-            ]}
-            onPress={() => setGameMode('solo')}
-          >
-            <Text style={styles.modeEmoji}>⚡</Text>
-            <Text style={[styles.modeTitle, { color: colors.text }]}>SOLO SPEEDRUN</Text>
-            <Text style={[styles.modeDesc, { color: colors.textMuted }]}>Endless rapid fire. Test if you studied or scrolled reels.</Text>
-          </BouncyButton>
+          <View style={styles.modeRowTop}>
+            {/* Solo Arena Mode Card */}
+            <BouncyButton
+              style={[
+                styles.modeCard,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+                gameMode === 'solo' && [styles.modeCardSelected, { borderColor: colors.primary, backgroundColor: colors.surfaceHighlight }],
+              ]}
+              onPress={() => setGameMode('solo')}
+            >
+              <Text style={styles.modeEmoji}>⚡</Text>
+              <Text style={[styles.modeTitle, { color: colors.text }]}>SOLO SPEEDRUN</Text>
+              <Text style={[styles.modeDesc, { color: colors.textMuted }]}>Endless rapid fire questions.</Text>
+            </BouncyButton>
 
-          {/* 1v1 Bot Challenge Mode Card */}
+            {/* 1v1 Bot Challenge Mode Card */}
+            <BouncyButton
+              style={[
+                styles.modeCard,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+                !isSilverUnlocked && styles.modeCardLocked,
+                gameMode === 'challenge' && [styles.modeCardSelected, { borderColor: colors.primary, backgroundColor: colors.surfaceHighlight }],
+              ]}
+              onPress={handleSelectChallengeMode}
+            >
+              <View style={styles.modeHeaderRow}>
+                <Text style={styles.modeEmoji}>⚔️</Text>
+                {!isSilverUnlocked && <Text style={styles.lockBadge}>🔒 5K EXP</Text>}
+              </View>
+              <Text style={[styles.modeTitle, { color: colors.text }]}>1v1 BOT DUEL</Text>
+              <Text style={[styles.modeDesc, { color: colors.textMuted }]}>
+                {isSilverUnlocked ? 'Race 15 Qs vs Adaptive Bot' : 'Silver (5,000 EXP)'}
+              </Text>
+            </BouncyButton>
+          </View>
+
+          {/* Words of Wonders Crossword Card */}
           <BouncyButton
             style={[
-              styles.modeCard,
+              styles.modeCardFull,
               { backgroundColor: colors.surface, borderColor: colors.border },
-              !isSilverUnlocked && styles.modeCardLocked,
-              gameMode === 'challenge' && [styles.modeCardSelected, { borderColor: colors.primary, backgroundColor: colors.surfaceHighlight }],
+              !isCrosswordUnlocked && styles.modeCardLocked,
             ]}
-            onPress={handleSelectChallengeMode}
+            onPress={handleSelectCrossword}
           >
             <View style={styles.modeHeaderRow}>
-              <Text style={styles.modeEmoji}>⚔️</Text>
-              {!isSilverUnlocked && <Text style={styles.lockBadge}>🔒 LOCKED</Text>}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                <Text style={styles.modeEmoji}>🧩</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.modeTitle, { color: colors.text }]}>WORDS OF WONDERS</Text>
+                  <Text style={[styles.modeDesc, { color: colors.textMuted }]}>
+                    Academic Crossword & Anagram Wheel Puzzles
+                  </Text>
+                </View>
+              </View>
+              {!isCrosswordUnlocked ? (
+                <Text style={styles.lockBadge}>🔒 15,000 EXP</Text>
+              ) : (
+                <View style={{ backgroundColor: 'rgba(0, 240, 255, 0.15)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: 1, borderColor: '#00F0FF' }}>
+                  <Text style={{ color: '#00F0FF', fontSize: 11, fontWeight: '900' }}>PLAY ➔</Text>
+                </View>
+              )}
             </View>
-            <Text style={[styles.modeTitle, { color: colors.text }]}>1v1 BOT DUEL</Text>
-            <Text style={[styles.modeDesc, { color: colors.textMuted }]}>
-              {isSilverUnlocked
-                ? 'Race 15 Qs vs Adaptive AI Bot'
-                : 'Unlocks at Silver (5,000 EXP)'}
-            </Text>
           </BouncyButton>
         </View>
 
@@ -721,12 +764,23 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   modeGrid: {
-    flexDirection: 'row',
-    gap: 12,
+    gap: 10,
     marginBottom: 20,
+  },
+  modeRowTop: {
+    flexDirection: 'row',
+    gap: 10,
   },
   modeCard: {
     flex: 1,
+    backgroundColor: Colors.dark.surface,
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1.5,
+    borderColor: Colors.dark.border,
+  },
+  modeCardFull: {
+    width: '100%',
     backgroundColor: Colors.dark.surface,
     borderRadius: 16,
     padding: 14,

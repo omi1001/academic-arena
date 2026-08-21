@@ -2,15 +2,42 @@ import { supabase } from './supabase';
 import { auth } from './firebase';
 import type { User, Question } from '../types';
 
+export { supabase };
+
 export interface LeaderboardEntry {
   id: string;
   firebase_uid: string;
   name: string;
+  username?: string;
+  arena_tag?: string;
   avatar: string;
   class: number;
   score: number;
   games_played: number;
   rank: number;
+}
+
+export function generateDefaultUsername(name: string, uid: string): string {
+  const cleanName = (name || 'player')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+    .slice(0, 10);
+  const hash = Math.abs(
+    uid.split('').reduce((acc, char) => (acc << 5) - acc + char.charCodeAt(0), 0)
+  )
+    .toString()
+    .slice(-4);
+  return `@${cleanName || 'player'}_${hash.padStart(4, '7')}`;
+}
+
+export function generateArenaTag(uid: string): string {
+  const hash = Math.abs(
+    uid.split('').reduce((acc, char) => (acc << 5) - acc + char.charCodeAt(0), 0)
+  )
+    .toString(36)
+    .toUpperCase()
+    .slice(-4);
+  return `#AA-${hash.padStart(4, 'X')}`;
 }
 
 export const SupabaseService = {
@@ -29,9 +56,32 @@ export const SupabaseService = {
       }
       if (!data) return null;
 
+      const fallbackUsername = generateDefaultUsername(data.name || 'player', data.firebase_uid);
+      const fallbackTag = generateArenaTag(data.firebase_uid);
+
+      const username = data.username || fallbackUsername;
+      const arenaTag = data.arena_tag || fallbackTag;
+
+      // Auto-heal missing username or arena_tag in database silently
+      if (!data.username || !data.arena_tag) {
+        (async () => {
+          try {
+            await supabase
+              .from('users')
+              .update({
+                username: username,
+                arena_tag: arenaTag,
+              })
+              .eq('firebase_uid', firebaseUid);
+          } catch (ignored) {}
+        })();
+      }
+
       return {
         uid: data.firebase_uid,
         name: data.name,
+        username,
+        arenaTag,
         email: data.email,
         class: data.class,
         totalEXP: data.total_exp || 0,
@@ -57,6 +107,9 @@ export const SupabaseService = {
 
   async upsertUserProfile(profile: Partial<User> & { firebaseUid: string }): Promise<User | null> {
     try {
+      const defaultUsername = generateDefaultUsername(profile.name || 'player', profile.firebaseUid);
+      const defaultTag = generateArenaTag(profile.firebaseUid);
+
       const payload: Record<string, any> = {
         updated_at: new Date().toISOString(),
       };
@@ -64,6 +117,8 @@ export const SupabaseService = {
       if (profile.name) payload.name = profile.name;
       if (profile.email) payload.email = profile.email;
       if (profile.class) payload.class = profile.class;
+      if (profile.username) payload.username = profile.username;
+      if (profile.arenaTag) payload.arena_tag = profile.arenaTag;
       if (profile.totalEXP !== undefined) payload.total_exp = profile.totalEXP;
       if (profile.avatar) payload.avatar = profile.avatar;
       if (profile.upiId !== undefined) payload.upi_id = profile.upiId;
@@ -101,6 +156,8 @@ export const SupabaseService = {
           firebase_uid: profile.firebaseUid,
           name: profile.name || auth.currentUser?.displayName || 'Player',
           email: profile.email || auth.currentUser?.email || '',
+          username: profile.username || defaultUsername,
+          arena_tag: profile.arenaTag || defaultTag,
           class: profile.class || 10,
           total_exp: profile.totalEXP || 0,
           weekly_exp: profile.totalEXP || 0,
@@ -136,6 +193,8 @@ export const SupabaseService = {
       return {
         uid: resultData.firebase_uid,
         name: resultData.name,
+        username: resultData.username || defaultUsername,
+        arenaTag: resultData.arena_tag || defaultTag,
         email: resultData.email,
         class: resultData.class,
         totalEXP: resultData.total_exp || 0,
@@ -156,6 +215,55 @@ export const SupabaseService = {
     } catch (e) {
       console.warn('Supabase upsertUserProfile failed:', e);
       return null;
+    }
+  },
+
+  async checkUsernameAvailable(username: string, excludeUid?: string): Promise<boolean> {
+    try {
+      const clean = username.trim().toLowerCase();
+      let query = supabase.from('users').select('firebase_uid').eq('username', clean);
+      if (excludeUid) {
+        query = query.neq('firebase_uid', excludeUid);
+      }
+      const { data, error } = await query;
+      if (error || !data) return true;
+      return data.length === 0;
+    } catch (e) {
+      return true;
+    }
+  },
+
+  async searchUsers(searchQuery: string, limit = 20): Promise<User[]> {
+    try {
+      const q = searchQuery.trim();
+      if (!q) return [];
+
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .or(`name.ilike.%${q}%,username.ilike.%${q}%,arena_tag.ilike.%${q}%`)
+        .limit(limit);
+
+      if (error || !data) return [];
+
+      return data.map((u: any) => ({
+        uid: u.firebase_uid,
+        name: u.name,
+        username: u.username || generateDefaultUsername(u.name || 'player', u.firebase_uid),
+        arenaTag: u.arena_tag || generateArenaTag(u.firebase_uid),
+        email: u.email,
+        class: u.class,
+        totalEXP: u.total_exp || 0,
+        gamesPlayed: u.games_played || 0,
+        totalAnswered: u.total_answered || 0,
+        totalCorrect: u.total_correct || 0,
+        highestStreak: 0,
+        highestDifficulty: 1,
+        avatar: u.avatar || '👤',
+      }));
+    } catch (e) {
+      console.warn('searchUsers error:', e);
+      return [];
     }
   },
 
@@ -214,6 +322,113 @@ export const SupabaseService = {
     }
   },
 
+  // ─── ADMIN QUESTION CRUD ───
+  async createQuestion(question: Omit<Question, '_id'>): Promise<Question | null> {
+    try {
+      const { data, error } = await supabase
+        .from('questions')
+        .insert({
+          class: question.class,
+          subject: question.subject,
+          difficulty: question.difficulty || 1,
+          question: question.question,
+          options: question.options,
+          answer: question.answer,
+          explanation: question.explanation || '',
+          packet: question.packet || 1,
+        })
+        .select()
+        .single();
+
+      if (error || !data) {
+        console.warn('Supabase createQuestion error:', error);
+        return null;
+      }
+
+      return {
+        _id: data.id,
+        class: data.class,
+        subject: data.subject,
+        difficulty: data.difficulty,
+        question: data.question,
+        options: data.options,
+        answer: data.answer,
+        explanation: data.explanation,
+        packet: data.packet,
+      };
+    } catch (e) {
+      console.warn('Supabase createQuestion failed:', e);
+      return null;
+    }
+  },
+
+  async updateQuestion(id: string, updates: Partial<Question>): Promise<boolean> {
+    try {
+      const payload: Record<string, any> = {};
+      if (updates.class !== undefined) payload.class = updates.class;
+      if (updates.subject !== undefined) payload.subject = updates.subject;
+      if (updates.difficulty !== undefined) payload.difficulty = updates.difficulty;
+      if (updates.question !== undefined) payload.question = updates.question;
+      if (updates.options !== undefined) payload.options = updates.options;
+      if (updates.answer !== undefined) payload.answer = updates.answer;
+      if (updates.explanation !== undefined) payload.explanation = updates.explanation;
+      if (updates.packet !== undefined) payload.packet = updates.packet;
+
+      const { error } = await supabase
+        .from('questions')
+        .update(payload)
+        .eq('id', id);
+
+      return !error;
+    } catch (e) {
+      console.warn('Supabase updateQuestion failed:', e);
+      return false;
+    }
+  },
+
+  async deleteQuestion(id: string): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from('questions')
+        .delete()
+        .eq('id', id);
+
+      return !error;
+    } catch (e) {
+      console.warn('Supabase deleteQuestion failed:', e);
+      return false;
+    }
+  },
+
+  async insertBulkQuestions(questions: Array<Omit<Question, '_id'>>): Promise<number> {
+    try {
+      const payload = questions.map((q) => ({
+        class: q.class,
+        subject: q.subject,
+        difficulty: q.difficulty || 1,
+        question: q.question,
+        options: q.options,
+        answer: q.answer,
+        explanation: q.explanation || '',
+        packet: q.packet || 1,
+      }));
+
+      const { data, error } = await supabase
+        .from('questions')
+        .insert(payload)
+        .select();
+
+      if (error) {
+        console.warn('Supabase insertBulkQuestions error:', error);
+        return 0;
+      }
+      return data?.length || 0;
+    } catch (e) {
+      console.warn('Supabase insertBulkQuestions failed:', e);
+      return 0;
+    }
+  },
+
   // ─── GAME RUNS & EXP SYNC ───
   async saveGameRun(run: Record<string, any>): Promise<boolean> {
     try {
@@ -251,7 +466,7 @@ export const SupabaseService = {
     runId: string;
     classNum: number;
     subject: string;
-    mode?: 'solo' | 'challenge';
+    mode?: 'solo' | 'challenge' | 'crossword' | 'bomb';
     score: number;
     correctAnswers: number;
     questionsAnswered: number;

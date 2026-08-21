@@ -49,6 +49,15 @@ export default function MainLayout() {
         }}
       />
       <Tabs.Screen
+        name="friends"
+        options={{
+          title: 'Squad',
+          tabBarIcon: ({ focused }) => (
+            <TabIcon name="👥" focused={focused} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="leaderboard"
         options={{
           title: 'Leaderboard',

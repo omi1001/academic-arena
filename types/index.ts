@@ -4,6 +4,8 @@ export interface User {
   uid: string;
   email: string;
   name: string;
+  username?: string;
+  arenaTag?: string;
   class: ClassOption | null;
   totalEXP: number;
   gamesPlayed: number;
@@ -89,4 +91,39 @@ export interface GameState {
   answeredQuestionIds: string[];
   startTime: number;
   lastAnswerTime: number | null;
+}
+
+export interface Friend {
+  uid: string;
+  name: string;
+  username: string;
+  arenaTag: string;
+  class: number;
+  totalEXP: number;
+  avatar: string;
+  status?: 'online' | 'in_game' | 'offline';
+  addedAt?: number;
+}
+
+export interface TauntItem {
+  id: string;
+  type: 'emoji' | 'text';
+  content: string;
+  label?: string;
+}
+
+export interface FriendlyRoom {
+  roomCode: string;
+  hostUid: string;
+  hostName: string;
+  hostAvatar: string;
+  hostTag: string;
+  guestUid?: string;
+  guestName?: string;
+  guestAvatar?: string;
+  guestTag?: string;
+  classNum: number;
+  subject: string;
+  status: 'waiting' | 'starting' | 'in_progress' | 'completed';
+  createdAt: number;
 }

@@ -23,6 +23,7 @@ import { soundManager } from '../../../lib/soundManager';
 import { auth } from '../../../lib/firebase';
 import api from '../../../lib/api';
 import { SupabaseService } from '../../../lib/supabaseService';
+import { QuestionService } from '../../../lib/questionService';
 import type { Question } from '../../../types';
 import { BouncyButton } from '../../../components/BouncyButton';
 import { SarcasticLoader } from '../../../components/SarcasticLoader';
@@ -145,42 +146,20 @@ export default function ChallengeGameScreen() {
     ]).start();
   }, []);
 
-  // Fetch Questions across ALL packets with automatic fallback
+  // Fetch Questions across ALL packets with automatic 3-layer resolution
   const fetchQuestions = async () => {
     try {
       setIsLoading(true);
       const classNum = parseInt(classStr || `${profile?.class || 10}`);
       const subjectName = subject || 'Mathematics';
 
-      // 1. Direct fetch from Supabase (sub-100ms speed!)
-      let fetchedList: Question[] = await SupabaseService.getRandomQuestions(classNum, subjectName, TOTAL_CHALLENGE_QUESTIONS);
+      // Unified 3-layer fetch: Cache -> Supabase -> Offline Bundled Bank
+      const fetchedList: Question[] = await QuestionService.getQuestions(classNum, subjectName, TOTAL_CHALLENGE_QUESTIONS);
 
-      // 2. Fallback to API if Supabase query returned empty
-      if (fetchedList.length === 0) {
-        try {
-          const res = await api.get('/questions', {
-            params: {
-              class: classStr,
-              subject: subjectName,
-              limit: 20,
-              random: 'true',
-            },
-          });
-          const list = Array.isArray(res.data) ? res.data : res.data?.questions;
-          if (Array.isArray(list) && list.length > 0) {
-            fetchedList = list;
-          }
-        } catch (err) {
-          console.warn('API fallback fetch failed:', err);
-        }
-      }
-
-      if (fetchedList.length > 0) {
-        // Shuffle questions for fresh variety
-        const shuffled = [...fetchedList].sort(() => Math.random() - 0.5);
-        let final15 = shuffled.slice(0, TOTAL_CHALLENGE_QUESTIONS);
-        while (final15.length < TOTAL_CHALLENGE_QUESTIONS && shuffled.length > 0) {
-          final15 = [...final15, ...shuffled].slice(0, TOTAL_CHALLENGE_QUESTIONS);
+      if (fetchedList && fetchedList.length > 0) {
+        let final15 = fetchedList.slice(0, TOTAL_CHALLENGE_QUESTIONS);
+        while (final15.length < TOTAL_CHALLENGE_QUESTIONS && fetchedList.length > 0) {
+          final15 = [...final15, ...fetchedList].slice(0, TOTAL_CHALLENGE_QUESTIONS);
         }
 
         setQuestions(final15);
@@ -210,9 +189,9 @@ export default function ChallengeGameScreen() {
 
   useEffect(() => {
     fetchQuestions();
-    soundManager.startBgm();
+    soundManager.pauseBgm();
     return () => {
-      soundManager.stopBgm();
+      soundManager.resumeBgm();
       if (timerRef.current) clearInterval(timerRef.current);
       if (botTimeoutRef.current) clearTimeout(botTimeoutRef.current);
     };
@@ -428,8 +407,8 @@ export default function ChallengeGameScreen() {
       const subjectName = subject || 'Mathematics';
       const currentUid = firebaseUser?.uid || profile?.uid || auth.currentUser?.uid || 'anonymous';
 
-      // 1. Record completed run and atomically update user EXP in Supabase
-      await SupabaseService.recordCompletedRun({
+      // 1. Record completed run with automatic offline queue fallback
+      await QuestionService.recordRun({
         firebaseUid: currentUid,
         runId: payloadRunId,
         classNum,
@@ -467,28 +446,26 @@ export default function ChallengeGameScreen() {
         });
       }
 
-      // Legacy fallback
-      try {
-        await api.post('/runs', {
-          runId: payloadRunId,
-          class: classNum,
-          subject: subjectName,
-          packet: 1,
-          score: playerScore,
-          correctAnswers: playerScore,
-          questionsAnswered: currentQIndex + 1,
-          expEarned,
-          maxStreak: 0,
-          highestDifficulty: botDifficultyLevel,
-          heartsRemaining: playerHearts,
-          startTime: Date.now() - 30000,
-          status,
-          mode: 'challenge',
-          challengeDifficulty: botDifficultyLevel,
-          isChallengeWin: playerWon,
-          answers: answersRecordRef.current,
-        });
-      } catch (ignored) {}
+      // 3. Non-blocking legacy API fallback
+      api.post('/runs', {
+        runId: payloadRunId,
+        class: classNum,
+        subject: subjectName,
+        packet: 1,
+        score: playerScore,
+        correctAnswers: playerScore,
+        questionsAnswered: currentQIndex + 1,
+        expEarned,
+        maxStreak: 0,
+        highestDifficulty: botDifficultyLevel,
+        heartsRemaining: playerHearts,
+        startTime: Date.now() - 30000,
+        status,
+        mode: 'challenge',
+        challengeDifficulty: botDifficultyLevel,
+        isChallengeWin: playerWon,
+        answers: answersRecordRef.current,
+      }, { timeout: 3000 }).catch(() => {});
     } catch (e) {
       console.warn('Failed to save challenge run:', e);
     }

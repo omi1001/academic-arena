@@ -17,6 +17,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
 import api from '../../lib/api';
+import { SupabaseService } from '../../lib/supabaseService';
+import { QuestionService } from '../../lib/questionService';
 import { BouncyButton } from '../../components/BouncyButton';
 
 type Tab = 'STATS' | 'REWARDS' | 'QUESTIONS' | 'USERS';
@@ -67,6 +69,8 @@ interface UserItem {
   _id: string;
   uid: string;
   name: string;
+  username?: string;
+  arenaTag?: string;
   email: string;
   class: number;
   totalEXP: number;
@@ -108,6 +112,11 @@ export default function AdminScreen() {
     explanation: '',
     packet: 1,
   });
+
+  // AI Question Factory state
+  const [aiBatchModalVisible, setAiBatchModalVisible] = useState(false);
+  const [aiBatchJson, setAiBatchJson] = useState('');
+  const [aiBatchLoading, setAiBatchLoading] = useState(false);
 
   // Users state
   const [users, setUsers] = useState<UserItem[]>([]);
@@ -212,11 +221,13 @@ export default function AdminScreen() {
 
     try {
       if (_id) {
-        await api.put(`/admin/questions/${_id}`, editingQuestion);
-        Alert.alert('🧠 Brain Melter Upgraded', 'Question updated in the archives!');
+        await SupabaseService.updateQuestion(_id, editingQuestion as any);
+        try { await api.put(`/admin/questions/${_id}`, editingQuestion); } catch (err) {}
+        Alert.alert('🧠 Brain Melter Upgraded', 'Question updated in Supabase & archives!');
       } else {
-        await api.post('/admin/questions', editingQuestion);
-        Alert.alert('💥 New Brain Melter Armed', 'Question unleashed into the Arena pool!');
+        await SupabaseService.createQuestion(editingQuestion as any);
+        try { await api.post('/admin/questions', editingQuestion); } catch (err) {}
+        Alert.alert('💥 New Brain Melter Armed', 'Question unleashed into Supabase & Arena pool!');
       }
       setQuestionModalVisible(false);
       loadData();
@@ -234,7 +245,8 @@ export default function AdminScreen() {
         style: 'destructive',
         onPress: async () => {
           try {
-            await api.delete(`/admin/questions/${id}`);
+            await SupabaseService.deleteQuestion(id);
+            try { await api.delete(`/admin/questions/${id}`); } catch (err) {}
             loadData();
           } catch (e: any) {
             Alert.alert('Error', 'Failed to vaporize question');
@@ -242,6 +254,63 @@ export default function AdminScreen() {
         },
       },
     ]);
+  };
+
+  // ─── AI Batch Generator & Injector ───
+  const handleInjectAIBatch = async () => {
+    if (!aiBatchJson.trim()) {
+      Alert.alert('Empty Payload', 'Please paste a JSON array of questions generated from Gemini/ChatGPT.');
+      return;
+    }
+
+    try {
+      setAiBatchLoading(true);
+      const parsed = JSON.parse(aiBatchJson);
+      if (!Array.isArray(parsed) || parsed.length === 0) {
+        Alert.alert('Invalid Format', 'JSON must be a non-empty array of question objects.');
+        setAiBatchLoading(false);
+        return;
+      }
+
+      const validQuestions: Array<Omit<QuestionItem, '_id'>> = [];
+      for (const q of parsed) {
+        if (!q.question || !Array.isArray(q.options) || q.options.length !== 4 || typeof q.answer !== 'number') {
+          Alert.alert('Validation Error', `Question "${q.question || 'Unknown'}" is missing required fields (question, 4 options, answer index 0-3).`);
+          setAiBatchLoading(false);
+          return;
+        }
+        validQuestions.push({
+          class: q.class || 10,
+          subject: q.subject || 'Science',
+          difficulty: q.difficulty || 1,
+          question: q.question,
+          options: q.options,
+          answer: q.answer,
+          explanation: q.explanation || '',
+          packet: q.packet || 1,
+        });
+      }
+
+      // 1. Insert into Supabase
+      const count = await SupabaseService.insertBulkQuestions(validQuestions as any);
+
+      // 2. Also try API bulk upload
+      try {
+        await api.post('/admin/questions/bulk', { questions: validQuestions });
+      } catch (err) {}
+
+      Alert.alert(
+        '🚀 AI Batch Injected!',
+        `Successfully unleashed ${validQuestions.length} new brain melters into Supabase & live game pool!`
+      );
+      setAiBatchJson('');
+      setAiBatchModalVisible(false);
+      loadData();
+    } catch (e: any) {
+      Alert.alert('JSON Parse Error', 'Failed to parse JSON. Please ensure valid JSON syntax.');
+    } finally {
+      setAiBatchLoading(false);
+    }
   };
 
   // ─── Grant Glow Border to User ───
@@ -603,15 +672,16 @@ export default function AdminScreen() {
                 <Text style={styles.hudSectionSub}>Craft mind-bending MCQs to humble overconfident students.</Text>
               </View>
 
-              <View style={styles.filterRow}>
-                <TextInput
-                  style={styles.searchInput}
-                  placeholder="🔍 Search through the torture archives..."
-                  placeholderTextColor="#667"
-                  value={qSearch}
-                  onChangeText={setQSearch}
-                  onSubmitEditing={loadData}
-                />
+              <TextInput
+                style={[styles.searchInput, { marginBottom: 10 }]}
+                placeholder="🔍 Search through the torture archives..."
+                placeholderTextColor="#667"
+                value={qSearch}
+                onChangeText={setQSearch}
+                onSubmitEditing={loadData}
+              />
+
+              <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
                 <BouncyButton
                   onPress={() => {
                     setEditingQuestion({
@@ -626,9 +696,16 @@ export default function AdminScreen() {
                     });
                     setQuestionModalVisible(true);
                   }}
-                  style={styles.addQuestionBtn}
+                  style={[styles.addQuestionBtn, { flex: 1 }]}
                 >
-                  <Text style={styles.addQuestionBtnText}>➕ CRAFT MELTER</Text>
+                  <Text style={styles.addQuestionBtnText}>➕ CRAFT SINGLE</Text>
+                </BouncyButton>
+
+                <BouncyButton
+                  onPress={() => setAiBatchModalVisible(true)}
+                  style={[styles.addQuestionBtn, { flex: 1, backgroundColor: '#7928CA', borderColor: '#BD00FF' }]}
+                >
+                  <Text style={styles.addQuestionBtnText}>🤖 AI BATCH INJECTOR</Text>
                 </BouncyButton>
               </View>
 
@@ -701,9 +778,15 @@ export default function AdminScreen() {
                   <View key={u._id} style={styles.userCard}>
                     <View style={styles.userHeader}>
                       <View style={{ flex: 1 }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                           <Text style={{ fontSize: 20 }}>{u.avatar || '🎓'}</Text>
                           <Text style={styles.userNameText}>{u.name}</Text>
+                          <Text style={{ color: '#00F0FF', fontSize: 11, fontWeight: 'bold' }}>
+                            {u.username || `@user_${u.uid.slice(-4)}`}
+                          </Text>
+                          <Text style={{ color: '#FFD700', fontSize: 10, fontWeight: 'bold' }}>
+                            {u.arenaTag || `#AA-${u.uid.slice(-4).toUpperCase()}`}
+                          </Text>
                         </View>
                         <Text style={styles.userSubText}>{u.email}</Text>
                         <Text style={styles.userMetaText}>
@@ -953,6 +1036,98 @@ export default function AdminScreen() {
                 </TouchableOpacity>
               </View>
             </ScrollView>
+          </View>
+        </Modal>
+
+        {/* ─── AI QUESTION FACTORY / BATCH INJECTOR MODAL ─── */}
+        <Modal visible={aiBatchModalVisible} transparent animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalBox, { maxHeight: '85%' }]}>
+              <View style={styles.passwordModalHeader}>
+                <Text style={{ fontSize: 24 }}>🤖</Text>
+                <Text style={[styles.modalTitle, { color: '#BD00FF' }]}>AI QUESTION FACTORY</Text>
+              </View>
+              <Text style={styles.passwordModalDesc}>
+                Paste an array of questions generated from Gemini/ChatGPT. They will be validated and bulk-injected directly into Supabase & offline bank!
+              </Text>
+
+              <TouchableOpacity
+                style={{
+                  backgroundColor: 'rgba(189, 0, 255, 0.15)',
+                  padding: 10,
+                  borderRadius: 8,
+                  borderWidth: 1,
+                  borderColor: 'rgba(189, 0, 255, 0.3)',
+                  marginBottom: 12,
+                  alignItems: 'center',
+                }}
+                onPress={() => {
+                  const sample = [
+                    {
+                      class: 10,
+                      subject: 'Science',
+                      difficulty: 2,
+                      question: 'What is the SI unit of electric potential difference?',
+                      options: ['Volt', 'Ampere', 'Ohm', 'Joule'],
+                      answer: 0,
+                      explanation: 'Potential difference is measured in Volts (V), named after Alessandro Volta.',
+                      packet: 1,
+                    },
+                    {
+                      class: 10,
+                      subject: 'Mathematics',
+                      difficulty: 2,
+                      question: 'The discriminant of ax² + bx + c = 0 is given by:',
+                      options: ['b² - 4ac', 'b² + 4ac', '2a - 4bc', '4ac - b²'],
+                      answer: 0,
+                      explanation: 'Discriminant D = b² - 4ac determines the nature of quadratic roots.',
+                      packet: 1,
+                    },
+                  ];
+                  setAiBatchJson(JSON.stringify(sample, null, 2));
+                }}
+              >
+                <Text style={{ color: '#BD00FF', fontSize: 12, fontWeight: 'bold' }}>
+                  📋 Load Sample AI JSON Format
+                </Text>
+              </TouchableOpacity>
+
+              <Text style={styles.fieldLabel}>Paste Questions JSON Array:</Text>
+              <TextInput
+                style={[styles.modalInput, { height: 180, textAlignVertical: 'top', fontFamily: 'monospace', fontSize: 12 }]}
+                multiline
+                placeholder='[ { "class": 10, "subject": "Science", "difficulty": 2, "question": "...", "options": ["A", "B", "C", "D"], "answer": 0, "explanation": "..." } ]'
+                placeholderTextColor="#667"
+                value={aiBatchJson}
+                onChangeText={setAiBatchJson}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+
+              <View style={styles.modalBtnRow}>
+                <TouchableOpacity
+                  onPress={() => setAiBatchModalVisible(false)}
+                  style={[styles.modalBtn, { backgroundColor: '#1C2436' }]}
+                  disabled={aiBatchLoading}
+                >
+                  <Text style={styles.modalBtnText}>Cancel</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={handleInjectAIBatch}
+                  style={[styles.modalBtn, { backgroundColor: '#BD00FF' }]}
+                  disabled={aiBatchLoading}
+                >
+                  {aiBatchLoading ? (
+                    <ActivityIndicator size="small" color="#FFF" />
+                  ) : (
+                    <Text style={[styles.modalBtnText, { color: '#FFF', fontWeight: 'bold' }]}>
+                      🚀 Unleash AI Batch
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
         </Modal>
 

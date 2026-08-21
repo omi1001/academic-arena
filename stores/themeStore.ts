@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { THEME_PRESETS, ThemeMode, ThemePresetKey, ThemePreset } from '../constants/themes';
+import { soundManager } from '../lib/soundManager';
 
 const STORAGE_THEME_MODE = '@app_theme_mode';
 const STORAGE_THEME_PRESET = '@app_theme_preset';
@@ -44,6 +45,7 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
     if (preset) {
       await AsyncStorage.setItem(STORAGE_THEME_MODE, preset.defaultMode);
     }
+    soundManager.playThemeBgm(presetKey);
   },
 
   setCustomWallpaper: async (url: string | null) => {
@@ -63,12 +65,14 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
         AsyncStorage.getItem(STORAGE_CUSTOM_WALLPAPER),
       ]);
 
+      const activePreset = (storedPreset as ThemePresetKey) || 'cosmic_lofi';
       set({
         mode: (storedMode as ThemeMode) || 'dark',
-        presetKey: (storedPreset as ThemePresetKey) || 'cosmic_lofi',
+        presetKey: activePreset,
         customWallpaper: storedWallpaper || null,
         isLoaded: true,
       });
+      soundManager.playThemeBgm(activePreset);
     } catch (e) {
       set({ isLoaded: true });
     }
