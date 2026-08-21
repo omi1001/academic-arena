@@ -23,6 +23,7 @@ const LOCAL_SOUNDS = {
   bgmSpace: require('../assets/sounds/bgm_space.mp3'),
   bgmDrill: require('../assets/sounds/bgm_drill.mp3'),
   bgmBirds: require('../assets/sounds/bgm_birds.mp3'),
+  bgmMotherEarth: require('../assets/sounds/bgm_mother_earth.mp3'),
 };
 
 const THEME_BGM_MAP: Record<string, any> = {
@@ -30,13 +31,13 @@ const THEME_BGM_MAP: Record<string, any> = {
   cosmic_lofi: LOCAL_SOUNDS.bgmSpace,
   cyber_neon: LOCAL_SOUNDS.bgmDrill,
   botanical_calm: LOCAL_SOUNDS.bgmBirds,
-  ember_arena: LOCAL_SOUNDS.bgmDrill,
+  ember_arena: LOCAL_SOUNDS.bgmMotherEarth,
 };
 
 class SoundManager {
   private enabled: boolean = true;
-  private sfxVolume: number = 0.85;
-  private bgmVolume: number = 0.55;
+  private sfxVolume: number = 1.0;
+  private bgmVolume: number = 0.90;
   private isSettingsLoaded: boolean = false;
   private activePlayers: AudioPlayer[] = [];
 
@@ -57,10 +58,10 @@ class SoundManager {
         this.enabled = storedEnabled === 'true';
       }
       if (storedSfx !== null) {
-        this.sfxVolume = parseFloat(storedSfx) || 0.85;
+        this.sfxVolume = parseFloat(storedSfx) || 1.0;
       }
       if (storedBgm !== null) {
-        this.bgmVolume = parseFloat(storedBgm) || 0.55;
+        this.bgmVolume = parseFloat(storedBgm) || 0.90;
       }
       this.isSettingsLoaded = true;
     } catch (e) {
