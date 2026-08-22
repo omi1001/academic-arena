@@ -24,6 +24,7 @@ import { useUserStore } from '../../stores/userStore';
 import { useThemeStore } from '../../stores/themeStore';
 import { Friend, User, FriendlyRoom } from '../../types';
 import { Colors } from '../../constants/theme';
+import { soundManager } from '../../lib/soundManager';
 
 export default function FriendsScreen() {
   const router = useRouter();
@@ -68,6 +69,7 @@ export default function FriendsScreen() {
   useFocusEffect(
     useCallback(() => {
       loadFriends();
+      soundManager.resumeBgm();
     }, [firebaseUser])
   );
 

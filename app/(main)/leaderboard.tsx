@@ -19,6 +19,7 @@ import { ThemedBackground } from '../../components/ThemedBackground';
 import api from '../../lib/api';
 import { SupabaseService } from '../../lib/supabaseService';
 import { GlowingProfileCard } from '../../components/GlowingProfileCard';
+import { soundManager } from '../../lib/soundManager';
 
 type LeaderboardTab = 'weekly' | 'total' | 'challenge';
 
@@ -85,6 +86,7 @@ export default function LeaderboardScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchLeaderboard();
+      soundManager.resumeBgm();
     }, [tab])
   );
 

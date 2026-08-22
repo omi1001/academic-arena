@@ -29,6 +29,8 @@ export const ThemeSelectorModal: React.FC<ThemeSelectorModalProps> = ({
   const colors = getColors();
 
   const [soundEnabled, setSoundEnabledState] = useState(() => soundManager.getSoundEnabled());
+  const [bgmVol, setBgmVol] = useState(() => soundManager.getBgmVolume());
+  const [sfxVol, setSfxVol] = useState(() => soundManager.getSfxVolume());
   const [customUrlInput, setCustomUrlInput] = useState(customWallpaper || '');
 
   const handleToggleSound = async () => {
@@ -37,6 +39,21 @@ export const ThemeSelectorModal: React.FC<ThemeSelectorModalProps> = ({
     setSoundEnabledState(next);
     await soundManager.setSoundEnabled(next);
     if (next) {
+      soundManager.playCorrect();
+    }
+  };
+
+  const handleSetBgmVolume = async (vol: number) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setBgmVol(vol);
+    await soundManager.setBgmVolume(vol);
+  };
+
+  const handleSetSfxVolume = async (vol: number) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSfxVol(vol);
+    await soundManager.setSfxVolume(vol);
+    if (vol > 0) {
       soundManager.playCorrect();
     }
   };
@@ -74,7 +91,7 @@ export const ThemeSelectorModal: React.FC<ThemeSelectorModalProps> = ({
             <View>
               <Text style={[styles.title, { color: colors.text }]}>🎨 Theme & Atmosphere</Text>
               <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-                Customize visuals, mode & meme sounds
+                Customize visuals, mode & background music
               </Text>
             </View>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
@@ -110,12 +127,12 @@ export const ThemeSelectorModal: React.FC<ThemeSelectorModalProps> = ({
               </TouchableOpacity>
             </View>
 
-            {/* Sound & Meme Audio Toggle */}
+            {/* Master Audio Toggle */}
             <View style={styles.soundRow}>
               <View>
-                <Text style={[styles.soundTitle, { color: colors.text }]}>🔊 Meme & Game Audio</Text>
+                <Text style={[styles.soundTitle, { color: colors.text }]}>🔊 Master Audio</Text>
                 <Text style={[styles.soundSubtitle, { color: colors.textMuted }]}>
-                  Anime streaks & sarcastic sounds
+                  Soundtracks & meme taunts
                 </Text>
               </View>
               <TouchableOpacity
@@ -129,9 +146,91 @@ export const ThemeSelectorModal: React.FC<ThemeSelectorModalProps> = ({
               </TouchableOpacity>
             </View>
 
+            {/* Background Music (BGM) Volume */}
+            <View style={styles.volumeCard}>
+              <View style={styles.volumeHeader}>
+                <Text style={[styles.volumeTitle, { color: colors.text }]}>🎵 Music Volume (BGM)</Text>
+                <Text style={[styles.volumePercentText, { color: colors.primary }]}>
+                  {Math.round(bgmVol * 100)}%
+                </Text>
+              </View>
+              <View style={styles.volumePillsRow}>
+                {[
+                  { label: 'OFF 🔇', val: 0.0 },
+                  { label: '30% 🔈', val: 0.3 },
+                  { label: '60% 🔉', val: 0.6 },
+                  { label: '90% 🔊', val: 0.9 },
+                ].map((tier) => {
+                  const isSelected = Math.abs(bgmVol - tier.val) < 0.12;
+                  return (
+                    <TouchableOpacity
+                      key={tier.label}
+                      style={[
+                        styles.volumePill,
+                        isSelected
+                          ? { backgroundColor: colors.primary, borderColor: colors.primary }
+                          : { backgroundColor: 'rgba(255, 255, 255, 0.06)', borderColor: 'rgba(255, 255, 255, 0.12)' },
+                      ]}
+                      onPress={() => handleSetBgmVolume(tier.val)}
+                    >
+                      <Text
+                        style={[
+                          styles.volumePillText,
+                          isSelected && styles.activeModeText,
+                        ]}
+                      >
+                        {tier.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* Meme SFX Volume */}
+            <View style={[styles.volumeCard, { marginTop: 10 }]}>
+              <View style={styles.volumeHeader}>
+                <Text style={[styles.volumeTitle, { color: colors.text }]}>💥 Meme SFX Volume</Text>
+                <Text style={[styles.volumePercentText, { color: colors.secondary }]}>
+                  {Math.round(sfxVol * 100)}%
+                </Text>
+              </View>
+              <View style={styles.volumePillsRow}>
+                {[
+                  { label: 'OFF 🔇', val: 0.0 },
+                  { label: '40% 🔈', val: 0.4 },
+                  { label: '70% 🔉', val: 0.7 },
+                  { label: '100% 🔊', val: 1.0 },
+                ].map((tier) => {
+                  const isSelected = Math.abs(sfxVol - tier.val) < 0.12;
+                  return (
+                    <TouchableOpacity
+                      key={tier.label}
+                      style={[
+                        styles.volumePill,
+                        isSelected
+                          ? { backgroundColor: colors.secondary, borderColor: colors.secondary }
+                          : { backgroundColor: 'rgba(255, 255, 255, 0.06)', borderColor: 'rgba(255, 255, 255, 0.12)' },
+                      ]}
+                      onPress={() => handleSetSfxVolume(tier.val)}
+                    >
+                      <Text
+                        style={[
+                          styles.volumePillText,
+                          isSelected && styles.activeModeText,
+                        ]}
+                      >
+                        {tier.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
             {/* Presets & Wallpapers */}
             <Text style={[styles.sectionTitle, { color: colors.text, marginTop: 20 }]}>
-              🖼️ Aesthetic Wallpapers & Fonts
+              🖼️ Aesthetic Wallpapers & Soundtracks
             </Text>
             <View style={styles.presetList}>
               {(Object.keys(THEME_PRESETS) as ThemePresetKey[]).map((key) => {
@@ -297,6 +396,45 @@ const styles = StyleSheet.create({
   soundToggleText: {
     color: '#FFF',
     fontSize: 12,
+    fontWeight: 'bold',
+  },
+  volumeCard: {
+    padding: 14,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    marginTop: 10,
+  },
+  volumeHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  volumeTitle: {
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  volumePercentText: {
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  volumePillsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  volumePill: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  volumePillText: {
+    color: '#9CA3AF',
+    fontSize: 11,
     fontWeight: 'bold',
   },
   presetList: {

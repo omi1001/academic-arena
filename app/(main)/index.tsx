@@ -9,6 +9,9 @@ import {
   Easing,
   Alert,
   TouchableOpacity,
+  BackHandler,
+  ToastAndroid,
+  Platform,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { signOut } from 'firebase/auth';
@@ -127,6 +130,24 @@ export default function DashboardScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchProfile();
+      soundManager.resumeBgm();
+
+      let lastBackPress = 0;
+      const onBackPress = () => {
+        const now = Date.now();
+        if (now - lastBackPress < 2000) {
+          BackHandler.exitApp();
+          return true;
+        }
+        lastBackPress = now;
+        if (Platform.OS === 'android') {
+          ToastAndroid.show('Press back again to exit', ToastAndroid.SHORT);
+        }
+        return true;
+      };
+
+      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => subscription.remove();
     }, [firebaseUser])
   );
 

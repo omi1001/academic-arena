@@ -9,6 +9,7 @@ import {
   Animated,
   Easing,
   ScrollView,
+  BackHandler,
 } from 'react-native';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -190,12 +191,40 @@ export default function ChallengeGameScreen() {
   useEffect(() => {
     fetchQuestions();
     soundManager.pauseBgm();
+    soundManager.playChallengeRockBgm();
     return () => {
+      soundManager.stopChallengeRockBgm();
       soundManager.resumeBgm();
       if (timerRef.current) clearInterval(timerRef.current);
       if (botTimeoutRef.current) clearTimeout(botTimeoutRef.current);
     };
   }, []);
+
+  // Hardware Back Button Protection (Android)
+  useEffect(() => {
+    const onBackPress = () => {
+      if (matchEnded) {
+        router.replace('/(main)');
+        return true;
+      }
+      Alert.alert(
+        'Surrender 1v1 Bot Duel? 🏳️',
+        'Exiting now will forfeit the match.',
+        [
+          { text: 'Stay in Duel', style: 'cancel' },
+          {
+            text: 'Forfeit & Exit',
+            style: 'destructive',
+            onPress: () => router.replace('/(main)'),
+          },
+        ]
+      );
+      return true;
+    };
+
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => sub.remove();
+  }, [matchEnded]);
 
   // Question entrance trigger
   useEffect(() => {

@@ -235,24 +235,69 @@ export const SupabaseService = {
 
   async searchUsers(searchQuery: string, limit = 20): Promise<User[]> {
     try {
-      const q = searchQuery.trim();
-      if (!q) return [];
+      const raw = searchQuery.trim();
+      if (!raw) return [];
+
+      // 1. Strip special query characters that break URL encoding in PostgREST
+      const clean = raw.replace(/[#@%()]/g, '').trim();
+      if (!clean) return [];
+
+      // 2. Extract alphanumeric token (for tags like #AA-4B29 or 4B29)
+      const alphaNum = clean.replace(/[^A-Za-z0-9]/g, '');
+      const hexSuffix = alphaNum.toUpperCase().startsWith('AA') ? alphaNum.slice(2) : alphaNum;
+
+      // 3. Build safe OR clauses
+      const orClauses: string[] = [
+        `name.ilike.%${clean}%`,
+        `username.ilike.%${clean}%`,
+        `arena_tag.ilike.%${clean}%`,
+      ];
+
+      // If user typed a 2+ char tag part (e.g. "4B29" or "AA4B29"), also search firebase_uid and arena_tag
+      if (hexSuffix.length >= 2) {
+        orClauses.push(`firebase_uid.ilike.%${hexSuffix}%`);
+        orClauses.push(`arena_tag.ilike.%${hexSuffix}%`);
+      }
 
       const { data, error } = await supabase
         .from('users')
         .select('*')
-        .or(`name.ilike.%${q}%,username.ilike.%${q}%,arena_tag.ilike.%${q}%`)
+        .or(orClauses.join(','))
         .limit(limit);
 
-      if (error || !data) return [];
+      if (error || !data || data.length === 0) {
+        // Fallback: Simple direct ILIKE on name or username
+        const { data: fallbackData } = await supabase
+          .from('users')
+          .select('*')
+          .ilike('name', `%${clean}%`)
+          .limit(limit);
+
+        if (!fallbackData || fallbackData.length === 0) return [];
+        return fallbackData.map((u: any) => ({
+          uid: u.firebase_uid,
+          name: u.name || 'Player',
+          username: u.username || generateDefaultUsername(u.name || 'player', u.firebase_uid),
+          arenaTag: u.arena_tag || generateArenaTag(u.firebase_uid),
+          email: u.email,
+          class: u.class || 10,
+          totalEXP: u.total_exp || 0,
+          gamesPlayed: u.games_played || 0,
+          totalAnswered: u.total_answered || 0,
+          totalCorrect: u.total_correct || 0,
+          highestStreak: 0,
+          highestDifficulty: 1,
+          avatar: u.avatar || '👤',
+        }));
+      }
 
       return data.map((u: any) => ({
         uid: u.firebase_uid,
-        name: u.name,
+        name: u.name || 'Player',
         username: u.username || generateDefaultUsername(u.name || 'player', u.firebase_uid),
         arenaTag: u.arena_tag || generateArenaTag(u.firebase_uid),
         email: u.email,
-        class: u.class,
+        class: u.class || 10,
         totalEXP: u.total_exp || 0,
         gamesPlayed: u.games_played || 0,
         totalAnswered: u.total_answered || 0,

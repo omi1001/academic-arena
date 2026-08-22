@@ -9,6 +9,7 @@ import {
   Vibration,
   Animated,
   Easing,
+  BackHandler,
 } from 'react-native';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -155,6 +156,32 @@ export default function GameRunScreen() {
       if (inactivityRef.current) clearInterval(inactivityRef.current);
     };
   }, []);
+
+  // Hardware Back Button Protection (Android)
+  useEffect(() => {
+    const onBackPress = () => {
+      if (finalSummary) {
+        router.replace('/(main)');
+        return true;
+      }
+      Alert.alert(
+        'Abandon Arena Match? ⚠️',
+        'Your streak and current match progress will be lost.',
+        [
+          { text: 'Keep Playing', style: 'cancel' },
+          {
+            text: 'Exit Arena',
+            style: 'destructive',
+            onPress: () => router.replace('/(main)'),
+          },
+        ]
+      );
+      return true;
+    };
+
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => sub.remove();
+  }, [finalSummary]);
 
   // Trigger question entry animation on new currentQuestion
   useEffect(() => {

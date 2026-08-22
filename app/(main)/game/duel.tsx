@@ -9,6 +9,7 @@ import {
   Easing,
   ActivityIndicator,
   Modal,
+  BackHandler,
 } from 'react-native';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -132,13 +133,40 @@ export default function FriendlyDuelScreen() {
 
     soundManager.pauseBgm();
 
+    const onBackPress = () => {
+      if (isGameOver) {
+        FriendlyBattleService.leaveCurrentRoom();
+        router.replace('/(main)/friends');
+        return true;
+      }
+      Alert.alert(
+        'Leave Duel Arena? 🚪',
+        'Surrendering will forfeit the match to your opponent.',
+        [
+          { text: 'Stay in Duel', style: 'cancel' },
+          {
+            text: 'Leave Arena',
+            style: 'destructive',
+            onPress: () => {
+              FriendlyBattleService.leaveCurrentRoom();
+              router.replace('/(main)/friends');
+            },
+          },
+        ]
+      );
+      return true;
+    };
+
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+
     return () => {
       isMounted = false;
+      sub.remove();
       soundManager.resumeBgm();
       if (timerRef.current) clearInterval(timerRef.current);
       FriendlyBattleService.leaveCurrentRoom();
     };
-  }, []);
+  }, [isGameOver]);
 
   // Question Timer
   useEffect(() => {

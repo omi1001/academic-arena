@@ -62,6 +62,7 @@ export default function ProfileScreen() {
         }
       };
       fetchProfile();
+      soundManager.resumeBgm();
     }, [firebaseUser])
   );
 

@@ -17,13 +17,30 @@ const LOCAL_SOUNDS = {
   thud: require('../assets/sounds/thud.mp3'),
   goofyHorn: require('../assets/sounds/goofy_ahh_car_horn.mp3'),
   wooooah: require('../assets/sounds/woooooaah.mp3'),
+  memeNani: require('../assets/sounds/meme_nani.mp3'),
+  memeCatLaugh: require('../assets/sounds/meme_cat_laugh.mp3'),
+  memeError: require('../assets/sounds/meme_error.mp3'),
+
+  // Victory / Won sounds
+  victoryFlawless: require('../assets/sounds/victory_flawless.mp3'),
+  victoryFf: require('../assets/sounds/victory_ff.mp3'),
+  victoryBrass: require('../assets/sounds/victory_brass.mp3'),
+
+  // Defeat / Game Over / Loss sounds
+  defeatRobert: require('../assets/sounds/defeat_robert.mp3'),
+  defeatFine: require('../assets/sounds/defeat_fine.mp3'),
+  defeatSadMeow: require('../assets/sounds/defeat_sad_meow.mp3'),
+  defeatCryingCat: require('../assets/sounds/defeat_crying_cat.mp3'),
+  defeatArcade: require('../assets/sounds/defeat_arcade.mp3'),
+  defeatNemesis: require('../assets/sounds/defeat_nemesis.mp3'),
 
   // Dynamic Theme Background Music
   bgmSuzume: require('../assets/sounds/bgm_suzume.mp3'),
   bgmSpace: require('../assets/sounds/bgm_space.mp3'),
   bgmDrill: require('../assets/sounds/bgm_drill.mp3'),
   bgmBirds: require('../assets/sounds/bgm_birds.mp3'),
-  bgmMotherEarth: require('../assets/sounds/bgm_mother_earth.mp3'),
+  bgmEmber: require('../assets/sounds/bgm_ember.mp3'),
+  bgmChallengeRock: require('../assets/sounds/bgm_challenge_rock.mp3'),
 };
 
 const THEME_BGM_MAP: Record<string, any> = {
@@ -31,7 +48,7 @@ const THEME_BGM_MAP: Record<string, any> = {
   cosmic_lofi: LOCAL_SOUNDS.bgmSpace,
   cyber_neon: LOCAL_SOUNDS.bgmDrill,
   botanical_calm: LOCAL_SOUNDS.bgmBirds,
-  ember_arena: LOCAL_SOUNDS.bgmMotherEarth,
+  ember_arena: LOCAL_SOUNDS.bgmEmber,
 };
 
 class SoundManager {
@@ -112,18 +129,32 @@ class SoundManager {
     return this.sfxVolume;
   }
 
+  public getSfxVolume(): number {
+    return this.sfxVolume;
+  }
+
+  public getBgmVolume(): number {
+    return this.bgmVolume;
+  }
+
   // ─── 🎵 DYNAMIC THEME BACKGROUND MUSIC ───
 
-  public async playThemeBgm(presetKey: string) {
+  public async playThemeBgm(presetKey: string, forceRestart = false) {
     try {
       await this.ensureSettingsLoaded();
       if (!this.enabled || this.isBgmPausedForGame) return;
 
       const trackAsset = THEME_BGM_MAP[presetKey] || LOCAL_SOUNDS.bgmSpace;
 
-      // If already playing this exact track, don't restart
-      if (this.currentBgmKey === presetKey && this.bgmPlayer) {
-        return;
+      // If already playing this exact track, unpause if paused
+      if (!forceRestart && this.currentBgmKey === presetKey && this.bgmPlayer) {
+        try {
+          this.bgmPlayer.volume = this.bgmVolume;
+          this.bgmPlayer.play();
+          return;
+        } catch (e) {
+          this.bgmPlayer = null;
+        }
       }
 
       this.stopBgm();
@@ -143,7 +174,7 @@ class SoundManager {
   public startBgm(presetKey?: string) {
     const key = presetKey || this.currentBgmKey || 'cosmic_lofi';
     this.isBgmPausedForGame = false;
-    this.playThemeBgm(key);
+    this.playThemeBgm(key, true);
   }
 
   public pauseBgm() {
@@ -155,17 +186,23 @@ class SoundManager {
     } catch (e) {}
   }
 
-  public resumeBgm() {
+  public resumeBgm(presetKey?: string) {
     this.isBgmPausedForGame = false;
-    try {
-      if (this.enabled) {
-        if (this.bgmPlayer) {
-          this.bgmPlayer.play();
-        } else if (this.currentBgmKey) {
-          this.playThemeBgm(this.currentBgmKey);
-        }
+    if (!this.enabled) return;
+
+    const key = presetKey || this.currentBgmKey || 'cosmic_lofi';
+
+    if (this.bgmPlayer) {
+      try {
+        this.bgmPlayer.volume = this.bgmVolume;
+        this.bgmPlayer.play();
+        return;
+      } catch (e) {
+        this.bgmPlayer = null;
       }
-    } catch (e) {}
+    }
+
+    this.playThemeBgm(key, true);
   }
 
   public stopBgm() {
@@ -174,6 +211,35 @@ class SoundManager {
         this.bgmPlayer.pause();
         this.bgmPlayer.release();
         this.bgmPlayer = null;
+      }
+    } catch (e) {}
+  }
+
+  // ─── 🎸 CHALLENGE MODE EPIC ROCK BGM ───
+  private challengePlayer: AudioPlayer | null = null;
+
+  public async playChallengeRockBgm() {
+    try {
+      await this.ensureSettingsLoaded();
+      if (!this.enabled) return;
+
+      this.stopChallengeRockBgm();
+      const player = createAudioPlayer(LOCAL_SOUNDS.bgmChallengeRock);
+      player.volume = Math.max(0, Math.min(1, this.bgmVolume * 0.85));
+      player.loop = true;
+      player.play();
+      this.challengePlayer = player;
+    } catch (e) {
+      console.warn('[SOUND MANAGER] Challenge Rock BGM error:', e);
+    }
+  }
+
+  public stopChallengeRockBgm() {
+    try {
+      if (this.challengePlayer) {
+        this.challengePlayer.pause();
+        this.challengePlayer.release();
+        this.challengePlayer = null;
       }
     } catch (e) {}
   }
@@ -196,7 +262,7 @@ class SoundManager {
           player.release();
           this.activePlayers = this.activePlayers.filter((p) => p !== player);
         } catch (e) {}
-      }, 5000);
+      }, 7000);
     } catch (e) {
       console.warn('[SOUND MANAGER] SFX play error:', e);
     }
@@ -221,6 +287,9 @@ class SoundManager {
       LOCAL_SOUNDS.thud,
       LOCAL_SOUNDS.goofyHorn,
       LOCAL_SOUNDS.wooooah,
+      LOCAL_SOUNDS.memeNani,
+      LOCAL_SOUNDS.memeCatLaugh,
+      LOCAL_SOUNDS.memeError,
     ];
     const pick = list[Math.floor(Math.random() * list.length)];
     await this.playLocalAsset(pick, 1.0);
@@ -242,25 +311,60 @@ class SoundManager {
     await this.playLocalAsset(LOCAL_SOUNDS.wooooah, 1.0);
   }
 
+  public async playNani() {
+    await this.playLocalAsset(LOCAL_SOUNDS.memeNani, 1.0);
+  }
+
+  public async playCatLaugh() {
+    await this.playLocalAsset(LOCAL_SOUNDS.memeCatLaugh, 1.0);
+  }
+
   // ─── 💀 DEFEAT / LOSS / GAME OVER SOUNDS ───
   public async playDefeat() {
-    const list = [LOCAL_SOUNDS.fart4, LOCAL_SOUNDS.fah, LOCAL_SOUNDS.goofyHorn, LOCAL_SOUNDS.thud];
+    const list = [
+      LOCAL_SOUNDS.defeatRobert,
+      LOCAL_SOUNDS.defeatFine,
+      LOCAL_SOUNDS.defeatSadMeow,
+      LOCAL_SOUNDS.defeatCryingCat,
+      LOCAL_SOUNDS.defeatArcade,
+      LOCAL_SOUNDS.defeatNemesis,
+    ];
     const pick = list[Math.floor(Math.random() * list.length)];
     await this.playLocalAsset(pick, 1.0);
   }
 
   public async playGameOver() {
-    const list = [LOCAL_SOUNDS.fart4, LOCAL_SOUNDS.fah, LOCAL_SOUNDS.goofyHorn, LOCAL_SOUNDS.thud];
+    const list = [
+      LOCAL_SOUNDS.defeatRobert,
+      LOCAL_SOUNDS.defeatFine,
+      LOCAL_SOUNDS.defeatSadMeow,
+      LOCAL_SOUNDS.defeatCryingCat,
+      LOCAL_SOUNDS.defeatArcade,
+      LOCAL_SOUNDS.defeatNemesis,
+    ];
     const pick = list[Math.floor(Math.random() * list.length)];
     await this.playLocalAsset(pick, 1.0);
   }
 
+  // ─── 🏆 VICTORY / LEVEL UP SOUNDS ───
   public async playVictory() {
-    await this.playLocalAsset(LOCAL_SOUNDS.iGotThis, 1.0);
+    const list = [
+      LOCAL_SOUNDS.victoryFlawless,
+      LOCAL_SOUNDS.victoryFf,
+      LOCAL_SOUNDS.victoryBrass,
+    ];
+    const pick = list[Math.floor(Math.random() * list.length)];
+    await this.playLocalAsset(pick, 1.0);
   }
 
   public async playLevelUp() {
-    await this.playLocalAsset(LOCAL_SOUNDS.iGotThis, 1.0);
+    const list = [
+      LOCAL_SOUNDS.victoryFlawless,
+      LOCAL_SOUNDS.victoryFf,
+      LOCAL_SOUNDS.victoryBrass,
+    ];
+    const pick = list[Math.floor(Math.random() * list.length)];
+    await this.playLocalAsset(pick, 1.0);
   }
 
   public async playMudaMuda() {
@@ -272,7 +376,14 @@ class SoundManager {
   }
 
   public async playTauntPop() {
-    const list = [LOCAL_SOUNDS.goofyHorn, LOCAL_SOUNDS.fah, LOCAL_SOUNDS.fart4, LOCAL_SOUNDS.wooooah];
+    const list = [
+      LOCAL_SOUNDS.goofyHorn,
+      LOCAL_SOUNDS.fah,
+      LOCAL_SOUNDS.fart4,
+      LOCAL_SOUNDS.wooooah,
+      LOCAL_SOUNDS.memeNani,
+      LOCAL_SOUNDS.memeCatLaugh,
+    ];
     const pick = list[Math.floor(Math.random() * list.length)];
     await this.playLocalAsset(pick, 1.0);
   }

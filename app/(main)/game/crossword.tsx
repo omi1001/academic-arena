@@ -10,6 +10,7 @@ import {
   Animated,
   Easing,
   ActivityIndicator,
+  BackHandler,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -70,7 +71,15 @@ export default function CrosswordScreen() {
   useEffect(() => {
     loadLevel();
     soundManager.pauseBgm();
+
+    const onBackPress = () => {
+      router.replace('/(main)');
+      return true;
+    };
+
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
     return () => {
+      sub.remove();
       soundManager.resumeBgm();
     };
   }, []);

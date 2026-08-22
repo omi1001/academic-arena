@@ -25,8 +25,9 @@ export default function GameSetupScreen() {
   }>();
 
   const { profile } = useUserStore();
+  const isAdmin = profile?.role === 'admin';
   const playerExp = profile?.totalEXP || 0;
-  const isSilverUnlocked = playerExp >= LEADERBOARD_TIERS.SILVER.minEXP;
+  const isSilverUnlocked = isAdmin || playerExp >= LEADERBOARD_TIERS.SILVER.minEXP;
 
   const [gameMode, setGameMode] = useState<'solo' | 'challenge'>(
     routeMode === 'challenge' && isSilverUnlocked ? 'challenge' : 'solo'
