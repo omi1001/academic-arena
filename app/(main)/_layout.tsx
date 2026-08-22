@@ -1,14 +1,17 @@
 import { Tabs, Redirect } from 'expo-router';
-import { Text, StyleSheet } from 'react-native';
+import { Text, StyleSheet, View, Platform } from 'react-native';
 import { useAuthStore } from '../../stores/authStore';
 import { useThemeStore } from '../../stores/themeStore';
 import { Colors } from '../../constants/theme';
 
-function TabIcon({ name, focused }: { name: string; focused: boolean }) {
+function TabIcon({ name, focused, color }: { name: string; focused: boolean; color?: any }) {
   return (
-    <Text style={[styles.tabIcon, focused && styles.tabIconActive]}>
-      {name}
-    </Text>
+    <View style={styles.tabIconContainer}>
+      <Text style={[styles.tabIcon, focused && styles.tabIconActive]}>
+        {name}
+      </Text>
+      {focused && <View style={[styles.activeDot, { backgroundColor: color || '#00F0FF' }]} />}
+    </View>
   );
 }
 
@@ -30,8 +33,8 @@ export default function MainLayout() {
         tabBarStyle: [
           styles.tabBar,
           {
-            backgroundColor: colors.cardBg || colors.surface,
-            borderTopColor: colors.border,
+            backgroundColor: mode === 'dark' ? 'rgba(15, 20, 36, 0.94)' : 'rgba(255, 255, 255, 0.94)',
+            borderTopColor: mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)',
           },
         ],
         tabBarActiveTintColor: colors.primary,
@@ -43,8 +46,8 @@ export default function MainLayout() {
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ focused }) => (
-            <TabIcon name="🏠" focused={focused} />
+          tabBarIcon: ({ focused, color }) => (
+            <TabIcon name="🏠" focused={focused} color={color} />
           ),
         }}
       />
@@ -52,17 +55,17 @@ export default function MainLayout() {
         name="friends"
         options={{
           title: 'Squad',
-          tabBarIcon: ({ focused }) => (
-            <TabIcon name="👥" focused={focused} />
+          tabBarIcon: ({ focused, color }) => (
+            <TabIcon name="👥" focused={focused} color={color} />
           ),
         }}
       />
       <Tabs.Screen
         name="leaderboard"
         options={{
-          title: 'Leaderboard',
-          tabBarIcon: ({ focused }) => (
-            <TabIcon name="🏆" focused={focused} />
+          title: 'Arena',
+          tabBarIcon: ({ focused, color }) => (
+            <TabIcon name="🏆" focused={focused} color={color} />
           ),
         }}
       />
@@ -70,8 +73,8 @@ export default function MainLayout() {
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ focused }) => (
-            <TabIcon name="👤" focused={focused} />
+          tabBarIcon: ({ focused, color }) => (
+            <TabIcon name="👤" focused={focused} color={color} />
           ),
         }}
       />
@@ -99,22 +102,38 @@ export default function MainLayout() {
 
 const styles = StyleSheet.create({
   tabBar: {
-    backgroundColor: Colors.dark.surface,
-    borderTopColor: Colors.dark.border,
     borderTopWidth: 1,
-    height: 70,
-    paddingBottom: 10,
-    paddingTop: 8,
+    height: Platform.OS === 'ios' ? 84 : 64,
+    paddingBottom: Platform.OS === 'ios' ? 24 : 8,
+    paddingTop: 6,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+  },
+  tabIconContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 28,
   },
   tabLabel: {
-    fontSize: 11,
-    fontWeight: '600',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+    marginTop: 2,
   },
   tabIcon: {
-    fontSize: 20,
-    opacity: 0.5,
+    fontSize: 19,
+    opacity: 0.45,
   },
   tabIconActive: {
     opacity: 1,
+    transform: [{ scale: 1.12 }],
+  },
+  activeDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    marginTop: 2,
   },
 });

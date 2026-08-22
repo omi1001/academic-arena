@@ -5,6 +5,7 @@ import {
   StyleSheet,
   PanResponder,
   TouchableOpacity,
+  Animated,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
@@ -15,10 +16,10 @@ interface LetterWheelProps {
   onShuffle: () => void;
 }
 
-const WHEEL_SIZE = 240;
-const RADIUS = 82;
-const LETTER_SIZE = 52;
-const HIT_RADIUS = 38;
+const WHEEL_SIZE = 220;
+const RADIUS = 74;
+const LETTER_SIZE = 48;
+const HIT_RADIUS = 34;
 
 export const LetterWheel: React.FC<LetterWheelProps> = ({
   letters,
@@ -159,7 +160,7 @@ export const LetterWheel: React.FC<LetterWheelProps> = ({
 
   return (
     <View style={styles.container}>
-      {/* ─── Word Preview / Manual Actions ─── */}
+      {/* ─── Compact Word Preview Capsule ─── */}
       <View style={styles.previewContainer}>
         {currentWord ? (
           <View style={styles.previewRow}>
@@ -177,12 +178,12 @@ export const LetterWheel: React.FC<LetterWheelProps> = ({
           </View>
         ) : (
           <View style={styles.previewPlaceholder}>
-            <Text style={styles.placeholderText}>Swipe or tap letters to spell</Text>
+            <Text style={styles.placeholderText}>TAP OR SWIPE LETTERS</Text>
           </View>
         )}
       </View>
 
-      {/* ─── Circular Letter Wheel ─── */}
+      {/* ─── Compact Circular Letter Disc ─── */}
       <View
         ref={wheelViewRef}
         style={styles.wheelBox}
@@ -191,7 +192,8 @@ export const LetterWheel: React.FC<LetterWheelProps> = ({
         }}
         {...panResponder.panHandlers}
       >
-        {/* Wheel Background Disc */}
+        {/* Outer Ring Ambient Glow */}
+        <View style={styles.wheelOuterRing} pointerEvents="none" />
         <View style={styles.wheelDisc} pointerEvents="none" />
 
         {/* Central Shuffle Button */}
@@ -202,7 +204,7 @@ export const LetterWheel: React.FC<LetterWheelProps> = ({
             handleClear();
             onShuffle();
           }}
-          activeOpacity={0.7}
+          activeOpacity={0.75}
         >
           <Text style={styles.shuffleIcon}>🔀</Text>
         </TouchableOpacity>
@@ -230,7 +232,7 @@ export const LetterWheel: React.FC<LetterWheelProps> = ({
                 colors={
                   isSelected
                     ? ['#00F0FF', '#7928CA']
-                    : ['#222B48', '#141A2E']
+                    : ['#252F4E', '#161C32']
                 }
                 style={styles.letterGradient}
               >
@@ -331,31 +333,43 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     position: 'relative',
   },
+  wheelOuterRing: {
+    position: 'absolute',
+    width: WHEEL_SIZE + 10,
+    height: WHEEL_SIZE + 10,
+    borderRadius: (WHEEL_SIZE + 10) / 2,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 240, 255, 0.12)',
+  },
   wheelDisc: {
     position: 'absolute',
     width: WHEEL_SIZE,
     height: WHEEL_SIZE,
     borderRadius: WHEEL_SIZE / 2,
-    backgroundColor: 'rgba(15, 20, 36, 0.88)',
-    borderWidth: 2,
-    borderColor: 'rgba(0, 240, 255, 0.25)',
+    backgroundColor: 'rgba(14, 19, 36, 0.92)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(0, 240, 255, 0.22)',
     shadowColor: '#00F0FF',
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
+    shadowOpacity: 0.2,
+    shadowRadius: 14,
   },
   shuffleBtn: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.09)',
     borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: 'rgba(255, 255, 255, 0.22)',
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 20,
+    shadowColor: '#000',
+    shadowOpacity: 0.4,
+    shadowRadius: 4,
+    elevation: 4,
   },
   shuffleIcon: {
-    fontSize: 20,
+    fontSize: 18,
   },
   letterNode: {
     position: 'absolute',
@@ -364,12 +378,16 @@ const styles = StyleSheet.create({
     borderRadius: LETTER_SIZE / 2,
     overflow: 'hidden',
     borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
     zIndex: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.35,
+    shadowRadius: 4,
+    elevation: 4,
   },
   letterNodeSelected: {
     borderColor: '#00F0FF',
-    transform: [{ scale: 1.12 }],
+    transform: [{ scale: 1.14 }],
     shadowColor: '#00F0FF',
     shadowOpacity: 0.9,
     shadowRadius: 10,
@@ -382,7 +400,7 @@ const styles = StyleSheet.create({
   },
   letterText: {
     color: '#FFF',
-    fontSize: 21,
+    fontSize: 20,
     fontWeight: '900',
   },
   letterTextSelected: {

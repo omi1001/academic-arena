@@ -276,16 +276,18 @@ export default function CrosswordScreen() {
           <TouchableOpacity
             style={styles.backBtn}
             onPress={() => router.replace('/(main)')}
+            activeOpacity={0.75}
           >
             <Text style={styles.backBtnText}>✕</Text>
           </TouchableOpacity>
 
           <View style={styles.levelInfo}>
             <Text style={[styles.levelBadge, levelData.isBonusLevel && { color: '#FFD700' }]}>
-              {levelData.isBonusLevel ? '⭐ BONUS LEVEL ' : 'LEVEL '}
-              {levelData.level}
+              {levelData.isBonusLevel ? '⭐ BONUS ROUND' : `LEVEL ${levelData.level}`}
             </Text>
-            <Text style={styles.categoryText}>🔬 {levelData.category.toUpperCase()}</Text>
+            <View style={styles.categoryPill}>
+              <Text style={styles.categoryText}>🔬 {levelData.category.toUpperCase()}</Text>
+            </View>
           </View>
 
           {/* Hint Currency & Clue Button */}
@@ -297,6 +299,7 @@ export default function CrosswordScreen() {
             <TouchableOpacity
               style={styles.clueBtn}
               onPress={() => setConceptModalVisible(true)}
+              activeOpacity={0.75}
             >
               <Text style={styles.clueIcon}>📖</Text>
             </TouchableOpacity>
@@ -382,6 +385,7 @@ export default function CrosswordScreen() {
                 <Text style={styles.powerupCostText}>1</Text>
               </View>
             </TouchableOpacity>
+            <Text style={styles.powerupLabelText}>HINT</Text>
           </View>
 
           <LetterWheel
@@ -397,6 +401,7 @@ export default function CrosswordScreen() {
                 <Text style={styles.powerupCostText}>3</Text>
               </View>
             </TouchableOpacity>
+            <Text style={styles.powerupLabelText}>WAND</Text>
           </View>
         </View>
 
@@ -462,9 +467,9 @@ export default function CrosswordScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 44,
+    paddingTop: 42,
     paddingHorizontal: 12,
-    paddingBottom: 8,
+    paddingBottom: 6,
     justifyContent: 'space-between',
   },
   loadingContainer: {
@@ -482,19 +487,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    backgroundColor: 'rgba(15, 20, 36, 0.75)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
     marginBottom: 4,
   },
   backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   backBtnText: {
     color: '#FFF',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: 'bold',
   },
   levelInfo: {
@@ -502,26 +513,33 @@ const styles = StyleSheet.create({
   },
   levelBadge: {
     color: '#FFF',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '900',
-    letterSpacing: 1,
+    letterSpacing: 0.8,
+  },
+  categoryPill: {
+    backgroundColor: 'rgba(0, 240, 255, 0.12)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginTop: 2,
   },
   categoryText: {
     color: '#00F0FF',
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: 'bold',
-    marginTop: 2,
+    letterSpacing: 0.5,
   },
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   hintCurrencyPill: {
     backgroundColor: 'rgba(255, 215, 0, 0.15)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 14,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#FFD700',
   },
@@ -531,9 +549,9 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   clueBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: 'rgba(0, 240, 255, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -541,33 +559,33 @@ const styles = StyleSheet.create({
     borderColor: '#00F0FF',
   },
   clueIcon: {
-    fontSize: 16,
+    fontSize: 15,
   },
   bonusLevelBanner: {
     backgroundColor: 'rgba(255, 215, 0, 0.2)',
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    borderRadius: 12,
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+    borderRadius: 10,
     alignSelf: 'center',
     marginBottom: 4,
     borderWidth: 1.5,
     borderColor: '#FFD700',
     shadowColor: '#FFD700',
     shadowOpacity: 0.6,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowRadius: 6,
+    elevation: 3,
   },
   bonusLevelBannerText: {
     color: '#FFD700',
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '900',
     letterSpacing: 0.5,
   },
   bonusBanner: {
     backgroundColor: 'rgba(255, 215, 0, 0.15)',
-    paddingVertical: 4,
-    paddingHorizontal: 12,
-    borderRadius: 12,
+    paddingVertical: 3,
+    paddingHorizontal: 10,
+    borderRadius: 10,
     alignSelf: 'center',
     marginBottom: 4,
     borderWidth: 1,
@@ -582,7 +600,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    marginVertical: 4,
+    marginVertical: 2,
   },
   gridContentContainer: {
     flexGrow: 1,
@@ -641,43 +659,54 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    marginBottom: 4,
+    gap: 12,
+    marginBottom: 2,
   },
   sidePowerupCol: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: 50,
+    width: 48,
+    gap: 4,
   },
   powerupCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1.5,
     borderColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
   },
   powerupCircleIcon: {
-    fontSize: 22,
+    fontSize: 20,
   },
   powerupCostBadge: {
     position: 'absolute',
-    bottom: -4,
-    right: -4,
+    bottom: -3,
+    right: -3,
     backgroundColor: '#FFD700',
-    borderRadius: 10,
-    paddingHorizontal: 5,
+    borderRadius: 8,
+    paddingHorizontal: 4,
     paddingVertical: 1,
     borderWidth: 1,
     borderColor: '#000',
   },
   powerupCostText: {
     color: '#000',
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '900',
+  },
+  powerupLabelText: {
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.5,
   },
   modalOverlay: {
     flex: 1,
