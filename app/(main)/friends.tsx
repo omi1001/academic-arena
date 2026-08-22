@@ -22,7 +22,7 @@ import { FriendlyBattleService } from '../../lib/friendlyBattleService';
 import { useAuthStore } from '../../stores/authStore';
 import { useUserStore } from '../../stores/userStore';
 import { useThemeStore } from '../../stores/themeStore';
-import { Friend, User, FriendlyRoom } from '../../types';
+import { Friend, User, FriendlyRoom, FriendRequest } from '../../types';
 import { Colors } from '../../constants/theme';
 import { soundManager } from '../../lib/soundManager';
 
@@ -34,6 +34,8 @@ export default function FriendsScreen() {
   const colors = getColors();
 
   const [friends, setFriends] = useState<Friend[]>([]);
+  const [pendingRequests, setPendingRequests] = useState<FriendRequest[]>([]);
+  const [sentRequestUids, setSentRequestUids] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Search state
@@ -53,14 +55,20 @@ export default function FriendsScreen() {
   const [joinRoomCode, setJoinRoomCode] = useState('');
   const [joiningLoading, setJoiningLoading] = useState(false);
 
-  const loadFriends = async () => {
+  const loadFriendsData = async () => {
     if (!firebaseUser) return;
     try {
       setLoading(true);
-      const list = await FriendService.getFriends(firebaseUser.uid);
+      const [list, pending, sent] = await Promise.all([
+        FriendService.getFriends(firebaseUser.uid),
+        FriendService.getPendingRequests(firebaseUser.uid),
+        FriendService.getSentRequestUids(firebaseUser.uid),
+      ]);
       setFriends(list);
+      setPendingRequests(pending);
+      setSentRequestUids(sent);
     } catch (e) {
-      console.warn('loadFriends error:', e);
+      console.warn('loadFriendsData error:', e);
     } finally {
       setLoading(false);
     }
@@ -68,7 +76,7 @@ export default function FriendsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      loadFriends();
+      loadFriendsData();
       soundManager.resumeBgm();
     }, [firebaseUser])
   );
@@ -93,22 +101,58 @@ export default function FriendsScreen() {
     }
   };
 
-  const handleAddFriend = async (target: User) => {
+  const handleSendFriendRequest = async (target: User) => {
     if (!firebaseUser) return;
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      await FriendService.addFriend(firebaseUser.uid, target);
-      Alert.alert('Friend Added! 🎉', `${target.name || 'Player'} has been added to your friend squad!`);
-      loadFriends();
-      setSearchQuery('');
-      setSearchResults([]);
+      const res = await FriendService.sendFriendRequest(
+        profile || { uid: firebaseUser.uid, name: firebaseUser.displayName || 'Player' },
+        target
+      );
+
+      if (res === 'already_friends') {
+        Alert.alert('Already Squad Friends! 🤝', `${target.name} is already in your friend squad.`);
+      } else if (res === 'already_requested') {
+        Alert.alert('Request Pending ⏳', `You already sent a friend request to ${target.name}.`);
+      } else if (res === 'sent') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        soundManager.playCorrect();
+        Alert.alert('Friend Request Sent! 📩', `Invitation sent to ${target.name || 'Player'}. When they accept, they will join your Squad!`);
+        setSentRequestUids((prev) => [...prev, target.uid]);
+      } else {
+        Alert.alert('Error', 'Could not send friend request.');
+      }
     } catch (e) {
-      Alert.alert('Error', 'Failed to add friend.');
+      Alert.alert('Error', 'Failed to send friend request.');
+    }
+  };
+
+  const handleAcceptRequest = async (request: FriendRequest) => {
+    if (!firebaseUser) return;
+    try {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      soundManager.playCorrect();
+      await FriendService.acceptFriendRequest(request, firebaseUser.uid);
+      Alert.alert('Friend Added! 🎉', `${request.senderName} is now in your Squad!`);
+      loadFriendsData();
+    } catch (e) {
+      Alert.alert('Error', 'Failed to accept request.');
+    }
+  };
+
+  const handleDeclineRequest = async (request: FriendRequest) => {
+    if (!firebaseUser) return;
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      await FriendService.declineFriendRequest(request, firebaseUser.uid);
+      loadFriendsData();
+    } catch (e) {
+      Alert.alert('Error', 'Failed to decline request.');
     }
   };
 
   const handleRemoveFriend = (friend: Friend) => {
-    Alert.alert('Remove Friend', `Remove ${friend.name} from your friends?`, [
+    Alert.alert('Remove Friend', `Remove ${friend.name} from your squad?`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Remove',
@@ -116,7 +160,7 @@ export default function FriendsScreen() {
         onPress: async () => {
           if (!firebaseUser) return;
           await FriendService.removeFriend(firebaseUser.uid, friend.uid);
-          loadFriends();
+          loadFriendsData();
         },
       },
     ]);
@@ -312,6 +356,7 @@ export default function FriendsScreen() {
           <View style={styles.resultsBox}>
             {searchResults.map((user) => {
               const isAlreadyFriend = friends.some((f) => f.uid === user.uid);
+              const isRequested = sentRequestUids.includes(user.uid);
               return (
                 <View
                   key={user.uid}
@@ -330,17 +375,71 @@ export default function FriendsScreen() {
                     <View style={styles.friendBadge}>
                       <Text style={styles.friendBadgeText}>✓ Friends</Text>
                     </View>
+                  ) : isRequested ? (
+                    <View style={[styles.friendBadge, { backgroundColor: 'rgba(255, 184, 0, 0.15)', borderColor: '#FFB800' }]}>
+                      <Text style={[styles.friendBadgeText, { color: '#FFB800' }]}>⏳ Requested</Text>
+                    </View>
                   ) : (
                     <BouncyButton
                       style={[styles.addBtn, { backgroundColor: colors.primary }]}
-                      onPress={() => handleAddFriend(user)}
+                      onPress={() => handleSendFriendRequest(user)}
                     >
-                      <Text style={styles.addBtnText}>➕ Add</Text>
+                      <Text style={styles.addBtnText}>➕ Add Friend</Text>
                     </BouncyButton>
                   )}
                 </View>
               );
             })}
+          </View>
+        )}
+
+        {/* ─── 🔔 Pending Friend Requests ─── */}
+        {pendingRequests.length > 0 && (
+          <View style={styles.pendingSection}>
+            <View style={styles.listHeaderRow}>
+              <Text style={[styles.sectionTitle, { color: '#FFB800', marginBottom: 0 }]}>
+                🔔 PENDING FRIEND REQUESTS ({pendingRequests.length})
+              </Text>
+            </View>
+
+            {pendingRequests.map((req) => (
+              <View
+                key={req.id}
+                style={[
+                  styles.pendingCard,
+                  { backgroundColor: colors.surface, borderColor: 'rgba(255, 184, 0, 0.4)' },
+                ]}
+              >
+                <View style={styles.pendingTopRow}>
+                  <View style={styles.userInfo}>
+                    <Text style={styles.userAvatar}>{req.senderAvatar || '🎓'}</Text>
+                    <View>
+                      <Text style={[styles.userName, { color: colors.text }]}>{req.senderName}</Text>
+                      <Text style={[styles.userHandle, { color: colors.primary }]}>{req.senderUsername}</Text>
+                      <Text style={[styles.userTag, { color: '#FFD700' }]}>
+                        {req.senderTag} • Class {req.senderClass} • {req.senderExp.toLocaleString()} EXP
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                <View style={styles.requestActionRow}>
+                  <TouchableOpacity
+                    style={[styles.reqDeclineBtn, { borderColor: colors.border }]}
+                    onPress={() => handleDeclineRequest(req)}
+                  >
+                    <Text style={[styles.reqDeclineText, { color: colors.textMuted }]}>✕ Decline</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.reqAcceptBtn, { backgroundColor: '#10B981' }]}
+                    onPress={() => handleAcceptRequest(req)}
+                  >
+                    <Text style={styles.reqAcceptText}>✓ Accept</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))}
           </View>
         )}
 
@@ -637,6 +736,47 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontWeight: 'bold',
     fontSize: 12,
+  },
+  pendingSection: {
+    marginBottom: 24,
+  },
+  pendingCard: {
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    marginBottom: 10,
+  },
+  pendingTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  requestActionRow: {
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'flex-end',
+  },
+  reqDeclineBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  reqDeclineText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  reqAcceptBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  reqAcceptText: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: '900',
   },
   listHeaderRow: {
     flexDirection: 'row',

@@ -127,3 +127,17 @@ export interface FriendlyRoom {
   status: 'waiting' | 'starting' | 'in_progress' | 'completed';
   createdAt: number;
 }
+
+export interface FriendRequest {
+  id: string;
+  senderUid: string;
+  senderName: string;
+  senderUsername: string;
+  senderTag: string;
+  senderAvatar: string;
+  senderClass: number;
+  senderExp: number;
+  recipientUid: string;
+  status: 'pending' | 'accepted' | 'declined';
+  createdAt: number;
+}
