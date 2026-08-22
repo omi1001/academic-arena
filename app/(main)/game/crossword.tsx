@@ -37,8 +37,10 @@ export default function CrosswordScreen() {
   const [letters, setLetters] = useState<string[]>([]);
   const [solvedWords, setSolvedWords] = useState<string[]>([]);
   const [revealedHints, setRevealedHints] = useState<Record<string, number[]>>({});
+  const [hintedCellKeys, setHintedCellKeys] = useState<string[]>([]);
   const [bonusWordsFound, setBonusWordsFound] = useState<string[]>([]);
   const [bonusExpTotal, setBonusExpTotal] = useState(0);
+  const [hintPoints, setHintPoints] = useState(5);
 
   // Victory Modal State
   const [victoryModalVisible, setVictoryModalVisible] = useState(false);
@@ -51,13 +53,18 @@ export default function CrosswordScreen() {
   const loadLevel = async () => {
     try {
       setLoading(true);
-      const currentLevelNum = await CrosswordService.getCurrentLevel();
+      const [currentLevelNum, currentHints] = await Promise.all([
+        CrosswordService.getCurrentLevel(),
+        CrosswordService.getHintPoints(),
+      ]);
       const level = await CrosswordService.getLevel(currentLevelNum);
 
       setLevelData(level);
       setLetters(level.letters);
+      setHintPoints(currentHints);
       setSolvedWords([]);
       setRevealedHints({});
+      setHintedCellKeys([]);
       setBonusWordsFound([]);
       setBonusExpTotal(0);
       setVictoryModalVisible(false);
@@ -91,7 +98,7 @@ export default function CrosswordScreen() {
 
   const handleWordSubmit = (word: string) => {
     if (!levelData) return;
-    const cleanWord = word.toUpperCase();
+    const cleanWord = word.trim().toUpperCase();
 
     // 1. Check if it is a target Grid Word
     if (levelData.gridWords.includes(cleanWord)) {
@@ -109,7 +116,7 @@ export default function CrosswordScreen() {
 
       // Check if all grid words are solved
       if (newSolved.length === levelData.gridWords.length) {
-        handleLevelComplete();
+        handleLevelComplete(newSolved);
       }
       return;
     }
@@ -125,6 +132,10 @@ export default function CrosswordScreen() {
       soundManager.playWoo();
       setBonusWordsFound((prev) => [...prev, cleanWord]);
       setBonusExpTotal((prev) => prev + 50);
+
+      // Award +1 Hint Point for finding a bonus anagram!
+      CrosswordService.addHintPoints(1).then((pts) => setHintPoints(pts));
+      Alert.alert('⭐ Bonus Word Found!', `You uncovered "${cleanWord}"!\n+50 EXP & +1 💡 Hint Point earned!`);
       return;
     }
 
@@ -133,21 +144,33 @@ export default function CrosswordScreen() {
     soundManager.playWrong();
   };
 
-  const handleUseHint = () => {
+  // 💡 Powerup 1: Single Letter Hint (Costs 1 Hint Point)
+  const handleUseHint = async () => {
     if (!levelData) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-    // Find first unsolved word and reveal its first unrevealed letter
-    for (const word of levelData.gridWords) {
-      if (!solvedWords.includes(word)) {
-        const revealed = revealedHints[word] || [];
-        for (let i = 0; i < word.length; i++) {
-          if (!revealed.includes(i)) {
-            setRevealedHints({
-              ...revealedHints,
-              [word]: [...revealed, i],
-            });
-            soundManager.playIGotThis();
+    if (hintPoints < 1) {
+      Alert.alert(
+        '💡 Out of Hint Points!',
+        'Find bonus words or complete puzzle levels to earn more 💡 Hint Points!'
+      );
+      return;
+    }
+
+    // Find first unrevealed cell in an unsolved word on the 2D grid
+    for (let r = 0; r < levelData.layout.rows; r++) {
+      for (let c = 0; c < levelData.layout.cols; c++) {
+        const cell = levelData.layout.grid[r][c];
+        if (cell) {
+          const isSolved = cell.words.some((w) => solvedWords.includes(w));
+          const isHinted = hintedCellKeys.includes(`${r},${c}`);
+          if (!isSolved && !isHinted) {
+            const { success, remaining } = await CrosswordService.spendHintPoints(1);
+            if (success) {
+              setHintPoints(remaining);
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              setHintedCellKeys((prev) => [...prev, `${r},${c}`]);
+              soundManager.playIGotThis();
+            }
             return;
           }
         }
@@ -155,15 +178,52 @@ export default function CrosswordScreen() {
     }
   };
 
-  const handleLevelComplete = async () => {
+  // ⚡ Powerup 2: Magic Wand (Reveals 1 entire unsolved word, Costs 3 Hint Points)
+  const handleMagicWand = async () => {
     if (!levelData) return;
-    const totalAward = 300 + bonusExpTotal;
+
+    if (hintPoints < 3) {
+      Alert.alert(
+        '⚡ Magic Wand Needs 3 💡 Hints',
+        `You have ${hintPoints} 💡 Hints. Find bonus words to get more!`
+      );
+      return;
+    }
+
+    for (const word of levelData.gridWords) {
+      if (!solvedWords.includes(word)) {
+        const { success, remaining } = await CrosswordService.spendHintPoints(3);
+        if (success) {
+          setHintPoints(remaining);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          soundManager.playCorrect();
+
+          const newSolved = [...solvedWords, word];
+          setSolvedWords(newSolved);
+
+          if (newSolved.length === levelData.gridWords.length) {
+            handleLevelComplete(newSolved);
+          }
+        }
+        return;
+      }
+    }
+  };
+
+  const handleLevelComplete = async (finalSolved: string[]) => {
+    if (!levelData) return;
+    const baseExp = levelData.isBonusLevel ? 600 : 300;
+    const totalAward = baseExp + bonusExpTotal;
+    const hintBonusAward = levelData.isBonusLevel ? 3 : 2;
+
     setExpEarned(totalAward);
     setVictoryModalVisible(true);
     soundManager.playVictory();
 
-    // Advance Level in background
+    // Advance Level and award hint points
     await CrosswordService.advanceLevel();
+    const updatedHints = await CrosswordService.addHintPoints(hintBonusAward);
+    setHintPoints(updatedHints);
 
     // Record completed run non-blocking
     QuestionService.recordRun({
@@ -172,11 +232,11 @@ export default function CrosswordScreen() {
       classNum: profile?.class || 10,
       subject: levelData.category,
       mode: 'crossword',
-      score: levelData.gridWords.length,
-      correctAnswers: levelData.gridWords.length,
-      questionsAnswered: levelData.gridWords.length,
+      score: finalSolved.length,
+      correctAnswers: finalSolved.length,
+      questionsAnswered: finalSolved.length,
       expEarned: totalAward,
-      maxStreak: levelData.gridWords.length,
+      maxStreak: finalSolved.length,
       highestDifficulty: 2,
       heartsRemaining: 3,
       status: 'completed',
@@ -202,6 +262,10 @@ export default function CrosswordScreen() {
     );
   }
 
+  // Compute adaptive cell size for true 2D crossword matrix
+  const maxDim = Math.max(levelData.layout.rows, levelData.layout.cols, 5);
+  const cellSize = Math.min(38, Math.max(26, Math.floor(290 / maxDim)));
+
   return (
     <ThemedBackground>
       <View style={styles.container}>
@@ -215,26 +279,39 @@ export default function CrosswordScreen() {
           </TouchableOpacity>
 
           <View style={styles.levelInfo}>
-            <Text style={styles.levelBadge}>LEVEL {levelData.level}</Text>
+            <Text style={[styles.levelBadge, levelData.isBonusLevel && { color: '#FFD700' }]}>
+              {levelData.isBonusLevel ? '⭐ BONUS LEVEL ' : 'LEVEL '}
+              {levelData.level}
+            </Text>
             <Text style={styles.categoryText}>🔬 {levelData.category.toUpperCase()}</Text>
           </View>
 
+          {/* Hint Points Currency Pill & Clue Button */}
           <View style={styles.headerActions}>
+            <View style={styles.hintCurrencyPill}>
+              <Text style={styles.hintCurrencyText}>💡 {hintPoints}</Text>
+            </View>
+
             <TouchableOpacity
               style={styles.clueBtn}
               onPress={() => setConceptModalVisible(true)}
             >
               <Text style={styles.clueIcon}>📖</Text>
             </TouchableOpacity>
-
-            <TouchableOpacity style={styles.hintBtn} onPress={handleUseHint}>
-              <Text style={styles.hintIcon}>💡</Text>
-            </TouchableOpacity>
           </View>
         </View>
 
+        {/* Bonus Level Banner */}
+        {levelData.isBonusLevel && (
+          <View style={styles.bonusLevelBanner}>
+            <Text style={styles.bonusLevelBannerText}>
+              🌟 GOLDEN VAULT: 2x EXP & +3 HINTS REWARD!
+            </Text>
+          </View>
+        )}
+
         {/* Bonus Words Banner */}
-        {bonusWordsFound.length > 0 && (
+        {bonusWordsFound.length > 0 && !levelData.isBonusLevel && (
           <View style={styles.bonusBanner}>
             <Text style={styles.bonusBannerText}>
               ⭐ {bonusWordsFound.length} BONUS WORDS FOUND (+{bonusExpTotal} EXP)
@@ -242,46 +319,73 @@ export default function CrosswordScreen() {
           </View>
         )}
 
-        {/* ─── Crossword Grid Board ─── */}
+        {/* ─── 2D Intersecting Crossword Matrix Board ─── */}
         <ScrollView
           style={styles.gridScrollView}
           contentContainerStyle={styles.gridContainer}
           showsVerticalScrollIndicator={false}
         >
-          {levelData.gridWords.map((word, wordIdx) => {
-            const isSolved = solvedWords.includes(word);
-            const revealedIndices = revealedHints[word] || [];
+          <View style={styles.matrixBoard}>
+            {levelData.layout.grid.map((row, rIdx) => (
+              <View key={`row_${rIdx}`} style={styles.matrixRow}>
+                {row.map((cell, cIdx) => {
+                  if (!cell) {
+                    return (
+                      <View
+                        key={`empty_${rIdx}_${cIdx}`}
+                        style={[styles.emptyCell, { width: cellSize, height: cellSize }]}
+                      />
+                    );
+                  }
 
-            return (
-              <View key={wordIdx} style={styles.wordRow}>
-                {word.split('').map((char, charIdx) => {
-                  const isLetterRevealed = isSolved || revealedIndices.includes(charIdx);
+                  const isCellSolved = cell.words.some((w) => solvedWords.includes(w));
+                  const isCellHinted = hintedCellKeys.includes(`${rIdx},${cIdx}`);
 
                   return (
                     <View
-                      key={charIdx}
+                      key={`cell_${rIdx}_${cIdx}`}
                       style={[
                         styles.cellBox,
-                        isSolved && styles.cellBoxSolved,
-                        !isSolved && isLetterRevealed && styles.cellBoxHinted,
+                        { width: cellSize, height: cellSize },
+                        isCellSolved && styles.cellBoxSolved,
+                        !isCellSolved && isCellHinted && styles.cellBoxHinted,
                       ]}
                     >
                       <Text
                         style={[
                           styles.cellLetter,
-                          isSolved && styles.cellLetterSolved,
-                          !isSolved && isLetterRevealed && styles.cellLetterHinted,
+                          { fontSize: Math.floor(cellSize * 0.54) },
+                          isCellSolved && styles.cellLetterSolved,
+                          !isCellSolved && isCellHinted && styles.cellLetterHinted,
                         ]}
                       >
-                        {isLetterRevealed ? char : ''}
+                        {isCellSolved || isCellHinted ? cell.char : ''}
                       </Text>
                     </View>
                   );
                 })}
               </View>
-            );
-          })}
+            ))}
+          </View>
         </ScrollView>
+
+        {/* ─── Powerups Action Row ─── */}
+        <View style={styles.powerupRow}>
+          <TouchableOpacity style={styles.powerupBtn} onPress={handleUseHint}>
+            <Text style={styles.powerupIcon}>💡</Text>
+            <Text style={styles.powerupLabel}>Hint (1)</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.powerupBtn} onPress={handleMagicWand}>
+            <Text style={styles.powerupIcon}>⚡</Text>
+            <Text style={styles.powerupLabel}>Wand (3)</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.powerupBtn} onPress={handleShuffle}>
+            <Text style={styles.powerupIcon}>🔀</Text>
+            <Text style={styles.powerupLabel}>Shuffle</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* ─── Circular Letter Wheel ─── */}
         <LetterWheel
@@ -313,12 +417,22 @@ export default function CrosswordScreen() {
           <View style={styles.modalOverlay}>
             <View style={[styles.modalBox, styles.victoryBox]}>
               <Text style={{ fontSize: 50, marginBottom: 6 }}>🏆</Text>
-              <Text style={styles.victoryTitle}>LEVEL {levelData.level} CLEARED!</Text>
+              <Text style={styles.victoryTitle}>
+                {levelData.isBonusLevel ? '⭐ BONUS LEVEL ' : 'LEVEL '}
+                {levelData.level} CLEARED!
+              </Text>
               <Text style={styles.victoryRootWord}>"{levelData.root}"</Text>
               <Text style={styles.victoryHint}>{levelData.hint}</Text>
 
-              <View style={styles.expBadge}>
-                <Text style={styles.expBadgeText}>+{expEarned} TOTAL EXP EARNED</Text>
+              <View style={styles.rewardBadgesRow}>
+                <View style={styles.expBadge}>
+                  <Text style={styles.expBadgeText}>+{expEarned} TOTAL EXP</Text>
+                </View>
+                <View style={styles.hintRewardBadge}>
+                  <Text style={styles.hintRewardBadgeText}>
+                    +{levelData.isBonusLevel ? 3 : 2} 💡 HINTS
+                  </Text>
+                </View>
               </View>
 
               <BouncyButton style={styles.nextLevelBtn} onPress={loadLevel}>
@@ -394,7 +508,21 @@ const styles = StyleSheet.create({
   },
   headerActions: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
+  },
+  hintCurrencyPill: {
+    backgroundColor: 'rgba(255, 215, 0, 0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#FFD700',
+  },
+  hintCurrencyText: {
+    color: '#FFD700',
+    fontSize: 12,
+    fontWeight: '900',
   },
   clueBtn: {
     width: 38,
@@ -409,18 +537,25 @@ const styles = StyleSheet.create({
   clueIcon: {
     fontSize: 16,
   },
-  hintBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(255, 215, 0, 0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
+  bonusLevelBanner: {
+    backgroundColor: 'rgba(255, 215, 0, 0.2)',
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    alignSelf: 'center',
+    marginBottom: 6,
+    borderWidth: 1.5,
     borderColor: '#FFD700',
+    shadowColor: '#FFD700',
+    shadowOpacity: 0.6,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  hintIcon: {
-    fontSize: 16,
+  bonusLevelBannerText: {
+    color: '#FFD700',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0.5,
   },
   bonusBanner: {
     backgroundColor: 'rgba(255, 215, 0, 0.15)',
@@ -437,6 +572,31 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '900',
   },
+  powerupRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 16,
+    marginBottom: 6,
+  },
+  powerupBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  powerupIcon: {
+    fontSize: 14,
+  },
+  powerupLabel: {
+    color: '#FFF',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
   gridScrollView: {
     flex: 1,
     maxHeight: 280,
@@ -445,19 +605,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 10,
-    gap: 8,
   },
-  wordRow: {
+  matrixBoard: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  matrixRow: {
     flexDirection: 'row',
-    gap: 6,
+    gap: 4,
+  },
+  emptyCell: {
+    backgroundColor: 'transparent',
   },
   cellBox: {
-    width: 36,
-    height: 36,
     borderRadius: 8,
     backgroundColor: '#161C30',
     borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: 'rgba(255, 255, 255, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -560,6 +725,11 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginBottom: 16,
   },
+  rewardBadgesRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 20,
+  },
   expBadge: {
     backgroundColor: 'rgba(0, 255, 163, 0.15)',
     paddingHorizontal: 16,
@@ -567,10 +737,22 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#00FFA3',
-    marginBottom: 20,
   },
   expBadgeText: {
     color: '#00FFA3',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  hintRewardBadge: {
+    backgroundColor: 'rgba(255, 215, 0, 0.15)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#FFD700',
+  },
+  hintRewardBadgeText: {
+    color: '#FFD700',
     fontSize: 12,
     fontWeight: '900',
   },

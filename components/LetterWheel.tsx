@@ -1,11 +1,10 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   PanResponder,
   TouchableOpacity,
-  Animated,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
@@ -16,9 +15,10 @@ interface LetterWheelProps {
   onShuffle: () => void;
 }
 
-const WHEEL_SIZE = 220;
-const RADIUS = 75;
-const LETTER_SIZE = 48;
+const WHEEL_SIZE = 240;
+const RADIUS = 82;
+const LETTER_SIZE = 52;
+const HIT_RADIUS = 38;
 
 export const LetterWheel: React.FC<LetterWheelProps> = ({
   letters,
@@ -26,12 +26,12 @@ export const LetterWheel: React.FC<LetterWheelProps> = ({
   onShuffle,
 }) => {
   const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
-  const wheelLayoutRef = useRef<{ x: number; y: number; width: number; height: number }>({
-    x: 0,
-    y: 0,
-    width: WHEEL_SIZE,
-    height: WHEEL_SIZE,
-  });
+  const wheelViewRef = useRef<View | null>(null);
+  const isDraggingRef = useRef<boolean>(false);
+  const selectedIndicesRef = useRef<number[]>([]);
+
+  // Wheel position on screen for accurate coordinate calculation
+  const wheelPageOffset = useRef<{ px: number; py: number }>({ px: 0, py: 0 });
 
   const currentWord = useMemo(() => {
     return selectedIndices.map((i) => letters[i] || '').join('');
@@ -49,82 +49,179 @@ export const LetterWheel: React.FC<LetterWheelProps> = ({
     });
   }, [letters]);
 
+  const updateWheelPosition = useCallback(() => {
+    if (wheelViewRef.current) {
+      wheelViewRef.current.measure((x, y, width, height, pageX, pageY) => {
+        if (pageX !== undefined && pageY !== undefined) {
+          wheelPageOffset.current = { px: pageX, py: pageY };
+        }
+      });
+    }
+  }, []);
+
+  const checkHit = (touchX: number, touchY: number) => {
+    for (let i = 0; i < nodePositions.length; i++) {
+      const pos = nodePositions[i];
+      const dist = Math.hypot(touchX - pos.x, touchY - pos.y);
+      if (dist <= HIT_RADIUS) {
+        if (!selectedIndicesRef.current.includes(i)) {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          const next = [...selectedIndicesRef.current, i];
+          selectedIndicesRef.current = next;
+          setSelectedIndices(next);
+        }
+        break;
+      }
+    }
+  };
+
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
       onPanResponderGrant: (evt) => {
-        const { locationX, locationY } = evt.nativeEvent;
-        checkHit(locationX, locationY, []);
+        isDraggingRef.current = true;
+        updateWheelPosition();
+        const { pageX, pageY, locationX, locationY } = evt.nativeEvent;
+
+        const touchX = wheelPageOffset.current.px
+          ? pageX - wheelPageOffset.current.px
+          : locationX;
+        const touchY = wheelPageOffset.current.py
+          ? pageY - wheelPageOffset.current.py
+          : locationY;
+
+        selectedIndicesRef.current = [];
+        setSelectedIndices([]);
+        checkHit(touchX, touchY);
       },
       onPanResponderMove: (evt) => {
-        const { locationX, locationY } = evt.nativeEvent;
-        setSelectedIndices((prev) => {
-          return checkHit(locationX, locationY, prev);
-        });
+        const { pageX, pageY } = evt.nativeEvent;
+        const touchX = pageX - wheelPageOffset.current.px;
+        const touchY = pageY - wheelPageOffset.current.py;
+        checkHit(touchX, touchY);
       },
       onPanResponderRelease: () => {
-        setSelectedIndices((finalIndices) => {
-          if (finalIndices.length > 0) {
-            const word = finalIndices.map((i) => letters[i] || '').join('');
-            if (word.length >= 2) {
-              onWordSubmit(word);
-            }
+        isDraggingRef.current = false;
+        const finalIndices = selectedIndicesRef.current;
+        if (finalIndices.length > 0) {
+          const word = finalIndices.map((i) => letters[i] || '').join('');
+          if (word.length >= 2) {
+            onWordSubmit(word);
           }
-          return [];
-        });
+        }
+        selectedIndicesRef.current = [];
+        setSelectedIndices([]);
       },
       onPanResponderTerminate: () => {
+        isDraggingRef.current = false;
+        selectedIndicesRef.current = [];
         setSelectedIndices([]);
       },
     })
   ).current;
 
-  const checkHit = (touchX: number, touchY: number, currentSelected: number[]): number[] => {
-    for (let i = 0; i < nodePositions.length; i++) {
-      const pos = nodePositions[i];
-      const dist = Math.hypot(touchX - pos.x, touchY - pos.y);
-      if (dist <= 30) {
-        if (!currentSelected.includes(i)) {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          return [...currentSelected, i];
-        }
-      }
+  // Tap on single letter support
+  const handleLetterPress = (index: number) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (selectedIndices.includes(index)) {
+      const next = selectedIndices.filter((i) => i !== index);
+      selectedIndicesRef.current = next;
+      setSelectedIndices(next);
+    } else {
+      const next = [...selectedIndices, index];
+      selectedIndicesRef.current = next;
+      setSelectedIndices(next);
     }
-    return currentSelected;
+  };
+
+  const handleManualSubmit = () => {
+    if (currentWord.length >= 2) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      onWordSubmit(currentWord);
+      selectedIndicesRef.current = [];
+      setSelectedIndices([]);
+    }
+  };
+
+  const handleClear = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    selectedIndicesRef.current = [];
+    setSelectedIndices([]);
   };
 
   return (
     <View style={styles.container}>
-      {/* Current Word Preview Capsule */}
+      {/* ─── Word Preview / Manual Actions ─── */}
       <View style={styles.previewContainer}>
         {currentWord ? (
-          <View style={styles.previewPill}>
-            <Text style={styles.previewText}>{currentWord}</Text>
+          <View style={styles.previewRow}>
+            <TouchableOpacity style={styles.clearBtn} onPress={handleClear} activeOpacity={0.7}>
+              <Text style={styles.clearBtnText}>✕</Text>
+            </TouchableOpacity>
+
+            <View style={styles.previewPill}>
+              <Text style={styles.previewText}>{currentWord}</Text>
+            </View>
+
+            <TouchableOpacity style={styles.submitBtn} onPress={handleManualSubmit} activeOpacity={0.7}>
+              <Text style={styles.submitBtnText}>✓</Text>
+            </TouchableOpacity>
           </View>
         ) : (
           <View style={styles.previewPlaceholder}>
-            <Text style={styles.placeholderText}>Swipe letters to form words</Text>
+            <Text style={styles.placeholderText}>Swipe or tap letters to spell</Text>
           </View>
         )}
       </View>
 
-      {/* Circular Letter Wheel */}
+      {/* ─── Circular Letter Wheel ─── */}
       <View
+        ref={wheelViewRef}
         style={styles.wheelBox}
-        onLayout={(e) => {
-          wheelLayoutRef.current = e.nativeEvent.layout;
+        onLayout={() => {
+          setTimeout(updateWheelPosition, 100);
         }}
         {...panResponder.panHandlers}
       >
-        {/* Wheel Background Disc */}
-        <View style={styles.wheelDisc} />
+        {/* Wheel Glowing Background Disc */}
+        <View style={styles.wheelDisc} pointerEvents="none" />
+
+        {/* Connecting Trace Lines */}
+        {selectedIndices.slice(0, -1).map((idx, i) => {
+          const nextIdx = selectedIndices[i + 1];
+          const p1 = nodePositions[idx];
+          const p2 = nodePositions[nextIdx];
+          if (!p1 || !p2) return null;
+
+          const dx = p2.x - p1.x;
+          const dy = p2.y - p1.y;
+          const len = Math.hypot(dx, dy);
+          const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+
+          return (
+            <View
+              key={`line_${idx}_${nextIdx}_${i}`}
+              style={[
+                styles.traceLine,
+                {
+                  left: p1.x,
+                  top: p1.y - 3,
+                  width: len,
+                  transform: [{ rotate: `${angle}deg` }],
+                },
+              ]}
+              pointerEvents="none"
+            />
+          );
+        })}
 
         {/* Central Shuffle Button */}
         <TouchableOpacity
           style={styles.shuffleBtn}
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            handleClear();
             onShuffle();
           }}
           activeOpacity={0.7}
@@ -138,7 +235,7 @@ export const LetterWheel: React.FC<LetterWheelProps> = ({
           const letter = letters[idx];
 
           return (
-            <View
+            <TouchableOpacity
               key={idx}
               style={[
                 styles.letterNode,
@@ -148,13 +245,14 @@ export const LetterWheel: React.FC<LetterWheelProps> = ({
                 },
                 isSelected && styles.letterNodeSelected,
               ]}
-              pointerEvents="none"
+              onPress={() => handleLetterPress(idx)}
+              activeOpacity={0.8}
             >
               <LinearGradient
                 colors={
                   isSelected
                     ? ['#00F0FF', '#7928CA']
-                    : ['#1E2640', '#121829']
+                    : ['#222B48', '#141A2E']
                 }
                 style={styles.letterGradient}
               >
@@ -167,7 +265,7 @@ export const LetterWheel: React.FC<LetterWheelProps> = ({
                   {letter}
                 </Text>
               </LinearGradient>
-            </View>
+            </TouchableOpacity>
           );
         })}
       </View>
@@ -182,16 +280,21 @@ const styles = StyleSheet.create({
     marginVertical: 10,
   },
   previewContainer: {
-    height: 44,
+    height: 48,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
+  },
+  previewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   previewPill: {
     backgroundColor: '#00F0FF',
-    paddingHorizontal: 24,
-    paddingVertical: 8,
-    borderRadius: 22,
+    paddingHorizontal: 22,
+    paddingVertical: 7,
+    borderRadius: 20,
     shadowColor: '#00F0FF',
     shadowOpacity: 0.8,
     shadowRadius: 10,
@@ -201,14 +304,46 @@ const styles = StyleSheet.create({
     color: '#0A0E1A',
     fontSize: 20,
     fontWeight: '900',
-    letterSpacing: 4,
+    letterSpacing: 3,
+  },
+  clearBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  clearBtnText: {
+    color: '#FFF',
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  submitBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#10B981',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#10B981',
+    shadowOpacity: 0.8,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  submitBtnText: {
+    color: '#FFF',
+    fontSize: 15,
+    fontWeight: 'bold',
   },
   previewPlaceholder: {
     paddingHorizontal: 16,
     paddingVertical: 6,
   },
   placeholderText: {
-    color: 'rgba(255, 255, 255, 0.4)',
+    color: 'rgba(255, 255, 255, 0.45)',
     fontSize: 12,
     fontWeight: 'bold',
   },
@@ -224,26 +359,36 @@ const styles = StyleSheet.create({
     width: WHEEL_SIZE,
     height: WHEEL_SIZE,
     borderRadius: WHEEL_SIZE / 2,
-    backgroundColor: 'rgba(18, 24, 41, 0.85)',
+    backgroundColor: 'rgba(15, 20, 36, 0.88)',
     borderWidth: 2,
     borderColor: 'rgba(0, 240, 255, 0.25)',
     shadowColor: '#00F0FF',
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.25,
     shadowRadius: 16,
   },
+  traceLine: {
+    position: 'absolute',
+    height: 6,
+    backgroundColor: '#00F0FF',
+    borderRadius: 3,
+    shadowColor: '#00F0FF',
+    shadowOpacity: 0.9,
+    shadowRadius: 6,
+    elevation: 6,
+  },
   shuffleBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 10,
+    zIndex: 20,
   },
   shuffleIcon: {
-    fontSize: 18,
+    fontSize: 20,
   },
   letterNode: {
     position: 'absolute',
@@ -252,11 +397,12 @@ const styles = StyleSheet.create({
     borderRadius: LETTER_SIZE / 2,
     overflow: 'hidden',
     borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    zIndex: 10,
   },
   letterNodeSelected: {
     borderColor: '#00F0FF',
-    transform: [{ scale: 1.15 }],
+    transform: [{ scale: 1.12 }],
     shadowColor: '#00F0FF',
     shadowOpacity: 0.9,
     shadowRadius: 10,
@@ -269,7 +415,7 @@ const styles = StyleSheet.create({
   },
   letterText: {
     color: '#FFF',
-    fontSize: 20,
+    fontSize: 21,
     fontWeight: '900',
   },
   letterTextSelected: {
