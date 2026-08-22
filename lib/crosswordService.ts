@@ -272,6 +272,10 @@ export class CrosswordService {
     const candidateWords = pack.gridWords;
     const layout = this.generateCrosswordLayout(candidateWords);
 
+    // Any word from pack.gridWords not placed on the 2D grid becomes an accepted bonus word!
+    const unplacedWords = pack.gridWords.filter((w) => !layout.targetWords.includes(w));
+    const mergedBonusWords = Array.from(new Set([...pack.bonusWords, ...unplacedWords]));
+
     return {
       level: levelNumber,
       packId: pack.id,
@@ -280,7 +284,7 @@ export class CrosswordService {
       hint: pack.hint,
       letters: shuffledLetters,
       gridWords: layout.targetWords,
-      bonusWords: pack.bonusWords,
+      bonusWords: mergedBonusWords,
       isBonusLevel,
       layout,
     };

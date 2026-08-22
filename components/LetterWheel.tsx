@@ -29,6 +29,8 @@ export const LetterWheel: React.FC<LetterWheelProps> = ({
   const wheelViewRef = useRef<View | null>(null);
   const isDraggingRef = useRef<boolean>(false);
   const selectedIndicesRef = useRef<number[]>([]);
+  const onWordSubmitRef = useRef(onWordSubmit);
+  onWordSubmitRef.current = onWordSubmit;
 
   // Wheel position on screen for accurate coordinate calculation
   const wheelPageOffset = useRef<{ px: number; py: number }>({ px: 0, py: 0 });
@@ -96,9 +98,14 @@ export const LetterWheel: React.FC<LetterWheelProps> = ({
         checkHit(touchX, touchY);
       },
       onPanResponderMove: (evt) => {
-        const { pageX, pageY } = evt.nativeEvent;
-        const touchX = pageX - wheelPageOffset.current.px;
-        const touchY = pageY - wheelPageOffset.current.py;
+        const { pageX, pageY, locationX, locationY } = evt.nativeEvent;
+        const touchX = wheelPageOffset.current.px
+          ? pageX - wheelPageOffset.current.px
+          : locationX;
+        const touchY = wheelPageOffset.current.py
+          ? pageY - wheelPageOffset.current.py
+          : locationY;
+
         checkHit(touchX, touchY);
       },
       onPanResponderRelease: () => {
@@ -107,7 +114,7 @@ export const LetterWheel: React.FC<LetterWheelProps> = ({
         if (finalIndices.length > 0) {
           const word = finalIndices.map((i) => letters[i] || '').join('');
           if (word.length >= 2) {
-            onWordSubmit(word);
+            onWordSubmitRef.current(word);
           }
         }
         selectedIndicesRef.current = [];
@@ -138,7 +145,7 @@ export const LetterWheel: React.FC<LetterWheelProps> = ({
   const handleManualSubmit = () => {
     if (currentWord.length >= 2) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      onWordSubmit(currentWord);
+      onWordSubmitRef.current(currentWord);
       selectedIndicesRef.current = [];
       setSelectedIndices([]);
     }
@@ -184,37 +191,8 @@ export const LetterWheel: React.FC<LetterWheelProps> = ({
         }}
         {...panResponder.panHandlers}
       >
-        {/* Wheel Glowing Background Disc */}
+        {/* Wheel Background Disc */}
         <View style={styles.wheelDisc} pointerEvents="none" />
-
-        {/* Connecting Trace Lines */}
-        {selectedIndices.slice(0, -1).map((idx, i) => {
-          const nextIdx = selectedIndices[i + 1];
-          const p1 = nodePositions[idx];
-          const p2 = nodePositions[nextIdx];
-          if (!p1 || !p2) return null;
-
-          const dx = p2.x - p1.x;
-          const dy = p2.y - p1.y;
-          const len = Math.hypot(dx, dy);
-          const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
-
-          return (
-            <View
-              key={`line_${idx}_${nextIdx}_${i}`}
-              style={[
-                styles.traceLine,
-                {
-                  left: p1.x,
-                  top: p1.y - 3,
-                  width: len,
-                  transform: [{ rotate: `${angle}deg` }],
-                },
-              ]}
-              pointerEvents="none"
-            />
-          );
-        })}
 
         {/* Central Shuffle Button */}
         <TouchableOpacity
@@ -277,13 +255,12 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginVertical: 10,
   },
   previewContainer: {
-    height: 48,
+    height: 44,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   previewRow: {
     flexDirection: 'row',
@@ -365,16 +342,6 @@ const styles = StyleSheet.create({
     shadowColor: '#00F0FF',
     shadowOpacity: 0.25,
     shadowRadius: 16,
-  },
-  traceLine: {
-    position: 'absolute',
-    height: 6,
-    backgroundColor: '#00F0FF',
-    borderRadius: 3,
-    shadowColor: '#00F0FF',
-    shadowOpacity: 0.9,
-    shadowRadius: 6,
-    elevation: 6,
   },
   shuffleBtn: {
     width: 46,

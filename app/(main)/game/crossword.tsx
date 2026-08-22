@@ -102,40 +102,40 @@ export default function CrosswordScreen() {
 
     // 1. Check if it is a target Grid Word
     if (levelData.gridWords.includes(cleanWord)) {
-      if (solvedWords.includes(cleanWord)) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-        return;
-      }
+      setSolvedWords((prev) => {
+        if (prev.includes(cleanWord)) {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          return prev;
+        }
 
-      // Solved new grid word!
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      soundManager.playCorrect();
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        soundManager.playCorrect();
+        const next = [...prev, cleanWord];
 
-      const newSolved = [...solvedWords, cleanWord];
-      setSolvedWords(newSolved);
-
-      // Check if all grid words are solved
-      if (newSolved.length === levelData.gridWords.length) {
-        handleLevelComplete(newSolved);
-      }
+        if (next.length === levelData.gridWords.length) {
+          handleLevelComplete(next);
+        }
+        return next;
+      });
       return;
     }
 
     // 2. Check if it is a Bonus Word
     if (levelData.bonusWords.includes(cleanWord)) {
-      if (bonusWordsFound.includes(cleanWord)) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-        return;
-      }
+      setBonusWordsFound((prev) => {
+        if (prev.includes(cleanWord)) {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          return prev;
+        }
 
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      soundManager.playWoo();
-      setBonusWordsFound((prev) => [...prev, cleanWord]);
-      setBonusExpTotal((prev) => prev + 50);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        soundManager.playWoo();
+        setBonusExpTotal((e) => e + 50);
 
-      // Award +1 Hint Point for finding a bonus anagram!
-      CrosswordService.addHintPoints(1).then((pts) => setHintPoints(pts));
-      Alert.alert('⭐ Bonus Word Found!', `You uncovered "${cleanWord}"!\n+50 EXP & +1 💡 Hint Point earned!`);
+        CrosswordService.addHintPoints(1).then((pts) => setHintPoints(pts));
+        Alert.alert('⭐ Bonus Word Found!', `You uncovered "${cleanWord}"!\n+50 EXP & +1 💡 Hint Point earned!`);
+        return [...prev, cleanWord];
+      });
       return;
     }
 
@@ -198,12 +198,14 @@ export default function CrosswordScreen() {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           soundManager.playCorrect();
 
-          const newSolved = [...solvedWords, word];
-          setSolvedWords(newSolved);
-
-          if (newSolved.length === levelData.gridWords.length) {
-            handleLevelComplete(newSolved);
-          }
+          setSolvedWords((prev) => {
+            if (prev.includes(word)) return prev;
+            const next = [...prev, word];
+            if (next.length === levelData.gridWords.length) {
+              handleLevelComplete(next);
+            }
+            return next;
+          });
         }
         return;
       }
@@ -269,7 +271,7 @@ export default function CrosswordScreen() {
   return (
     <ThemedBackground>
       <View style={styles.container}>
-        {/* ─── Header HUD ─── */}
+        {/* ─── Header HUD (Words of Wonders Style) ─── */}
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backBtn}
@@ -286,7 +288,7 @@ export default function CrosswordScreen() {
             <Text style={styles.categoryText}>🔬 {levelData.category.toUpperCase()}</Text>
           </View>
 
-          {/* Hint Points Currency Pill & Clue Button */}
+          {/* Hint Currency & Clue Button */}
           <View style={styles.headerActions}>
             <View style={styles.hintCurrencyPill}>
               <Text style={styles.hintCurrencyText}>💡 {hintPoints}</Text>
@@ -310,7 +312,7 @@ export default function CrosswordScreen() {
           </View>
         )}
 
-        {/* Bonus Words Banner */}
+        {/* Bonus Words Found Counter */}
         {bonusWordsFound.length > 0 && !levelData.isBonusLevel && (
           <View style={styles.bonusBanner}>
             <Text style={styles.bonusBannerText}>
@@ -319,80 +321,84 @@ export default function CrosswordScreen() {
           </View>
         )}
 
-        {/* ─── 2D Intersecting Crossword Matrix Board ─── */}
-        <ScrollView
-          style={styles.gridScrollView}
-          contentContainerStyle={styles.gridContainer}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.matrixBoard}>
-            {levelData.layout.grid.map((row, rIdx) => (
-              <View key={`row_${rIdx}`} style={styles.matrixRow}>
-                {row.map((cell, cIdx) => {
-                  if (!cell) {
+        {/* ─── 2D Intersecting Crossword Board Area (Spacious & Centered) ─── */}
+        <View style={styles.gridBoardWrapper}>
+          <ScrollView
+            contentContainerStyle={styles.gridContentContainer}
+            showsVerticalScrollIndicator={false}
+            bounces={false}
+          >
+            <View style={styles.matrixBoard}>
+              {levelData.layout.grid.map((row, rIdx) => (
+                <View key={`row_${rIdx}`} style={styles.matrixRow}>
+                  {row.map((cell, cIdx) => {
+                    if (!cell) {
+                      return (
+                        <View
+                          key={`empty_${rIdx}_${cIdx}`}
+                          style={[styles.emptyCell, { width: cellSize, height: cellSize }]}
+                        />
+                      );
+                    }
+
+                    const isCellSolved = cell.words.some((w) => solvedWords.includes(w));
+                    const isCellHinted = hintedCellKeys.includes(`${rIdx},${cIdx}`);
+
                     return (
                       <View
-                        key={`empty_${rIdx}_${cIdx}`}
-                        style={[styles.emptyCell, { width: cellSize, height: cellSize }]}
-                      />
-                    );
-                  }
-
-                  const isCellSolved = cell.words.some((w) => solvedWords.includes(w));
-                  const isCellHinted = hintedCellKeys.includes(`${rIdx},${cIdx}`);
-
-                  return (
-                    <View
-                      key={`cell_${rIdx}_${cIdx}`}
-                      style={[
-                        styles.cellBox,
-                        { width: cellSize, height: cellSize },
-                        isCellSolved && styles.cellBoxSolved,
-                        !isCellSolved && isCellHinted && styles.cellBoxHinted,
-                      ]}
-                    >
-                      <Text
+                        key={`cell_${rIdx}_${cIdx}`}
                         style={[
-                          styles.cellLetter,
-                          { fontSize: Math.floor(cellSize * 0.54) },
-                          isCellSolved && styles.cellLetterSolved,
-                          !isCellSolved && isCellHinted && styles.cellLetterHinted,
+                          styles.cellBox,
+                          { width: cellSize, height: cellSize },
+                          isCellSolved && styles.cellBoxSolved,
+                          !isCellSolved && isCellHinted && styles.cellBoxHinted,
                         ]}
                       >
-                        {isCellSolved || isCellHinted ? cell.char : ''}
-                      </Text>
-                    </View>
-                  );
-                })}
-              </View>
-            ))}
-          </View>
-        </ScrollView>
-
-        {/* ─── Powerups Action Row ─── */}
-        <View style={styles.powerupRow}>
-          <TouchableOpacity style={styles.powerupBtn} onPress={handleUseHint}>
-            <Text style={styles.powerupIcon}>💡</Text>
-            <Text style={styles.powerupLabel}>Hint (1)</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.powerupBtn} onPress={handleMagicWand}>
-            <Text style={styles.powerupIcon}>⚡</Text>
-            <Text style={styles.powerupLabel}>Wand (3)</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.powerupBtn} onPress={handleShuffle}>
-            <Text style={styles.powerupIcon}>🔀</Text>
-            <Text style={styles.powerupLabel}>Shuffle</Text>
-          </TouchableOpacity>
+                        <Text
+                          style={[
+                            styles.cellLetter,
+                            { fontSize: Math.floor(cellSize * 0.54) },
+                            isCellSolved && styles.cellLetterSolved,
+                            !isCellSolved && isCellHinted && styles.cellLetterHinted,
+                          ]}
+                        >
+                          {isCellSolved || isCellHinted ? cell.char : ''}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              ))}
+            </View>
+          </ScrollView>
         </View>
 
-        {/* ─── Circular Letter Wheel ─── */}
-        <LetterWheel
-          letters={letters}
-          onWordSubmit={handleWordSubmit}
-          onShuffle={handleShuffle}
-        />
+        {/* ─── Bottom Area: Side Powerups + Letter Circle ─── */}
+        <View style={styles.bottomArea}>
+          <View style={styles.sidePowerupCol}>
+            <TouchableOpacity style={styles.powerupCircle} onPress={handleUseHint} activeOpacity={0.8}>
+              <Text style={styles.powerupCircleIcon}>💡</Text>
+              <View style={styles.powerupCostBadge}>
+                <Text style={styles.powerupCostText}>1</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+
+          <LetterWheel
+            letters={letters}
+            onWordSubmit={handleWordSubmit}
+            onShuffle={handleShuffle}
+          />
+
+          <View style={styles.sidePowerupCol}>
+            <TouchableOpacity style={styles.powerupCircle} onPress={handleMagicWand} activeOpacity={0.8}>
+              <Text style={styles.powerupCircleIcon}>⚡</Text>
+              <View style={styles.powerupCostBadge}>
+                <Text style={styles.powerupCostText}>3</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        </View>
 
         {/* ─── Concept Clue Modal ─── */}
         <Modal visible={conceptModalVisible} transparent animationType="fade">
@@ -456,9 +462,9 @@ export default function CrosswordScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 48,
-    paddingHorizontal: 16,
-    paddingBottom: 20,
+    paddingTop: 44,
+    paddingHorizontal: 12,
+    paddingBottom: 8,
     justifyContent: 'space-between',
   },
   loadingContainer: {
@@ -476,7 +482,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   backBtn: {
     width: 38,
@@ -539,11 +545,11 @@ const styles = StyleSheet.create({
   },
   bonusLevelBanner: {
     backgroundColor: 'rgba(255, 215, 0, 0.2)',
-    paddingVertical: 7,
+    paddingVertical: 6,
     paddingHorizontal: 14,
     borderRadius: 12,
     alignSelf: 'center',
-    marginBottom: 6,
+    marginBottom: 4,
     borderWidth: 1.5,
     borderColor: '#FFD700',
     shadowColor: '#FFD700',
@@ -559,11 +565,11 @@ const styles = StyleSheet.create({
   },
   bonusBanner: {
     backgroundColor: 'rgba(255, 215, 0, 0.15)',
-    paddingVertical: 6,
+    paddingVertical: 4,
     paddingHorizontal: 12,
     borderRadius: 12,
     alignSelf: 'center',
-    marginBottom: 6,
+    marginBottom: 4,
     borderWidth: 1,
     borderColor: '#FFD700',
   },
@@ -572,74 +578,56 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '900',
   },
-  powerupRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 16,
-    marginBottom: 6,
-  },
-  powerupBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-  },
-  powerupIcon: {
-    fontSize: 14,
-  },
-  powerupLabel: {
-    color: '#FFF',
-    fontSize: 11,
-    fontWeight: 'bold',
-  },
-  gridScrollView: {
+  gridBoardWrapper: {
     flex: 1,
-    maxHeight: 280,
-  },
-  gridContainer: {
-    alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
+    alignItems: 'center',
+    marginVertical: 4,
+  },
+  gridContentContainer: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   matrixBoard: {
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    gap: 3,
   },
   matrixRow: {
     flexDirection: 'row',
-    gap: 4,
+    gap: 3,
   },
   emptyCell: {
     backgroundColor: 'transparent',
   },
   cellBox: {
-    borderRadius: 8,
-    backgroundColor: '#161C30',
+    borderRadius: 6,
+    backgroundColor: 'rgba(22, 30, 52, 0.92)',
     borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 3,
   },
   cellBoxSolved: {
-    backgroundColor: '#00FFA3',
-    borderColor: '#00FFA3',
-    shadowColor: '#00FFA3',
-    shadowOpacity: 0.6,
+    backgroundColor: '#00F0FF',
+    borderColor: '#FFF',
+    borderWidth: 1.5,
+    shadowColor: '#00F0FF',
+    shadowOpacity: 0.9,
     shadowRadius: 8,
-    elevation: 4,
+    elevation: 6,
   },
   cellBoxHinted: {
-    backgroundColor: 'rgba(255, 215, 0, 0.2)',
+    backgroundColor: 'rgba(255, 215, 0, 0.28)',
     borderColor: '#FFD700',
+    borderWidth: 1.5,
   },
   cellLetter: {
-    fontSize: 17,
     fontWeight: '900',
     color: '#FFF',
   },
@@ -648,6 +636,48 @@ const styles = StyleSheet.create({
   },
   cellLetterHinted: {
     color: '#FFD700',
+  },
+  bottomArea: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  sidePowerupCol: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 50,
+  },
+  powerupCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  powerupCircleIcon: {
+    fontSize: 22,
+  },
+  powerupCostBadge: {
+    position: 'absolute',
+    bottom: -4,
+    right: -4,
+    backgroundColor: '#FFD700',
+    borderRadius: 10,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderWidth: 1,
+    borderColor: '#000',
+  },
+  powerupCostText: {
+    color: '#000',
+    fontSize: 10,
+    fontWeight: '900',
   },
   modalOverlay: {
     flex: 1,
