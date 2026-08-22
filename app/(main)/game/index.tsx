@@ -7,6 +7,7 @@ import { MAX_HEARTS, LEADERBOARD_TIERS } from '../../../constants/config';
 import { BouncyButton } from '../../../components/BouncyButton';
 import { ThemedBackground } from '../../../components/ThemedBackground';
 import { useUserStore } from '../../../stores/userStore';
+import { useAuthStore } from '../../../stores/authStore';
 import { useThemeStore } from '../../../stores/themeStore';
 import api from '../../../lib/api';
 
@@ -18,6 +19,7 @@ interface PacketInfo {
 
 export default function GameSetupScreen() {
   const router = useRouter();
+  const { firebaseUser } = useAuthStore();
   const { class: classStr, subject, mode: routeMode } = useLocalSearchParams<{
     class: string;
     subject: string;
@@ -25,7 +27,11 @@ export default function GameSetupScreen() {
   }>();
 
   const { profile } = useUserStore();
-  const isAdmin = profile?.role === 'admin';
+  const isAdmin =
+    profile?.role === 'admin' ||
+    firebaseUser?.email?.toLowerCase().includes('admin') ||
+    profile?.email?.toLowerCase().includes('admin') ||
+    profile?.username?.toLowerCase().includes('admin');
   const playerExp = profile?.totalEXP || 0;
   const isSilverUnlocked = isAdmin || playerExp >= LEADERBOARD_TIERS.SILVER.minEXP;
 

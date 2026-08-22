@@ -164,7 +164,11 @@ export default function DashboardScreen() {
     return LEADERBOARD_TIERS.BRONZE;
   };
 
-  const isAdmin = profile?.role === 'admin';
+  const isAdmin =
+    profile?.role === 'admin' ||
+    firebaseUser?.email?.toLowerCase().includes('admin') ||
+    profile?.email?.toLowerCase().includes('admin') ||
+    profile?.username?.toLowerCase().includes('admin');
   const isSilverUnlocked = isAdmin || (profile?.totalEXP || 0) >= LEADERBOARD_TIERS.SILVER.minEXP;
   const isCrosswordUnlocked = isAdmin || (profile?.totalEXP || 0) >= 15000;
 

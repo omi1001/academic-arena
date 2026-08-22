@@ -92,8 +92,8 @@ export const SupabaseService = {
         highestDifficulty: 1,
         challengeWins: data.challenge_wins || 0,
         challengeLosses: data.challenge_losses || 0,
-        challengeGamesPlayed: data.challenge_games_played || 0,
         highestChallengeDifficulty: data.highest_challenge_difficulty || 1,
+        role: data.role || (data.email?.toLowerCase().includes('admin') ? 'admin' : 'user'),
         avatar: data.avatar || '👤',
         upiId: data.upi_id || '',
         createdAt: data.created_at,
@@ -128,6 +128,7 @@ export const SupabaseService = {
       if (profile.challengeWins !== undefined) payload.challenge_wins = profile.challengeWins;
       if (profile.challengeLosses !== undefined) payload.challenge_losses = profile.challengeLosses;
       if (profile.challengeGamesPlayed !== undefined) payload.challenge_games_played = profile.challengeGamesPlayed;
+      if (profile.role) payload.role = profile.role;
       if (profile.highestChallengeDifficulty !== undefined) payload.highest_challenge_difficulty = profile.highestChallengeDifficulty;
 
       const { data: existingUser } = await supabase
@@ -170,6 +171,7 @@ export const SupabaseService = {
           challenge_losses: profile.challengeLosses || 0,
           challenge_games_played: profile.challengeGamesPlayed || 0,
           highest_challenge_difficulty: profile.highestChallengeDifficulty || 1,
+          role: profile.role || (profile.email?.toLowerCase().includes('admin') ? 'admin' : 'user'),
           theme_preset: 'cosmic_lofi',
           theme_mode: 'dark',
           ...payload,
@@ -207,6 +209,7 @@ export const SupabaseService = {
         challengeLosses: resultData.challenge_losses || 0,
         challengeGamesPlayed: resultData.challenge_games_played || 0,
         highestChallengeDifficulty: resultData.highest_challenge_difficulty || 1,
+        role: resultData.role || (resultData.email?.toLowerCase().includes('admin') ? 'admin' : 'user'),
         avatar: resultData.avatar || '👤',
         upiId: resultData.upi_id || '',
         createdAt: resultData.created_at,
